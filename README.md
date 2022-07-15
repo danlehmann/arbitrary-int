@@ -18,7 +18,7 @@ Standard operators are all overloaded, so it is possible to perform calculations
 
 Internally, u9 will hold its data in an u16. It is possible to get this value:
 
-`let value9 = u9::new(30).value();
+`let value9 = u9::new(30).value();`
 
 ## Underlying data type
 This crate defines types u1, u2, .., u126, u127 (obviously skipping the normal u8, u16, u32, u64, u128). Each of those types holds its actual data in the next larger data type (e.g. a u14 internally has an u16, a u120 internally has an u128). However, uXX are just type aliases; it is also possible to use the actual underlying generic struct:
