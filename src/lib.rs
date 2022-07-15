@@ -68,7 +68,7 @@ macro_rules! uint_impl {
 
             /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
             /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-            pub fn extract(value: $type, start_bit: usize) -> Self {
+            pub const fn extract(value: $type, start_bit: usize) -> Self {
                 assert!(start_bit + NUM_BITS <= $size);
                 // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
                 let _ = Self::MAX;
