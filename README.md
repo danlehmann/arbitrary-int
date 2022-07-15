@@ -37,4 +37,5 @@ This is a pretty common operation, but it's easy to get it wrong: The number of 
 `let a = UInt::<u32, 6>::extract(data, 4);`
 
 This will result in an UInt::<u32, 6>. If desired, this can be reduced to a u6 (represented by a u8) like this:
+
 `let a: u6 = UInt::<u32, 6>::extract(data, 4).into();`
