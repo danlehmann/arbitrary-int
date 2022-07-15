@@ -3,6 +3,21 @@ extern crate core;
 use arbitrary_int::{u10, u11, u120, u127, u13, u14, u15, u17, u20, u23, u24, u30, u31, u4, u5, u6, u60, u61, u63, u67, u7, u80, u9, UInt};
 
 #[test]
+#[ignore]
+fn type_alias_codegen() {
+    // This is not actually a test but a codegen for the alias definitions
+    let mut base = 8;
+    for i in 1..128 {
+        if i == base {
+            base *= 2;
+            println!();
+        } else {
+            println!("type_alias!({}, u{}, u{});", i, i, base);
+        }
+    }
+}
+
+#[test]
 fn create_simple() {
     let value7 = u7::new(123);
     let value13 = u13::new(123);
@@ -224,6 +239,7 @@ fn extract() {
 
     // Use extract with a custom type (5 bits of u32)
     assert_eq!(UInt::<u32, 5>::new(0b11110), UInt::<u32, 5>::extract(0b11110000, 3));
+    assert_eq!(u5::new(0b11110), UInt::<u32, 5>::extract(0b11110000, 3).into());
 }
 
 #[test]
