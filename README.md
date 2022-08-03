@@ -5,7 +5,7 @@ This crate implements arbitrary numbers for Rust. Once included, you can use typ
 ## Why yet another arbitrary integer crate?
 There are quite a few similar crates to this one (the most famous being https://crates.io/crates/ux). After trying out a few of them I just realized that they are all very heavy: They create a ton of classes and take seconds to compile.
 
-This crate is designed to be very short, using constant generics and only using light macro use. Also, most of its functions are const, so that they can be used in const contexts.
+This crate is designed to be very short, using constant generics and only using macros lightly. Additionally, most of its functions are const, so that they can be used in const contexts.
 
 ## How to use
 Unlike primitive data types like u32, there is no intrinsic syntax (Rust does not allow that). An instance is created as follows:
