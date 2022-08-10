@@ -1,6 +1,6 @@
 extern crate core;
 
-use arbitrary_int::{u10, u11, u120, u127, u13, u14, u15, u17, u20, u23, u24, u30, u31, u4, u5, u6, u60, u61, u63, u67, u7, u80, u9, UInt};
+use arbitrary_int::{u10, u11, u120, u127, u13, u14, u15, u17, u20, u23, u24, u30, u31, u38, u4, u5, u6, u60, u61, u63, u65, u67, u7, u80, u9, UInt};
 
 #[test]
 #[ignore]
@@ -312,4 +312,34 @@ fn widen() {
     assert_eq!(u20::new(0b11011).widen::<24>(), u24::new(0b11011));
     assert_eq!(u60::new(0b11011).widen::<61>(), u61::new(0b11011));
     assert_eq!(u80::new(0b11011).widen::<127>().value(), 0b11011);
+}
+
+#[test]
+fn to_string() {
+    assert_eq!("Value: 5", format!("Value: {}", 5u32.to_string()));
+    assert_eq!("Value: 5", format!("Value: {}", u5::new(5).to_string()));
+    assert_eq!("Value: 5", format!("Value: {}", u11::new(5).to_string()));
+    assert_eq!("Value: 5", format!("Value: {}", u17::new(5).to_string()));
+    assert_eq!("Value: 5", format!("Value: {}", u38::new(5).to_string()));
+    assert_eq!("Value: 60", format!("Value: {}", u65::new(60).to_string()));
+}
+
+#[test]
+fn display() {
+    assert_eq!("Value: 5", format!("Value: {}", 5u32));
+    assert_eq!("Value: 5", format!("Value: {}", u5::new(5)));
+    assert_eq!("Value: 5", format!("Value: {}", u11::new(5)));
+    assert_eq!("Value: 5", format!("Value: {}", u17::new(5)));
+    assert_eq!("Value: 5", format!("Value: {}", u38::new(5)));
+    assert_eq!("Value: 60", format!("Value: {}", u65::new(60)));
+}
+
+#[test]
+fn debug() {
+    assert_eq!("Value: 5", format!("Value: {:?}", 5u32));
+    assert_eq!("Value: 5", format!("Value: {:?}", u5::new(5)));
+    assert_eq!("Value: 5", format!("Value: {:?}", u11::new(5)));
+    assert_eq!("Value: 5", format!("Value: {:?}", u17::new(5)));
+    assert_eq!("Value: 5", format!("Value: {:?}", u38::new(5)));
+    assert_eq!("Value: 60", format!("Value: {:?}", u65::new(60)));
 }

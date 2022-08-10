@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate alloc;
+
 mod lib {
     pub mod core {
         #[cfg(not(feature = "std"))]
@@ -9,6 +11,7 @@ mod lib {
     }
 }
 
+use core::fmt::{Debug, Display, Formatter};
 use lib::core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
@@ -20,7 +23,7 @@ impl<const A: usize, const B: usize> CompileTimeAssert<A, B> {
     pub const SMALLER_THAN: () = { assert!(A <= B); };
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd)]
 pub struct UInt<T, const NUM_BITS: usize> {
     value: T,
 }
@@ -225,6 +228,22 @@ impl<T, TSHIFTBITS, const NUM_BITS: usize> ShrAssign<TSHIFTBITS> for UInt<T, NUM
     where T: Copy + ShrAssign<TSHIFTBITS> + Sub<T, Output=T> + Shl<usize, Output=T> + From<u8> {
     fn shr_assign(&mut self, rhs: TSHIFTBITS) {
         self.value >>= rhs;
+    }
+}
+
+impl<T, const NUM_BITS: usize> Display for UInt<T, NUM_BITS>
+    where T: Display {
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        self.value.fmt(f)
+    }
+}
+
+impl<T, const NUM_BITS: usize> Debug for UInt<T, NUM_BITS>
+    where T: Debug {
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        self.value.fmt(f)
     }
 }
 
