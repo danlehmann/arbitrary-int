@@ -1,6 +1,6 @@
 [package]
 name = "arbitrary-int"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 authors = ["Daniel Lehmann <danlehmannmuc@gmail.com>"]
 description = "Modern and lightweight implementation of u2, u3, u4, ..., u127."
