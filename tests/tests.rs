@@ -231,6 +231,7 @@ fn min_max() {
     assert_eq!(0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF, u127::MAX.value());
 }
 
+#[allow(deprecated)]
 #[test]
 fn extract() {
     assert_eq!(u5::new(0b10000), u5::extract(0b11110000, 0));
@@ -243,9 +244,42 @@ fn extract() {
 }
 
 #[test]
+fn extract_typed() {
+    assert_eq!(u5::new(0b10000), u5::extract_u8(0b11110000, 0));
+    assert_eq!(u5::new(0b00011), u5::extract_u16(0b11110000_11110110, 6));
+    assert_eq!(u5::new(0b01011), u5::extract_u32(0b11110010_11110110_00000000_00000000, 22));
+    assert_eq!(u5::new(0b01011), u5::extract_u64(0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000, 54));
+    assert_eq!(u5::new(0b01011), u5::extract_u128(0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000, 118));
+}
+
+#[test]
 #[should_panic]
-fn extract_not_enough_bits() {
-    let _ = u5::extract(0b11110000, 4);
+fn extract_not_enough_bits_8() {
+    let _ = u5::extract_u8(0b11110000, 4);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_16() {
+    let _ = u5::extract_u16(0b11110000, 12);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_32() {
+    let _ = u5::extract_u32(0b11110000, 28);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_64() {
+    let _ = u5::extract_u64(0b11110000, 60);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_128() {
+    let _ = u5::extract_u128(0b11110000, 124);
 }
 
 #[test]

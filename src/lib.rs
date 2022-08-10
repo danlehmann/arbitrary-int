@@ -68,14 +68,63 @@ macro_rules! uint_impl {
                 Self { value }
             }
 
-            /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
-            /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
+            #[deprecated(note = "Use one of the specific functions like extract_u32")]
             pub const fn extract(value: $type, start_bit: usize) -> Self {
                 assert!(start_bit + NUM_BITS <= $size);
                 // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
                 let _ = Self::MAX;
 
                 Self { value: (value >> start_bit) & Self::MAX.value }
+            }
+
+            /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
+            /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
+            pub const fn extract_u8(value: u8, start_bit: usize) -> Self {
+                assert!(start_bit + NUM_BITS <= 8);
+                // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
+                let _ = Self::MAX;
+
+                Self { value: ((value >> start_bit) as $type) & Self::MAX.value }
+            }
+
+            /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
+            /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
+            pub const fn extract_u16(value: u16, start_bit: usize) -> Self {
+                assert!(start_bit + NUM_BITS <= 16);
+                // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
+                let _ = Self::MAX;
+
+                Self { value: ((value >> start_bit) as $type) & Self::MAX.value }
+            }
+
+            /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
+            /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
+            pub const fn extract_u32(value: u32, start_bit: usize) -> Self {
+                assert!(start_bit + NUM_BITS <= 32);
+                // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
+                let _ = Self::MAX;
+
+                Self { value: ((value >> start_bit) as $type) & Self::MAX.value }
+            }
+
+            /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
+            /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
+            pub const fn extract_u64(value: u64, start_bit: usize) -> Self {
+                assert!(start_bit + NUM_BITS <= 64);
+                // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
+                let _ = Self::MAX;
+
+                Self { value: ((value >> start_bit) as $type) & Self::MAX.value }
+            }
+
+            /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
+            /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
+            pub const fn extract_u128(value: u128, start_bit: usize) -> Self {
+                assert!(start_bit + NUM_BITS <= 128);
+                // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
+                let _ = Self::MAX;
+
+                Self { value: ((value >> start_bit) as $type) & Self::MAX.value }
             }
 
             /// Returns a UInt with a wider bit depth but with the same base data type
