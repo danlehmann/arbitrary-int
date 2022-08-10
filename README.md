@@ -35,10 +35,8 @@ A common source for arbitrary integers is by extracting them from bitfields. For
 
 `let a = u6::new((data >> 4) & 0b111111);`
 
-This is a pretty common operation, but it's easy to get it wrong: The number of 1s and u6 have to match. Also, new() will internally perform a bounds-check, which is unnecessary. Therefore, UInt provides an extract method:
+This is a pretty common operation, but it's easy to get it wrong: The number of 1s and u6 have to match. Also, new() will internally perform a bounds-check, which is unnecessary. Therefore, UInt provides a extract methods to get the bits from a source integer:
 
-`let a = UInt::<u32, 6>::extract(data, 4);`
-
-This will result in an UInt::<u32, 6>. If desired, this can be reduced to a u6 (represented by a u8) like this:
-
-`let a: u6 = UInt::<u32, 6>::extract(data, 4).into();`
+```
+let a = UInt::<u32, 6>::extract_u32(data, 4);`
+let b = u6::extract_u64(data, 37);`
