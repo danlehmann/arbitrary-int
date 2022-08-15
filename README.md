@@ -44,4 +44,3 @@ To make this easier, various extract methods exist that handle shifting and mask
 ```
 let a = u6::extract_u32(data, 4);
 let b = u12::extract_u128(data2, 63);
-```
