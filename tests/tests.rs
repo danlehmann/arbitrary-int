@@ -377,12 +377,3 @@ fn debug() {
     assert_eq!("Value: 5", format!("Value: {:?}", u38::new(5)));
     assert_eq!("Value: 60", format!("Value: {:?}", u65::new(60)));
 }
-
-#[test]
-fn from_simple_types() {
-    assert_eq!(150u8, u7::new(150).into());
-    assert_eq!(150u16, u9::new(150).into());
-    assert_eq!(150u32, u9::new(150).into());
-    assert_eq!(150u64, u9::new(150).into());
-    assert_eq!(150u128, u9::new(150).into());
-}

@@ -30,10 +30,14 @@ pub struct UInt<T, const NUM_BITS: usize> {
 
 impl<T, const NUM_BITS: usize> UInt<T, NUM_BITS>
     where T: Copy + BitAnd<T, Output=T> + Sub<T, Output=T> + Shl<usize, Output=T> + Shr<usize, Output=T> + From<u8> {
+
+    #[inline(always)]
     pub const fn value(&self) -> T { self.value }
 
+    #[inline(always)]
     pub const unsafe fn new_unchecked(value: T) -> Self { Self { value } }
 
+    #[inline(always)]
     fn mask() -> T {
         // It would be great if we could make this function const, but generic traits aren't compatible with
         // const fn
@@ -62,6 +66,7 @@ macro_rules! uint_impl {
             pub const MAX: Self = Self { value: (1 << NUM_BITS) - 1 };
 
             /// Creates an instance. Panics if the given value is outside of the valid range
+            #[inline(always)]
             pub const fn new(value: $type) -> Self {
                 assert!(value <= Self::MAX.value);
 
@@ -79,6 +84,7 @@ macro_rules! uint_impl {
 
             /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
             /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
+            #[inline(always)]
             pub const fn extract_u8(value: u8, start_bit: usize) -> Self {
                 assert!(start_bit + NUM_BITS <= 8);
                 // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
@@ -89,6 +95,7 @@ macro_rules! uint_impl {
 
             /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
             /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
+            #[inline(always)]
             pub const fn extract_u16(value: u16, start_bit: usize) -> Self {
                 assert!(start_bit + NUM_BITS <= 16);
                 // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
@@ -99,6 +106,7 @@ macro_rules! uint_impl {
 
             /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
             /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
+            #[inline(always)]
             pub const fn extract_u32(value: u32, start_bit: usize) -> Self {
                 assert!(start_bit + NUM_BITS <= 32);
                 // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
@@ -109,6 +117,7 @@ macro_rules! uint_impl {
 
             /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
             /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
+            #[inline(always)]
             pub const fn extract_u64(value: u64, start_bit: usize) -> Self {
                 assert!(start_bit + NUM_BITS <= 64);
                 // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
@@ -119,6 +128,7 @@ macro_rules! uint_impl {
 
             /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
             /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
+            #[inline(always)]
             pub const fn extract_u128(value: u128, start_bit: usize) -> Self {
                 assert!(start_bit + NUM_BITS <= 128);
                 // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
@@ -128,6 +138,7 @@ macro_rules! uint_impl {
             }
 
             /// Returns a UInt with a wider bit depth but with the same base data type
+            #[inline(always)]
             pub const fn widen<const NUM_BITS_RESULT: usize>(&self) -> UInt<$type, NUM_BITS_RESULT> {
                 let _ = CompileTimeAssert::<NUM_BITS, NUM_BITS_RESULT>::SMALLER_THAN;
                 // Query MAX of the result to ensure we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
@@ -149,6 +160,7 @@ impl<T, const NUM_BITS: usize> Add for UInt<T, NUM_BITS>
     where T: PartialEq + Eq + Copy + BitAnd<T, Output=T> + Not<Output=T> + Add<T, Output=T> + Sub<T, Output=T> + Shr<usize, Output=T> + Shl<usize, Output=T> + From<u8> {
     type Output = UInt<T, NUM_BITS>;
 
+    #[inline(always)]
     fn add(self, rhs: Self) -> Self::Output {
         let sum = self.value + rhs.value;
         #[cfg(debug_assertions)]
@@ -161,6 +173,7 @@ impl<T, const NUM_BITS: usize> Add for UInt<T, NUM_BITS>
 
 impl<T, const NUM_BITS: usize> AddAssign for UInt<T, NUM_BITS>
     where T: PartialEq + Eq + Not<Output=T> + Copy + AddAssign<T> + BitAnd<T, Output=T> + BitAndAssign<T> + Sub<T, Output=T> + Shr<usize, Output=T> + Shl<usize, Output=T> + From<u8> {
+    #[inline(always)]
     fn add_assign(&mut self, rhs: Self) {
         self.value += rhs.value;
         #[cfg(debug_assertions)]
@@ -175,6 +188,7 @@ impl<T, const NUM_BITS: usize> Sub for UInt<T, NUM_BITS>
     where T: Copy + BitAnd<T, Output=T> + Sub<T, Output=T> + Shl<usize, Output=T> + Shr<usize, Output=T> + From<u8> {
     type Output = UInt<T, NUM_BITS>;
 
+    #[inline(always)]
     fn sub(self, rhs: Self) -> Self::Output {
         // No need for extra overflow checking as the regular minus operator already handles it for us
         Self { value: (self.value - rhs.value) & Self::mask() }
@@ -183,6 +197,7 @@ impl<T, const NUM_BITS: usize> Sub for UInt<T, NUM_BITS>
 
 impl<T, const NUM_BITS: usize> SubAssign for UInt<T, NUM_BITS>
     where T: Copy + SubAssign<T> + BitAnd<T, Output=T> + BitAndAssign<T> + Sub<T, Output=T> + Shl<usize, Output=T> + Shr<usize, Output=T> + From<u8> {
+    #[inline(always)]
     fn sub_assign(&mut self, rhs: Self) {
         // No need for extra overflow checking as the regular minus operator already handles it for us
         self.value -= rhs.value;
@@ -194,6 +209,7 @@ impl<T, const NUM_BITS: usize> BitAnd for UInt<T, NUM_BITS>
     where T: Copy + BitAnd<T, Output=T> + Sub<T, Output=T> + Shl<usize, Output=T> + Shr<usize, Output=T> + From<u8> {
     type Output = UInt<T, NUM_BITS>;
 
+    #[inline(always)]
     fn bitand(self, rhs: Self) -> Self::Output {
         Self { value: self.value & rhs.value }
     }
@@ -201,6 +217,8 @@ impl<T, const NUM_BITS: usize> BitAnd for UInt<T, NUM_BITS>
 
 impl<T, const NUM_BITS: usize> BitAndAssign for UInt<T, NUM_BITS>
     where T: Copy + BitAndAssign<T> + Sub<T, Output=T> + Shl<usize, Output=T> + From<u8> {
+
+    #[inline(always)]
     fn bitand_assign(&mut self, rhs: Self) {
         self.value &= rhs.value;
     }
@@ -210,6 +228,7 @@ impl<T, const NUM_BITS: usize> BitOr for UInt<T, NUM_BITS>
     where T: Copy + BitOr<T, Output=T> + Sub<T, Output=T> + Shl<usize, Output=T> + From<u8> {
     type Output = UInt<T, NUM_BITS>;
 
+    #[inline(always)]
     fn bitor(self, rhs: Self) -> Self::Output {
         Self { value: self.value | rhs.value }
     }
@@ -217,6 +236,8 @@ impl<T, const NUM_BITS: usize> BitOr for UInt<T, NUM_BITS>
 
 impl<T, const NUM_BITS: usize> BitOrAssign for UInt<T, NUM_BITS>
     where T: Copy + BitOrAssign<T> + Sub<T, Output=T> + Shl<usize, Output=T> + From<u8> {
+
+    #[inline(always)]
     fn bitor_assign(&mut self, rhs: Self) {
         self.value |= rhs.value;
     }
@@ -226,6 +247,7 @@ impl<T, const NUM_BITS: usize> BitXor for UInt<T, NUM_BITS>
     where T: Copy + BitXor<T, Output=T> + Sub<T, Output=T> + Shl<usize, Output=T> + From<u8> {
     type Output = UInt<T, NUM_BITS>;
 
+    #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self::Output {
         Self { value: self.value ^ rhs.value }
     }
@@ -233,6 +255,8 @@ impl<T, const NUM_BITS: usize> BitXor for UInt<T, NUM_BITS>
 
 impl<T, const NUM_BITS: usize> BitXorAssign for UInt<T, NUM_BITS>
     where T: Copy + BitXorAssign<T> + Sub<T, Output=T> + Shl<usize, Output=T> + From<u8> {
+
+    #[inline(always)]
     fn bitxor_assign(&mut self, rhs: Self) {
         self.value ^= rhs.value;
     }
@@ -242,6 +266,7 @@ impl<T, const NUM_BITS: usize> Not for UInt<T, NUM_BITS>
     where T: Copy + BitAnd<T, Output=T> + BitXor<T, Output=T> + Sub<T, Output=T> + Shl<usize, Output=T> + Shr<usize, Output=T> + From<u8> {
     type Output = UInt<T, NUM_BITS>;
 
+    #[inline(always)]
     fn not(self) -> Self::Output {
         Self { value: self.value ^ Self::mask() }
     }
@@ -251,6 +276,7 @@ impl<T, TSHIFTBITS, const NUM_BITS: usize> Shl<TSHIFTBITS> for UInt<T, NUM_BITS>
     where T: Copy + BitAnd<T, Output=T> + Shl<TSHIFTBITS, Output=T> + Sub<T, Output=T> + Shl<usize, Output=T> + Shr<usize, Output=T> + From<u8> {
     type Output = UInt<T, NUM_BITS>;
 
+    #[inline(always)]
     fn shl(self, rhs: TSHIFTBITS) -> Self::Output {
         Self { value: (self.value << rhs) & Self::mask() }
     }
@@ -258,6 +284,8 @@ impl<T, TSHIFTBITS, const NUM_BITS: usize> Shl<TSHIFTBITS> for UInt<T, NUM_BITS>
 
 impl<T, TSHIFTBITS, const NUM_BITS: usize> ShlAssign<TSHIFTBITS> for UInt<T, NUM_BITS>
     where T: Copy + BitAnd<T, Output=T> + BitAndAssign<T> + ShlAssign<TSHIFTBITS> + Sub<T, Output=T> + Shr<usize, Output=T> + Shl<usize, Output=T> + From<u8> {
+
+    #[inline(always)]
     fn shl_assign(&mut self, rhs: TSHIFTBITS) {
         self.value <<= rhs;
         self.value &= Self::mask();
@@ -268,6 +296,7 @@ impl<T, TSHIFTBITS, const NUM_BITS: usize> Shr<TSHIFTBITS> for UInt<T, NUM_BITS>
     where T: Copy + Shr<TSHIFTBITS, Output=T> + Sub<T, Output=T> + Shl<usize, Output=T> + From<u8> {
     type Output = UInt<T, NUM_BITS>;
 
+    #[inline(always)]
     fn shr(self, rhs: TSHIFTBITS) -> Self::Output {
         Self { value: self.value >> rhs }
     }
@@ -275,6 +304,8 @@ impl<T, TSHIFTBITS, const NUM_BITS: usize> Shr<TSHIFTBITS> for UInt<T, NUM_BITS>
 
 impl<T, TSHIFTBITS, const NUM_BITS: usize> ShrAssign<TSHIFTBITS> for UInt<T, NUM_BITS>
     where T: Copy + ShrAssign<TSHIFTBITS> + Sub<T, Output=T> + Shl<usize, Output=T> + From<u8> {
+
+    #[inline(always)]
     fn shr_assign(&mut self, rhs: TSHIFTBITS) {
         self.value >>= rhs;
     }
@@ -301,6 +332,7 @@ macro_rules! from_impl {
     ($target_type:ident, $source_type:ident) => {
 
         impl<const NUM_BITS: usize, const NUM_BITS_FROM: usize> From<UInt<$source_type, NUM_BITS_FROM>> for UInt<$target_type, NUM_BITS> {
+            #[inline(always)]
             fn from(item: UInt<$source_type, NUM_BITS_FROM>) -> Self {
                 let _ = CompileTimeAssert::<NUM_BITS_FROM, NUM_BITS>::SMALLER_OR_EQUAL;
                 Self { value: item.value as $target_type }
