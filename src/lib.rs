@@ -31,8 +31,10 @@ pub struct UInt<T, const NUM_BITS: usize> {
 impl<T, const NUM_BITS: usize> UInt<T, NUM_BITS>
     where T: Copy + BitAnd<T, Output=T> + Sub<T, Output=T> + Shl<usize, Output=T> + Shr<usize, Output=T> + From<u8> {
 
+    #[inline]
     pub const fn value(&self) -> T { self.value }
 
+    #[inline]
     pub const unsafe fn new_unchecked(value: T) -> Self { Self { value } }
 
     fn mask() -> T {
@@ -63,6 +65,7 @@ macro_rules! uint_impl {
             pub const MAX: Self = Self { value: (1 << NUM_BITS) - 1 };
 
             /// Creates an instance. Panics if the given value is outside of the valid range
+            #[inline]
             pub const fn new(value: $type) -> Self {
                 assert!(value <= Self::MAX.value);
 

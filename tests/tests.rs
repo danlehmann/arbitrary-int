@@ -1,6 +1,9 @@
 extern crate core;
 
-use arbitrary_int::{u10, u11, u120, u127, u13, u14, u15, u17, u20, u23, u24, u30, u31, u38, u4, u5, u6, u60, u61, u63, u65, u67, u7, u80, u9, UInt};
+use arbitrary_int::{
+    u10, u11, u120, u127, u13, u14, u15, u17, u20, u23, u24, u30, u31, u38, u4, u5, u6, u60, u61,
+    u63, u65, u67, u7, u80, u9, UInt,
+};
 
 #[test]
 #[ignore]
@@ -114,9 +117,15 @@ fn subassign_overflow() {
 
 #[test]
 fn bitand() {
-    assert_eq!(u17::new(0b11001100) & u17::new(0b01101001), u17::new(0b01001000));
+    assert_eq!(
+        u17::new(0b11001100) & u17::new(0b01101001),
+        u17::new(0b01001000)
+    );
     assert_eq!(u17::new(0b11001100) & u17::new(0), u17::new(0));
-    assert_eq!(u17::new(0b11001100) & u17::new(0x1_FFFF), u17::new(0b11001100));
+    assert_eq!(
+        u17::new(0b11001100) & u17::new(0x1_FFFF),
+        u17::new(0b11001100)
+    );
 }
 
 #[test]
@@ -128,9 +137,15 @@ fn bitandassign() {
 
 #[test]
 fn bitor() {
-    assert_eq!(u17::new(0b11001100) | u17::new(0b01101001), u17::new(0b11101101));
+    assert_eq!(
+        u17::new(0b11001100) | u17::new(0b01101001),
+        u17::new(0b11101101)
+    );
     assert_eq!(u17::new(0b11001100) | u17::new(0), u17::new(0b11001100));
-    assert_eq!(u17::new(0b11001100) | u17::new(0x1_FFFF), u17::new(0x1_FFFF));
+    assert_eq!(
+        u17::new(0b11001100) | u17::new(0x1_FFFF),
+        u17::new(0x1_FFFF)
+    );
 }
 
 #[test]
@@ -142,9 +157,15 @@ fn bitorassign() {
 
 #[test]
 fn bitxor() {
-    assert_eq!(u17::new(0b11001100) ^ u17::new(0b01101001), u17::new(0b10100101));
+    assert_eq!(
+        u17::new(0b11001100) ^ u17::new(0b01101001),
+        u17::new(0b10100101)
+    );
     assert_eq!(u17::new(0b11001100) ^ u17::new(0), u17::new(0b11001100));
-    assert_eq!(u17::new(0b11001100) ^ u17::new(0x1_FFFF), u17::new(0b1_11111111_00110011));
+    assert_eq!(
+        u17::new(0b11001100) ^ u17::new(0x1_FFFF),
+        u17::new(0b1_11111111_00110011)
+    );
 }
 
 #[test]
@@ -239,16 +260,31 @@ fn extract() {
     assert_eq!(u5::new(0b11110), u5::extract(0b11110000, 3));
 
     // Use extract with a custom type (5 bits of u32)
-    assert_eq!(UInt::<u32, 5>::new(0b11110), UInt::<u32, 5>::extract(0b11110000, 3));
-    assert_eq!(u5::new(0b11110), UInt::<u32, 5>::extract(0b11110000, 3).into());
+    assert_eq!(
+        UInt::<u32, 5>::new(0b11110),
+        UInt::<u32, 5>::extract(0b11110000, 3)
+    );
+    assert_eq!(
+        u5::new(0b11110),
+        UInt::<u32, 5>::extract(0b11110000, 3).into()
+    );
 }
 
 #[test]
 fn extract_typed() {
     assert_eq!(u5::new(0b10000), u5::extract_u8(0b11110000, 0));
     assert_eq!(u5::new(0b00011), u5::extract_u16(0b11110000_11110110, 6));
-    assert_eq!(u5::new(0b01011), u5::extract_u32(0b11110010_11110110_00000000_00000000, 22));
-    assert_eq!(u5::new(0b01011), u5::extract_u64(0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000, 54));
+    assert_eq!(
+        u5::new(0b01011),
+        u5::extract_u32(0b11110010_11110110_00000000_00000000, 22)
+    );
+    assert_eq!(
+        u5::new(0b01011),
+        u5::extract_u64(
+            0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000,
+            54
+        )
+    );
     assert_eq!(u5::new(0b01011), u5::extract_u128(0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000, 118));
 }
 
@@ -290,29 +326,62 @@ fn from_same_bit_widths() {
     assert_eq!(u5::from(UInt::<u64, 5>::new(0b10101)), u5::new(0b10101));
     assert_eq!(u5::from(UInt::<u128, 5>::new(0b10101)), u5::new(0b10101));
 
-    assert_eq!(UInt::<u16, 6>::from(UInt::<u8, 5>::new(0b10101)), UInt::<u16, 6>::new(0b10101));
+    assert_eq!(
+        UInt::<u16, 6>::from(UInt::<u8, 5>::new(0b10101)),
+        UInt::<u16, 6>::new(0b10101)
+    );
     assert_eq!(u15::from(UInt::<u16, 15>::new(0b10101)), u15::new(0b10101));
     assert_eq!(u15::from(UInt::<u32, 15>::new(0b10101)), u15::new(0b10101));
     assert_eq!(u15::from(UInt::<u64, 15>::new(0b10101)), u15::new(0b10101));
     assert_eq!(u15::from(UInt::<u128, 15>::new(0b10101)), u15::new(0b10101));
 
-    assert_eq!(UInt::<u32, 6>::from(u6::new(0b10101)), UInt::<u32, 6>::new(0b10101));
-    assert_eq!(UInt::<u32, 14>::from(u14::new(0b10101)), UInt::<u32, 14>::new(0b10101));
+    assert_eq!(
+        UInt::<u32, 6>::from(u6::new(0b10101)),
+        UInt::<u32, 6>::new(0b10101)
+    );
+    assert_eq!(
+        UInt::<u32, 14>::from(u14::new(0b10101)),
+        UInt::<u32, 14>::new(0b10101)
+    );
     assert_eq!(u30::from(UInt::<u32, 30>::new(0b10101)), u30::new(0b10101));
     assert_eq!(u30::from(UInt::<u64, 30>::new(0b10101)), u30::new(0b10101));
     assert_eq!(u30::from(UInt::<u128, 30>::new(0b10101)), u30::new(0b10101));
 
-    assert_eq!(UInt::<u64, 7>::from(UInt::<u8, 7>::new(0b10101)), UInt::<u64, 7>::new(0b10101));
-    assert_eq!(UInt::<u64, 12>::from(UInt::<u16, 12>::new(0b10101)), UInt::<u64, 12>::new(0b10101));
-    assert_eq!(UInt::<u64, 28>::from(UInt::<u32, 28>::new(0b10101)), UInt::<u64, 28>::new(0b10101));
+    assert_eq!(
+        UInt::<u64, 7>::from(UInt::<u8, 7>::new(0b10101)),
+        UInt::<u64, 7>::new(0b10101)
+    );
+    assert_eq!(
+        UInt::<u64, 12>::from(UInt::<u16, 12>::new(0b10101)),
+        UInt::<u64, 12>::new(0b10101)
+    );
+    assert_eq!(
+        UInt::<u64, 28>::from(UInt::<u32, 28>::new(0b10101)),
+        UInt::<u64, 28>::new(0b10101)
+    );
     assert_eq!(u60::from(u60::new(0b10101)), u60::new(0b10101));
     assert_eq!(u60::from(UInt::<u128, 60>::new(0b10101)), u60::new(0b10101));
 
-    assert_eq!(UInt::<u128, 5>::from(UInt::<u8, 5>::new(0b10101)), UInt::<u128, 5>::new(0b10101));
-    assert_eq!(UInt::<u128, 12>::from(UInt::<u16, 12>::new(0b10101)), UInt::<u128, 12>::new(0b10101));
-    assert_eq!(UInt::<u128, 26>::from(UInt::<u32, 26>::new(0b10101)), UInt::<u128, 26>::new(0b10101));
-    assert_eq!(UInt::<u128, 60>::from(UInt::<u64, 60>::new(0b10101)), UInt::<u128, 60>::new(0b10101));
-    assert_eq!(u120::from(UInt::<u128, 120>::new(0b10101)), u120::new(0b10101));
+    assert_eq!(
+        UInt::<u128, 5>::from(UInt::<u8, 5>::new(0b10101)),
+        UInt::<u128, 5>::new(0b10101)
+    );
+    assert_eq!(
+        UInt::<u128, 12>::from(UInt::<u16, 12>::new(0b10101)),
+        UInt::<u128, 12>::new(0b10101)
+    );
+    assert_eq!(
+        UInt::<u128, 26>::from(UInt::<u32, 26>::new(0b10101)),
+        UInt::<u128, 26>::new(0b10101)
+    );
+    assert_eq!(
+        UInt::<u128, 60>::from(UInt::<u64, 60>::new(0b10101)),
+        UInt::<u128, 60>::new(0b10101)
+    );
+    assert_eq!(
+        u120::from(UInt::<u128, 120>::new(0b10101)),
+        u120::new(0b10101)
+    );
 }
 
 #[test]
@@ -376,13 +445,4 @@ fn debug() {
     assert_eq!("Value: 5", format!("Value: {:?}", u17::new(5)));
     assert_eq!("Value: 5", format!("Value: {:?}", u38::new(5)));
     assert_eq!("Value: 60", format!("Value: {:?}", u65::new(60)));
-}
-
-#[test]
-fn from_simple_types() {
-    assert_eq!(150u8, u7::new(150).into());
-    assert_eq!(150u16, u9::new(150).into());
-    assert_eq!(150u32, u9::new(150).into());
-    assert_eq!(150u64, u9::new(150).into());
-    assert_eq!(150u128, u9::new(150).into());
 }
