@@ -36,9 +36,9 @@ In this example, a will have 5 bytes and be represented by a u8. This is identic
 ## Extract
 A common source for arbitrary integers is by extracting them from bitfields. For example, if data contained 32 bits and we want to extract bits 4..=9, we could perform the following:
 
-`let a = u6::new((data >> 4) & 0b111111);`
+`let a = u6::new(((data >> 4) & 0b111111) as u8);`
 
-This is a pretty common operation, but it's easy to get it wrong: The number of 1s and u6 have to match. Also, new() will internally perform a bounds-check, which can panic.
+This is a pretty common operation, but it's easy to get it wrong: The number of 1s and u6 have to match. Also, new() will internally perform a bounds-check, which can panic. Thirdly, a type-cast is often needed.
 To make this easier, various extract methods exist that handle shifting and masking, for example:
 
 ```
