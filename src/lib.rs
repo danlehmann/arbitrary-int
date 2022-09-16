@@ -62,20 +62,20 @@ where
 
 // Next are specific implementations for u8, u16, u32, u64 and u128. A couple notes:
 // - The existence of MAX also serves as a neat bounds-check for NUM_BITS: If NUM_BITS is too large,
-//   the left shift overflows which will fail to compile. This simplifies things a lot.
+//   the subtraction overflows which will fail to compile. This simplifies things a lot.
 //   However, that only works if every constructor also uses MAX somehow (doing let _ = MAX is enough)
 
 macro_rules! uint_impl {
-    ($size:expr, $type:ident) => {
+    ($type:ident) => {
         impl<const NUM_BITS: usize> UInt<$type, NUM_BITS> {
             /// Minimum value that can be represented by this type
             pub const MIN: Self = Self { value: 0 };
 
             /// Maximum value that can be represented by this type
-            /// Note that the existence of MAX also serves as a bounds check: If NUM_BITS is >= available bits,
+            /// Note that the existence of MAX also serves as a bounds check: If NUM_BITS is > available bits,
             /// we will get a compiler error right here
             pub const MAX: Self = Self {
-                value: (1 << NUM_BITS) - 1,
+                value: $type::MAX >> ($type::BITS as usize - NUM_BITS),
             };
 
             /// Creates an instance. Panics if the given value is outside of the valid range
@@ -88,7 +88,7 @@ macro_rules! uint_impl {
 
             #[deprecated(note = "Use one of the specific functions like extract_u32")]
             pub const fn extract(value: $type, start_bit: usize) -> Self {
-                assert!(start_bit + NUM_BITS <= $size);
+                assert!(start_bit + NUM_BITS <= $type::BITS as usize);
                 // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
                 let _ = Self::MAX;
 
@@ -180,11 +180,11 @@ macro_rules! uint_impl {
     };
 }
 
-uint_impl!(8, u8);
-uint_impl!(16, u16);
-uint_impl!(32, u32);
-uint_impl!(64, u64);
-uint_impl!(128, u128);
+uint_impl!(u8);
+uint_impl!(u16);
+uint_impl!(u32);
+uint_impl!(u64);
+uint_impl!(u128);
 
 // Arithmetic implementations
 impl<T, const NUM_BITS: usize> Add for UInt<T, NUM_BITS>

@@ -23,12 +23,20 @@ fn type_alias_codegen() {
 #[test]
 fn create_simple() {
     let value7 = u7::new(123);
+    let value8 = UInt::<u8, 8>::new(189);
+
     let value13 = u13::new(123);
+    let value16 = UInt::<u16, 16>::new(60000);
+
     let value23 = u23::new(123);
     let value67 = u67::new(123);
 
     assert_eq!(value7.value(), 123);
+    assert_eq!(value8.value(), 189);
+
     assert_eq!(value13.value(), 123);
+    assert_eq!(value16.value(), 60000);
+
     assert_eq!(value23.value(), 123);
     assert_eq!(value67.value(), 123);
 }
@@ -252,6 +260,24 @@ fn min_max() {
     assert_eq!(0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF, u127::MAX.value());
 }
 
+#[test]
+fn min_max_fullwidth() {
+    assert_eq!(u8::MIN, UInt::<u8, 8>::MIN.value());
+    assert_eq!(u8::MAX, UInt::<u8, 8>::MAX.value());
+
+    assert_eq!(u16::MIN, UInt::<u16, 16>::MIN.value());
+    assert_eq!(u16::MAX, UInt::<u16, 16>::MAX.value());
+
+    assert_eq!(u32::MIN, UInt::<u32, 32>::MIN.value());
+    assert_eq!(u32::MAX, UInt::<u32, 32>::MAX.value());
+
+    assert_eq!(u64::MIN, UInt::<u64, 64>::MIN.value());
+    assert_eq!(u64::MAX, UInt::<u64, 64>::MAX.value());
+
+    assert_eq!(u128::MIN, UInt::<u128, 128>::MIN.value());
+    assert_eq!(u128::MAX, UInt::<u128, 128>::MAX.value());
+}
+
 #[allow(deprecated)]
 #[test]
 fn extract() {
@@ -289,9 +315,21 @@ fn extract_typed() {
 }
 
 #[test]
+fn extract_full_width_typed() {
+    assert_eq!(0b1010_0011, UInt::<u8, 8>::extract_u8(0b1010_0011, 0).value());
+    assert_eq!(0b1010_0011, UInt::<u8, 8>::extract_u16(0b1111_1111_1010_0011, 0).value());
+}
+
+#[test]
 #[should_panic]
 fn extract_not_enough_bits_8() {
     let _ = u5::extract_u8(0b11110000, 4);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_8_full_width() {
+    let _ = UInt::<u8, 8>::extract_u8(0b11110000, 1);
 }
 
 #[test]
@@ -325,6 +363,8 @@ fn from_same_bit_widths() {
     assert_eq!(u5::from(UInt::<u32, 5>::new(0b10101)), u5::new(0b10101));
     assert_eq!(u5::from(UInt::<u64, 5>::new(0b10101)), u5::new(0b10101));
     assert_eq!(u5::from(UInt::<u128, 5>::new(0b10101)), u5::new(0b10101));
+
+    assert_eq!(UInt::<u8, 8>::from(UInt::<u128, 8>::new(0b1110_0101)), UInt::<u8, 8>::new(0b1110_0101));
 
     assert_eq!(
         UInt::<u16, 6>::from(UInt::<u8, 5>::new(0b10101)),
@@ -411,6 +451,7 @@ fn widen() {
     // As From() can't be used while keeping the base-data-type, there's widen
 
     assert_eq!(u5::new(0b11011).widen::<6>(), u6::new(0b11011));
+    assert_eq!(u5::new(0b11011).widen::<8>(), UInt::<u8, 8>::new(0b11011));
     assert_eq!(u10::new(0b11011).widen::<11>(), u11::new(0b11011));
     assert_eq!(u20::new(0b11011).widen::<24>(), u24::new(0b11011));
     assert_eq!(u60::new(0b11011).widen::<61>(), u61::new(0b11011));
