@@ -40,11 +40,16 @@ where
         + Shr<usize, Output = T>
         + From<u8>,
 {
+    /// Returns the type as a fundamental data type
     #[inline]
     pub const fn value(&self) -> T {
         self.value
     }
 
+    /// Initializes a new value without checking the bounds
+    ///
+    /// # Safety
+    /// Must only be called with a value less than or equal to [Self::MAX](Self::MAX) value.
     #[inline]
     pub const unsafe fn new_unchecked(value: T) -> Self {
         Self { value }
