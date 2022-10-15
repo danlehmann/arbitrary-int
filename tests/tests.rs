@@ -1,9 +1,6 @@
 extern crate core;
 
-use arbitrary_int::{
-    u10, u11, u120, u127, u13, u14, u15, u17, u20, u23, u24, u30, u31, u38, u4, u5, u6, u60, u61,
-    u63, u65, u67, u7, u80, u9, UInt,
-};
+use arbitrary_int::*;
 
 #[test]
 #[ignore]
@@ -444,6 +441,83 @@ fn from_smaller_bit_widths() {
     assert_eq!(u15::from(UInt::<u32, 14>::new(0b10101)), u15::new(0b10101));
     assert_eq!(u15::from(UInt::<u64, 14>::new(0b10101)), u15::new(0b10101));
     assert_eq!(u15::from(UInt::<u128, 14>::new(0b10101)), u15::new(0b10101));
+}
+
+#[allow(non_camel_case_types)]
+#[test]
+fn from_native_ints_same_bits() {
+    use std::primitive;
+
+    type u8 = UInt<primitive::u8, 8>;
+    type u16 = UInt<primitive::u16, 16>;
+    type u32 = UInt<primitive::u32, 32>;
+    type u64 = UInt<primitive::u64, 64>;
+    type u128 = UInt<primitive::u128, 128>;
+
+    assert_eq!(u8::from(0x80_u8), u8::new(0x80));
+    assert_eq!(u16::from(0x8000_u16), u16::new(0x8000));
+    assert_eq!(u32::from(0x8000_0000_u32), u32::new(0x8000_0000));
+    assert_eq!(
+        u64::from(0x8000_0000_0000_0000_u64),
+        u64::new(0x8000_0000_0000_0000)
+    );
+    assert_eq!(
+        u128::from(0x8000_0000_0000_0000_0000_0000_0000_0000_u128),
+        u128::new(0x8000_0000_0000_0000_0000_0000_0000_0000)
+    );
+}
+
+#[test]
+fn from_native_ints_fewer_bits() {
+    assert_eq!(u9::from(0x80_u8), u9::new(0x80));
+
+    assert_eq!(u17::from(0x80_u8), u17::new(0x80));
+    assert_eq!(u17::from(0x8000_u16), u17::new(0x8000));
+
+    assert_eq!(u33::from(0x80_u8), u33::new(0x80));
+    assert_eq!(u33::from(0x8000_u16), u33::new(0x8000));
+    assert_eq!(u33::from(0x8000_0000_u32), u33::new(0x8000_0000));
+
+    assert_eq!(u65::from(0x80_u8), u65::new(0x80));
+    assert_eq!(u65::from(0x8000_u16), u65::new(0x8000));
+    assert_eq!(u65::from(0x8000_0000_u32), u65::new(0x8000_0000));
+    assert_eq!(
+        u65::from(0x8000_0000_0000_0000_u64),
+        u65::new(0x8000_0000_0000_0000)
+    );
+}
+
+#[allow(non_camel_case_types)]
+#[test]
+fn into_native_ints_same_bits() {
+    assert_eq!(u8::from(UInt::<u8, 8>::new(0x80)), 0x80);
+    assert_eq!(u16::from(UInt::<u16, 16>::new(0x8000)), 0x8000);
+    assert_eq!(u32::from(UInt::<u32, 32>::new(0x8000_0000)), 0x8000_0000);
+    assert_eq!(
+        u64::from(UInt::<u64, 64>::new(0x8000_0000_0000_0000)),
+        0x8000_0000_0000_0000
+    );
+    assert_eq!(
+        u128::from(UInt::<u128, 128>::new(
+            0x8000_0000_0000_0000_0000_0000_0000_0000
+        )),
+        0x8000_0000_0000_0000_0000_0000_0000_0000
+    );
+}
+
+#[test]
+fn into_native_ints_fewer_bits() {
+    assert_eq!(u8::from(u7::new(0x40)), 0x40);
+    assert_eq!(u16::from(u15::new(0x4000)), 0x4000);
+    assert_eq!(u32::from(u31::new(0x4000_0000)), 0x4000_0000);
+    assert_eq!(
+        u64::from(u63::new(0x4000_0000_0000_0000)),
+        0x4000_0000_0000_0000
+    );
+    assert_eq!(
+        u128::from(u127::new(0x4000_0000_0000_0000_0000_0000_0000_0000)),
+        0x4000_0000_0000_0000_0000_0000_0000_0000
+    );
 }
 
 #[test]
