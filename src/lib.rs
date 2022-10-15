@@ -71,10 +71,7 @@ impl<T, const BITS: usize> UInt<T, BITS>
         Self: Number,
         T: Copy,
 {
-    #[inline]
-    const fn mask() -> T {
-        Self::MAX.value
-    }
+    pub const MASK: T = Self::MAX.value;
 }
 
 // Next are specific implementations for u8, u16, u32, u64 and u128. A couple notes:
@@ -87,6 +84,7 @@ macro_rules! uint_impl {
         $(
             impl<const BITS: usize> Number for UInt<$type, BITS> {
                 const BITS: usize = BITS;
+
                 const MIN: Self = Self { value: 0 };
 
                 // The existence of MAX also serves as a bounds check: If NUM_BITS is > available bits,
@@ -219,11 +217,11 @@ where
     fn add(self, rhs: Self) -> Self::Output {
         let sum = self.value + rhs.value;
         #[cfg(debug_assertions)]
-        if (sum & !Self::mask()) != T::from(0) {
+        if (sum & !Self::MASK) != T::from(0) {
             panic!("attempt to add with overflow");
         }
         Self {
-            value: sum & Self::mask(),
+            value: sum & Self::MASK,
         }
     }
 }
@@ -246,10 +244,10 @@ where
     fn add_assign(&mut self, rhs: Self) {
         self.value += rhs.value;
         #[cfg(debug_assertions)]
-        if (self.value & !Self::mask()) != T::from(0) {
+        if (self.value & !Self::MASK) != T::from(0) {
             panic!("attempt to add with overflow");
         }
-        self.value &= Self::mask();
+        self.value &= Self::MASK;
     }
 }
 
@@ -268,7 +266,7 @@ where
     fn sub(self, rhs: Self) -> Self::Output {
         // No need for extra overflow checking as the regular minus operator already handles it for us
         Self {
-            value: (self.value - rhs.value) & Self::mask(),
+            value: (self.value - rhs.value) & Self::MASK,
         }
     }
 }
@@ -288,7 +286,7 @@ where
     fn sub_assign(&mut self, rhs: Self) {
         // No need for extra overflow checking as the regular minus operator already handles it for us
         self.value -= rhs.value;
-        self.value &= Self::mask();
+        self.value &= Self::MASK;
     }
 }
 
@@ -379,7 +377,7 @@ where
 
     fn not(self) -> Self::Output {
         Self {
-            value: self.value ^ Self::mask(),
+            value: self.value ^ Self::MASK,
         }
     }
 }
@@ -399,7 +397,7 @@ where
 
     fn shl(self, rhs: TSHIFTBITS) -> Self::Output {
         Self {
-            value: (self.value << rhs) & Self::mask(),
+            value: (self.value << rhs) & Self::MASK,
         }
     }
 }
@@ -418,7 +416,7 @@ where
 {
     fn shl_assign(&mut self, rhs: TSHIFTBITS) {
         self.value <<= rhs;
-        self.value &= Self::mask();
+        self.value &= Self::MASK;
     }
 }
 

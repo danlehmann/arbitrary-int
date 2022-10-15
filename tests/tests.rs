@@ -243,9 +243,11 @@ fn compare() {
 fn min_max() {
     assert_eq!(0, u4::MIN.value());
     assert_eq!(0b1111, u4::MAX.value());
+    assert_eq!(u4::new(0b1111), u4::MAX);
 
     assert_eq!(0, u15::MIN.value());
     assert_eq!(32767, u15::MAX.value());
+    assert_eq!(u15::new(32767), u15::MAX);
 
     assert_eq!(0, u31::MIN.value());
     assert_eq!(2147483647, u31::MAX.value());
@@ -266,6 +268,16 @@ fn bits() {
 
     assert_eq!(8, u8::BITS);
     assert_eq!(16, u16::BITS);
+}
+
+#[test]
+fn mask() {
+    assert_eq!(0x1u8, u1::MASK);
+    assert_eq!(0xFu8, u4::MASK);
+    assert_eq!(0x3FFFFu32, u18::MASK);
+    assert_eq!(0x7FFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFFu128, u127::MASK);
+    assert_eq!(0x7FFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFFu128, u127::MASK);
+    assert_eq!(0xFFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFFu128, u128::MAX);
 }
 
 #[test]
