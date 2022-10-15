@@ -1,16 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod lib {
-    pub mod core {
-        #[cfg(not(feature = "std"))]
-        pub use core::*;
-        #[cfg(feature = "std")]
-        pub use std::*;
-    }
-}
-
 use core::fmt::{Debug, Display, Formatter};
-use lib::core::ops::{
+use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl,
     ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };

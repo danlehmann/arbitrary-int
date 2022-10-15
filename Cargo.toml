@@ -10,5 +10,7 @@ readme = "README.md"
 keywords = ["integer", "unaligned", "misaligned"]
 categories = ["embedded", "no-std", "data-structures"]
 
-[dependencies]
+[features]
+std = []
 
+[dependencies]
