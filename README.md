@@ -23,7 +23,8 @@ follows:
 This will create a value with 9 bits. If the value passed into new() doesn't fit, a panic! will be raised. This means
 that a function that accepts a u9 as an argument can be certain that its contents are never larger than an u9.
 
-Standard operators are all overloaded, so it is possible to perform calculations using this type.
+Standard operators are all overloaded, so it is possible to perform calculations using this type. Note that addition
+and subtraction (at least in debug mode) performs bounds check. If this is undesired, see chapter num-traits below.
 
 Internally, u9 will hold its data in an u16. It is possible to get this value:
 
@@ -57,3 +58,7 @@ To make this easier, various extract methods exist that handle shifting and mask
 ```
 let a = u6::extract_u32(data, 4);
 let b = u12::extract_u128(data2, 63);
+
+## num-traits
+By default, arbitrary-int doesn't require any other traits. It has optional support for num-traits however. It
+implements WrappingAdd, WrappingSub, which (unlike the regular addition and subtraction) don't perform bounds checks.

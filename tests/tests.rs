@@ -77,7 +77,32 @@ fn add() {
 #[test]
 #[should_panic]
 fn add_overflow() {
-    let _ = u7::new(127) + u7::new(1);
+    let _ = u7::new(127) + u7::new(3);
+}
+
+#[test]
+fn num_traits_add_wrapping() {
+    let v1 = u7::new(120);
+    let v2 = u7::new(10);
+    let v3 = num_traits::WrappingAdd::wrapping_add(&v1, &v2);
+    assert_eq!(v3, u7::new(2));
+}
+
+#[test]
+fn num_traits_sub_wrapping() {
+    let v1 = u7::new(15);
+    let v2 = u7::new(20);
+    let v3 = num_traits::WrappingSub::wrapping_sub(&v1, &v2);
+    assert_eq!(v3, u7::new(123));
+}
+
+#[test]
+fn num_traits_bounded() {
+    use num_traits::bounds::Bounded;
+    assert_eq!(u7::MAX, u7::max_value());
+    assert_eq!(u119::MAX, u119::max_value());
+    assert_eq!(u7::new(0), u7::min_value());
+    assert_eq!(u119::new(0), u119::min_value());
 }
 
 #[test]
