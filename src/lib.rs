@@ -291,70 +291,6 @@ where
     }
 }
 
-#[cfg(feature = "num-traits")]
-impl<T, const NUM_BITS: usize> num_traits::WrappingAdd for UInt<T, NUM_BITS>
-    where
-        Self:Number,
-        T: PartialEq
-        + Eq
-        + Copy
-        + Add<T, Output = T>
-        + Sub<T, Output = T>
-        + BitAnd<T, Output = T>
-        + Not<Output = T>
-        + Shr<usize, Output = T>
-        + Shl<usize, Output = T>
-        + From<u8>,
-        Wrapping<T>: Add<Wrapping<T>, Output = Wrapping<T>>
-{
-    #[inline]
-    fn wrapping_add(&self, rhs: &Self) -> Self {
-        let sum = (Wrapping(self.value) + Wrapping(rhs.value)).0;
-        Self {
-            value: sum & Self::MASK,
-        }
-    }
-}
-
-#[cfg(feature = "num-traits")]
-impl<T, const NUM_BITS: usize> num_traits::WrappingSub for UInt<T, NUM_BITS>
-    where
-        Self:Number,
-        T: PartialEq
-        + Eq
-        + Copy
-        + Add<T, Output = T>
-        + Sub<T, Output = T>
-        + BitAnd<T, Output = T>
-        + Not<Output = T>
-        + Shr<usize, Output = T>
-        + Shl<usize, Output = T>
-        + From<u8>,
-        Wrapping<T>: Sub<Wrapping<T>, Output = Wrapping<T>>
-{
-    #[inline]
-    fn wrapping_sub(&self, rhs: &Self) -> Self {
-        let sum = (Wrapping(self.value) - Wrapping(rhs.value)).0;
-        Self {
-            value: sum & Self::MASK,
-        }
-    }
-}
-
-#[cfg(feature = "num-traits")]
-impl<T, const NUM_BITS: usize> num_traits::bounds::Bounded for UInt<T, NUM_BITS>
-where Self:Number
-{
-    fn min_value() -> Self {
-        Self::MIN
-    }
-
-    fn max_value() -> Self {
-        Self::MAX
-    }
-}
-
-
 impl<T, const BITS: usize> BitAnd for UInt<T, BITS>
 where
     Self: Number,
@@ -522,6 +458,69 @@ where
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         self.value.fmt(f)
+    }
+}
+
+#[cfg(feature = "num-traits")]
+impl<T, const NUM_BITS: usize> num_traits::WrappingAdd for UInt<T, NUM_BITS>
+    where
+        Self:Number,
+        T: PartialEq
+        + Eq
+        + Copy
+        + Add<T, Output = T>
+        + Sub<T, Output = T>
+        + BitAnd<T, Output = T>
+        + Not<Output = T>
+        + Shr<usize, Output = T>
+        + Shl<usize, Output = T>
+        + From<u8>,
+        Wrapping<T>: Add<Wrapping<T>, Output = Wrapping<T>>
+{
+    #[inline]
+    fn wrapping_add(&self, rhs: &Self) -> Self {
+        let sum = (Wrapping(self.value) + Wrapping(rhs.value)).0;
+        Self {
+            value: sum & Self::MASK,
+        }
+    }
+}
+
+#[cfg(feature = "num-traits")]
+impl<T, const NUM_BITS: usize> num_traits::WrappingSub for UInt<T, NUM_BITS>
+    where
+        Self:Number,
+        T: PartialEq
+        + Eq
+        + Copy
+        + Add<T, Output = T>
+        + Sub<T, Output = T>
+        + BitAnd<T, Output = T>
+        + Not<Output = T>
+        + Shr<usize, Output = T>
+        + Shl<usize, Output = T>
+        + From<u8>,
+        Wrapping<T>: Sub<Wrapping<T>, Output = Wrapping<T>>
+{
+    #[inline]
+    fn wrapping_sub(&self, rhs: &Self) -> Self {
+        let sum = (Wrapping(self.value) - Wrapping(rhs.value)).0;
+        Self {
+            value: sum & Self::MASK,
+        }
+    }
+}
+
+#[cfg(feature = "num-traits")]
+impl<T, const NUM_BITS: usize> num_traits::bounds::Bounded for UInt<T, NUM_BITS>
+    where Self:Number
+{
+    fn min_value() -> Self {
+        Self::MIN
+    }
+
+    fn max_value() -> Self {
+        Self::MAX
     }
 }
 

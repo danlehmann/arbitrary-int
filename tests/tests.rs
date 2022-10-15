@@ -3,21 +3,6 @@ extern crate core;
 use arbitrary_int::*;
 
 #[test]
-#[ignore]
-fn type_alias_codegen() {
-    // This is not actually a test but a codegen for the alias definitions
-    let mut base = 8;
-    for i in 1..128 {
-        if i == base {
-            base *= 2;
-            println!();
-        } else {
-            println!("type_alias!({}, u{}, u{});", i, i, base);
-        }
-    }
-}
-
-#[test]
 fn create_simple() {
     let value7 = u7::new(123);
     let value8 = UInt::<u8, 8>::new(189);
