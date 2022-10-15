@@ -6,6 +6,31 @@ use core::ops::{
     ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
+pub trait Number: Sized {
+    /// Number of bits that can fit in this type
+    const BITS: usize;
+
+    /// Minimum value that can be represented by this type
+    const MIN: Self;
+
+    /// Maximum value that can be represented by this type
+    const MAX: Self;
+}
+
+macro_rules! impl_number_native {
+    ($( $type:ty ),+) => {
+        $(
+            impl Number for $type {
+                const BITS: usize = Self::BITS as usize;
+                const MIN: Self = Self::MIN;
+                const MAX: Self = Self::MAX;
+            }
+        )+
+    };
+}
+
+impl_number_native!(u8, u16, u32, u64, u128);
+
 struct CompileTimeAssert<const A: usize, const B: usize> {}
 
 impl<const A: usize, const B: usize> CompileTimeAssert<A, B> {
@@ -18,19 +43,13 @@ impl<const A: usize, const B: usize> CompileTimeAssert<A, B> {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd)]
-pub struct UInt<T, const NUM_BITS: usize> {
+pub struct UInt<T, const BITS: usize> {
     value: T,
 }
 
-impl<T, const NUM_BITS: usize> UInt<T, NUM_BITS>
-where
-    T: Copy
-        + BitAnd<T, Output = T>
-        + Sub<T, Output = T>
-        + Shl<usize, Output = T>
-        + Shr<usize, Output = T>
-        + From<u8>,
-{
+impl<T: Copy, const BITS: usize> UInt<T, BITS> {
+    pub const BITS: usize = BITS;
+
     /// Returns the type as a fundamental data type
     #[inline]
     pub const fn value(&self) -> T {
@@ -45,36 +64,37 @@ where
     pub const unsafe fn new_unchecked(value: T) -> Self {
         Self { value }
     }
+}
 
-    fn mask() -> T {
-        // It would be great if we could make this function const, but generic traits aren't compatible with
-        // const fn
-        // Also note that we have to use T::from(1) (as opposed to doing that at the end), as we
-        // only require From(u8) in the generic constraints.
-        let one = T::from(1);
-        (one << NUM_BITS) - one
+impl<T, const BITS: usize> UInt<T, BITS>
+    where
+        Self: Number,
+        T: Copy,
+{
+    #[inline]
+    const fn mask() -> T {
+        Self::MAX.value
     }
 }
 
 // Next are specific implementations for u8, u16, u32, u64 and u128. A couple notes:
-// - The existence of MAX also serves as a neat bounds-check for NUM_BITS: If NUM_BITS is too large,
+// - The existence of MAX also serves as a neat bounds-check for BITS: If BITS is too large,
 //   the subtraction overflows which will fail to compile. This simplifies things a lot.
 //   However, that only works if every constructor also uses MAX somehow (doing let _ = MAX is enough)
 
 macro_rules! uint_impl {
     ($($type:ident),+) => {
         $(
-            impl<const NUM_BITS: usize> UInt<$type, NUM_BITS> {
-                /// Minimum value that can be represented by this type
-                pub const MIN: Self = Self { value: 0 };
+            impl<const BITS: usize> Number for UInt<$type, BITS> {
+                const BITS: usize = BITS;
+                const MIN: Self = Self { value: 0 };
 
-                /// Maximum value that can be represented by this type
-                /// Note that the existence of MAX also serves as a bounds check: If NUM_BITS is > available bits,
-                /// we will get a compiler error right here
-                pub const MAX: Self = Self {
-                    value: $type::MAX >> ($type::BITS as usize - NUM_BITS),
-                };
+                // The existence of MAX also serves as a bounds check: If NUM_BITS is > available bits,
+                // we will get a compiler error right here
+                const MAX: Self = Self { value: (<$type as Number>::MAX >> (<$type as Number>::BITS - Self::BITS)) };
+            }
 
+            impl<const BITS: usize> UInt<$type, BITS> {
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
                 pub const fn new(value: $type) -> Self {
@@ -85,7 +105,7 @@ macro_rules! uint_impl {
 
                 #[deprecated(note = "Use one of the specific functions like extract_u32")]
                 pub const fn extract(value: $type, start_bit: usize) -> Self {
-                    assert!(start_bit + NUM_BITS <= $type::BITS as usize);
+                    assert!(start_bit + BITS <= $type::BITS as usize);
                     // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
                     let _ = Self::MAX;
 
@@ -99,7 +119,7 @@ macro_rules! uint_impl {
                 /// panics if start_bit+<number of bits> doesn't fit within an u8, e.g. u5::extract_u8(8, 4);
                 #[inline]
                 pub const fn extract_u8(value: u8, start_bit: usize) -> Self {
-                    assert!(start_bit + NUM_BITS <= 8);
+                    assert!(start_bit + BITS <= 8);
                     // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
                     let _ = Self::MAX;
 
@@ -113,7 +133,7 @@ macro_rules! uint_impl {
                 /// panics if start_bit+<number of bits> doesn't fit within a u16, e.g. u15::extract_u16(8, 2);
                 #[inline]
                 pub const fn extract_u16(value: u16, start_bit: usize) -> Self {
-                    assert!(start_bit + NUM_BITS <= 16);
+                    assert!(start_bit + BITS <= 16);
                     // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
                     let _ = Self::MAX;
 
@@ -127,7 +147,7 @@ macro_rules! uint_impl {
                 /// panics if start_bit+<number of bits> doesn't fit within a u32, e.g. u30::extract_u32(8, 4);
                 #[inline]
                 pub const fn extract_u32(value: u32, start_bit: usize) -> Self {
-                    assert!(start_bit + NUM_BITS <= 32);
+                    assert!(start_bit + BITS <= 32);
                     // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
                     let _ = Self::MAX;
 
@@ -141,7 +161,7 @@ macro_rules! uint_impl {
                 /// panics if start_bit+<number of bits> doesn't fit within a u64, e.g. u60::extract_u64(8, 5);
                 #[inline]
                 pub const fn extract_u64(value: u64, start_bit: usize) -> Self {
-                    assert!(start_bit + NUM_BITS <= 64);
+                    assert!(start_bit + BITS <= 64);
                     // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
                     let _ = Self::MAX;
 
@@ -155,7 +175,7 @@ macro_rules! uint_impl {
                 /// panics if start_bit+<number of bits> doesn't fit within a u128, e.g. u120::extract_u64(8, 9);
                 #[inline]
                 pub const fn extract_u128(value: u128, start_bit: usize) -> Self {
-                    assert!(start_bit + NUM_BITS <= 128);
+                    assert!(start_bit + BITS <= 128);
                     // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
                     let _ = Self::MAX;
 
@@ -165,13 +185,13 @@ macro_rules! uint_impl {
                 }
 
                 /// Returns a UInt with a wider bit depth but with the same base data type
-                pub const fn widen<const NUM_BITS_RESULT: usize>(
+                pub const fn widen<const BITS_RESULT: usize>(
                     &self,
-                ) -> UInt<$type, NUM_BITS_RESULT> {
-                    let _ = CompileTimeAssert::<NUM_BITS, NUM_BITS_RESULT>::SMALLER_THAN;
+                ) -> UInt<$type, BITS_RESULT> {
+                    let _ = CompileTimeAssert::<BITS, BITS_RESULT>::SMALLER_THAN;
                     // Query MAX of the result to ensure we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
-                    let _ = UInt::<$type, NUM_BITS_RESULT>::MAX;
-                    UInt::<$type, NUM_BITS_RESULT> { value: self.value }
+                    let _ = UInt::<$type, BITS_RESULT>::MAX;
+                    UInt::<$type, BITS_RESULT> { value: self.value }
                 }
             }
         )+
@@ -181,10 +201,10 @@ macro_rules! uint_impl {
 uint_impl!(u8, u16, u32, u64, u128);
 
 // Arithmetic implementations
-impl<T, const NUM_BITS: usize> Add for UInt<T, NUM_BITS>
+impl<T, const BITS: usize> Add for UInt<T, BITS>
 where
+    Self: Number,
     T: PartialEq
-        + Eq
         + Copy
         + BitAnd<T, Output = T>
         + Not<Output = T>
@@ -194,7 +214,7 @@ where
         + Shl<usize, Output = T>
         + From<u8>,
 {
-    type Output = UInt<T, NUM_BITS>;
+    type Output = UInt<T, BITS>;
 
     fn add(self, rhs: Self) -> Self::Output {
         let sum = self.value + rhs.value;
@@ -208,8 +228,9 @@ where
     }
 }
 
-impl<T, const NUM_BITS: usize> AddAssign for UInt<T, NUM_BITS>
+impl<T, const BITS: usize> AddAssign for UInt<T, BITS>
 where
+    Self: Number,
     T: PartialEq
         + Eq
         + Not<Output = T>
@@ -232,8 +253,9 @@ where
     }
 }
 
-impl<T, const NUM_BITS: usize> Sub for UInt<T, NUM_BITS>
+impl<T, const BITS: usize> Sub for UInt<T, BITS>
 where
+    Self: Number,
     T: Copy
         + BitAnd<T, Output = T>
         + Sub<T, Output = T>
@@ -241,7 +263,7 @@ where
         + Shr<usize, Output = T>
         + From<u8>,
 {
-    type Output = UInt<T, NUM_BITS>;
+    type Output = UInt<T, BITS>;
 
     fn sub(self, rhs: Self) -> Self::Output {
         // No need for extra overflow checking as the regular minus operator already handles it for us
@@ -251,8 +273,9 @@ where
     }
 }
 
-impl<T, const NUM_BITS: usize> SubAssign for UInt<T, NUM_BITS>
+impl<T, const BITS: usize> SubAssign for UInt<T, BITS>
 where
+    Self: Number,
     T: Copy
         + SubAssign<T>
         + BitAnd<T, Output = T>
@@ -269,8 +292,9 @@ where
     }
 }
 
-impl<T, const NUM_BITS: usize> BitAnd for UInt<T, NUM_BITS>
+impl<T, const BITS: usize> BitAnd for UInt<T, BITS>
 where
+    Self: Number,
     T: Copy
         + BitAnd<T, Output = T>
         + Sub<T, Output = T>
@@ -278,7 +302,7 @@ where
         + Shr<usize, Output = T>
         + From<u8>,
 {
-    type Output = UInt<T, NUM_BITS>;
+    type Output = UInt<T, BITS>;
 
     fn bitand(self, rhs: Self) -> Self::Output {
         Self {
@@ -287,7 +311,7 @@ where
     }
 }
 
-impl<T, const NUM_BITS: usize> BitAndAssign for UInt<T, NUM_BITS>
+impl<T, const BITS: usize> BitAndAssign for UInt<T, BITS>
 where
     T: Copy + BitAndAssign<T> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
 {
@@ -296,11 +320,11 @@ where
     }
 }
 
-impl<T, const NUM_BITS: usize> BitOr for UInt<T, NUM_BITS>
+impl<T, const BITS: usize> BitOr for UInt<T, BITS>
 where
     T: Copy + BitOr<T, Output = T> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
 {
-    type Output = UInt<T, NUM_BITS>;
+    type Output = UInt<T, BITS>;
 
     fn bitor(self, rhs: Self) -> Self::Output {
         Self {
@@ -309,7 +333,7 @@ where
     }
 }
 
-impl<T, const NUM_BITS: usize> BitOrAssign for UInt<T, NUM_BITS>
+impl<T, const BITS: usize> BitOrAssign for UInt<T, BITS>
 where
     T: Copy + BitOrAssign<T> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
 {
@@ -318,11 +342,11 @@ where
     }
 }
 
-impl<T, const NUM_BITS: usize> BitXor for UInt<T, NUM_BITS>
+impl<T, const BITS: usize> BitXor for UInt<T, BITS>
 where
     T: Copy + BitXor<T, Output = T> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
 {
-    type Output = UInt<T, NUM_BITS>;
+    type Output = UInt<T, BITS>;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
         Self {
@@ -331,7 +355,7 @@ where
     }
 }
 
-impl<T, const NUM_BITS: usize> BitXorAssign for UInt<T, NUM_BITS>
+impl<T, const BITS: usize> BitXorAssign for UInt<T, BITS>
 where
     T: Copy + BitXorAssign<T> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
 {
@@ -340,8 +364,9 @@ where
     }
 }
 
-impl<T, const NUM_BITS: usize> Not for UInt<T, NUM_BITS>
+impl<T, const BITS: usize> Not for UInt<T, BITS>
 where
+    Self: Number,
     T: Copy
         + BitAnd<T, Output = T>
         + BitXor<T, Output = T>
@@ -350,7 +375,7 @@ where
         + Shr<usize, Output = T>
         + From<u8>,
 {
-    type Output = UInt<T, NUM_BITS>;
+    type Output = UInt<T, BITS>;
 
     fn not(self) -> Self::Output {
         Self {
@@ -359,8 +384,9 @@ where
     }
 }
 
-impl<T, TSHIFTBITS, const NUM_BITS: usize> Shl<TSHIFTBITS> for UInt<T, NUM_BITS>
+impl<T, TSHIFTBITS, const BITS: usize> Shl<TSHIFTBITS> for UInt<T, BITS>
 where
+    Self: Number,
     T: Copy
         + BitAnd<T, Output = T>
         + Shl<TSHIFTBITS, Output = T>
@@ -369,7 +395,7 @@ where
         + Shr<usize, Output = T>
         + From<u8>,
 {
-    type Output = UInt<T, NUM_BITS>;
+    type Output = UInt<T, BITS>;
 
     fn shl(self, rhs: TSHIFTBITS) -> Self::Output {
         Self {
@@ -378,8 +404,9 @@ where
     }
 }
 
-impl<T, TSHIFTBITS, const NUM_BITS: usize> ShlAssign<TSHIFTBITS> for UInt<T, NUM_BITS>
+impl<T, TSHIFTBITS, const BITS: usize> ShlAssign<TSHIFTBITS> for UInt<T, BITS>
 where
+    Self: Number,
     T: Copy
         + BitAnd<T, Output = T>
         + BitAndAssign<T>
@@ -395,11 +422,11 @@ where
     }
 }
 
-impl<T, TSHIFTBITS, const NUM_BITS: usize> Shr<TSHIFTBITS> for UInt<T, NUM_BITS>
+impl<T, TSHIFTBITS, const BITS: usize> Shr<TSHIFTBITS> for UInt<T, BITS>
 where
     T: Copy + Shr<TSHIFTBITS, Output = T> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
 {
-    type Output = UInt<T, NUM_BITS>;
+    type Output = UInt<T, BITS>;
 
     fn shr(self, rhs: TSHIFTBITS) -> Self::Output {
         Self {
@@ -408,7 +435,7 @@ where
     }
 }
 
-impl<T, TSHIFTBITS, const NUM_BITS: usize> ShrAssign<TSHIFTBITS> for UInt<T, NUM_BITS>
+impl<T, TSHIFTBITS, const BITS: usize> ShrAssign<TSHIFTBITS> for UInt<T, BITS>
 where
     T: Copy + ShrAssign<TSHIFTBITS> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
 {
@@ -417,7 +444,7 @@ where
     }
 }
 
-impl<T, const NUM_BITS: usize> Display for UInt<T, NUM_BITS>
+impl<T, const BITS: usize> Display for UInt<T, BITS>
 where
     T: Display,
 {
@@ -426,7 +453,7 @@ where
     }
 }
 
-impl<T, const NUM_BITS: usize> Debug for UInt<T, NUM_BITS>
+impl<T, const BITS: usize> Debug for UInt<T, BITS>
 where
     T: Debug,
 {
@@ -439,11 +466,11 @@ where
 macro_rules! from_arbitrary_int_impl {
     ($from:ty, [$($into:ty),+]) => {
         $(
-            impl<const NUM_BITS: usize, const NUM_BITS_FROM: usize> From<UInt<$from, NUM_BITS_FROM>>
-                for UInt<$into, NUM_BITS>
+            impl<const BITS: usize, const BITS_FROM: usize> From<UInt<$from, BITS_FROM>>
+                for UInt<$into, BITS>
             {
-                fn from(item: UInt<$from, NUM_BITS_FROM>) -> Self {
-                    let _ = CompileTimeAssert::<NUM_BITS_FROM, NUM_BITS>::SMALLER_OR_EQUAL;
+                fn from(item: UInt<$from, BITS_FROM>) -> Self {
+                    let _ = CompileTimeAssert::<BITS_FROM, BITS>::SMALLER_OR_EQUAL;
                     Self { value: item.value as $into }
                 }
             }
@@ -454,16 +481,16 @@ macro_rules! from_arbitrary_int_impl {
 macro_rules! from_native_impl {
     ($from:ty, [$($into:ty),+]) => {
         $(
-            impl<const NUM_BITS: usize> From<$from> for UInt<$into, NUM_BITS> {
+            impl<const BITS: usize> From<$from> for UInt<$into, BITS> {
                 fn from(from: $from) -> Self {
-                    let _ = CompileTimeAssert::<{ <$from>::BITS as usize }, NUM_BITS>::SMALLER_OR_EQUAL;
+                    let _ = CompileTimeAssert::<{ <$from>::BITS as usize }, BITS>::SMALLER_OR_EQUAL;
                     Self { value: from as $into }
                 }
             }
 
-            impl<const NUM_BITS: usize> From<UInt<$from, NUM_BITS>> for $into {
-                fn from(from: UInt<$from, NUM_BITS>) -> Self {
-                    let _ = CompileTimeAssert::<NUM_BITS, { <$into>::BITS as usize }>::SMALLER_OR_EQUAL;
+            impl<const BITS: usize> From<UInt<$from, BITS>> for $into {
+                fn from(from: UInt<$from, BITS>) -> Self {
+                    let _ = CompileTimeAssert::<BITS, { <$into>::BITS as usize }>::SMALLER_OR_EQUAL;
                     from.value as $into
                 }
             }

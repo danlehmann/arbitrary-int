@@ -258,6 +258,17 @@ fn min_max() {
 }
 
 #[test]
+fn bits() {
+    assert_eq!(4, u4::BITS);
+    assert_eq!(12, u12::BITS);
+    assert_eq!(120, u120::BITS);
+    assert_eq!(13, UInt::<u128, 13usize>::BITS);
+
+    assert_eq!(8, u8::BITS);
+    assert_eq!(16, u16::BITS);
+}
+
+#[test]
 fn min_max_fullwidth() {
     assert_eq!(u8::MIN, UInt::<u8, 8>::MIN.value());
     assert_eq!(u8::MAX, UInt::<u8, 8>::MAX.value());
