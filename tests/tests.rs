@@ -472,18 +472,27 @@ fn from_same_bit_widths() {
 }
 
 #[test]
-fn add2() {
-    fn increment<T: WrappingAdd + Number>(foo: T) -> T
+fn calculation_with_number_trait() {
+    fn increment_by_1<T: WrappingAdd + Number>(foo: T) -> T {
+        foo.wrapping_add(&T::new(1.into()))
+    }
+
+    fn increment_by_512<T: WrappingAdd + Number>(
+        foo: T,
+    ) -> Result<T, <<T as Number>::UnderlyingType as TryFrom<u32>>::Error>
     where
         <<T as Number>::UnderlyingType as TryFrom<u32>>::Error: Debug,
     {
-        foo.wrapping_add(&T::new(1.into()))
-            .wrapping_add(&T::new(512u32.try_into().unwrap()))
+        Ok(foo.wrapping_add(&T::new(512u32.try_into()?)))
     }
 
-    assert_eq!(increment(0u16), 513);
-    assert_eq!(increment(u15::new(3)), u15::new(516));
-    assert_eq!(increment(u31::new(4)), u31::new(517));
+    assert_eq!(increment_by_1(0u16), 1u16);
+    assert_eq!(increment_by_1(u7::new(3)), u7::new(4));
+    assert_eq!(increment_by_1(u15::new(3)), u15::new(4));
+
+    assert_eq!(increment_by_512(0u16), Ok(512u16));
+    assert!(increment_by_512(u7::new(3)).is_err());
+    assert_eq!(increment_by_512(u15::new(3)), Ok(u15::new(515)));
 }
 
 #[test]
