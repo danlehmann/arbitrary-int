@@ -7,7 +7,23 @@ use core::ops::{
     ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct TryNewError;
+
+impl Display for TryNewError {
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
+        write!(f, "Value too large to fit within this integer type")
+    }
+}
+
 pub trait Number: Sized {
+    type UnderlyingType: Debug
+        + From<u8>
+        + TryFrom<u16>
+        + TryFrom<u32>
+        + TryFrom<u64>
+        + TryFrom<u128>;
+
     /// Number of bits that can fit in this type
     const BITS: usize;
 
@@ -16,15 +32,28 @@ pub trait Number: Sized {
 
     /// Maximum value that can be represented by this type
     const MAX: Self;
+
+    fn new(value: Self::UnderlyingType) -> Self;
+
+    fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError>;
+
+    fn value(self) -> Self::UnderlyingType;
 }
 
 macro_rules! impl_number_native {
     ($( $type:ty ),+) => {
         $(
             impl Number for $type {
+                type UnderlyingType = $type;
                 const BITS: usize = Self::BITS as usize;
                 const MIN: Self = Self::MIN;
                 const MAX: Self = Self::MAX;
+
+                fn new(value: Self::UnderlyingType) -> Self { value }
+
+                fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> { Ok(value) }
+
+                fn value(self) -> Self::UnderlyingType { self }
             }
         )+
     };
@@ -68,9 +97,9 @@ impl<T: Copy, const BITS: usize> UInt<T, BITS> {
 }
 
 impl<T, const BITS: usize> UInt<T, BITS>
-    where
-        Self: Number,
-        T: Copy,
+where
+    Self: Number,
+    T: Copy,
 {
     pub const MASK: T = Self::MAX.value;
 }
@@ -84,6 +113,8 @@ macro_rules! uint_impl {
     ($($type:ident),+) => {
         $(
             impl<const BITS: usize> Number for UInt<$type, BITS> {
+                type UnderlyingType = $type;
+
                 const BITS: usize = BITS;
 
                 const MIN: Self = Self { value: 0 };
@@ -91,6 +122,27 @@ macro_rules! uint_impl {
                 // The existence of MAX also serves as a bounds check: If NUM_BITS is > available bits,
                 // we will get a compiler error right here
                 const MAX: Self = Self { value: (<$type as Number>::MAX >> (<$type as Number>::BITS - Self::BITS)) };
+
+                #[inline]
+                fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> {
+                    if value <= Self::MAX.value {
+                        Ok(Self { value })
+                    } else {
+                        Err(TryNewError{})
+                    }
+                }
+
+                #[inline]
+                fn new(value: $type) -> Self {
+                    assert!(value <= Self::MAX.value);
+
+                    Self { value }
+                }
+
+                #[inline]
+                fn value(self) -> $type {
+                    self.value
+                }
             }
 
             impl<const BITS: usize> UInt<$type, BITS> {
@@ -100,6 +152,16 @@ macro_rules! uint_impl {
                     assert!(value <= Self::MAX.value);
 
                     Self { value }
+                }
+
+                /// Creates an instance or an error if the given value is outside of the valid range
+                #[inline]
+                pub const fn try_new(value: $type) -> Result<Self, TryNewError> {
+                    if value <= Self::MAX.value {
+                        Ok(Self { value })
+                    } else {
+                        Err(TryNewError {})
+                    }
                 }
 
                 #[deprecated(note = "Use one of the specific functions like extract_u32")]
@@ -463,9 +525,9 @@ where
 
 #[cfg(feature = "num-traits")]
 impl<T, const NUM_BITS: usize> num_traits::WrappingAdd for UInt<T, NUM_BITS>
-    where
-        Self:Number,
-        T: PartialEq
+where
+    Self: Number,
+    T: PartialEq
         + Eq
         + Copy
         + Add<T, Output = T>
@@ -475,7 +537,7 @@ impl<T, const NUM_BITS: usize> num_traits::WrappingAdd for UInt<T, NUM_BITS>
         + Shr<usize, Output = T>
         + Shl<usize, Output = T>
         + From<u8>,
-        Wrapping<T>: Add<Wrapping<T>, Output = Wrapping<T>>
+    Wrapping<T>: Add<Wrapping<T>, Output = Wrapping<T>>,
 {
     #[inline]
     fn wrapping_add(&self, rhs: &Self) -> Self {
@@ -488,9 +550,9 @@ impl<T, const NUM_BITS: usize> num_traits::WrappingAdd for UInt<T, NUM_BITS>
 
 #[cfg(feature = "num-traits")]
 impl<T, const NUM_BITS: usize> num_traits::WrappingSub for UInt<T, NUM_BITS>
-    where
-        Self:Number,
-        T: PartialEq
+where
+    Self: Number,
+    T: PartialEq
         + Eq
         + Copy
         + Add<T, Output = T>
@@ -500,7 +562,7 @@ impl<T, const NUM_BITS: usize> num_traits::WrappingSub for UInt<T, NUM_BITS>
         + Shr<usize, Output = T>
         + Shl<usize, Output = T>
         + From<u8>,
-        Wrapping<T>: Sub<Wrapping<T>, Output = Wrapping<T>>
+    Wrapping<T>: Sub<Wrapping<T>, Output = Wrapping<T>>,
 {
     #[inline]
     fn wrapping_sub(&self, rhs: &Self) -> Self {
@@ -513,7 +575,8 @@ impl<T, const NUM_BITS: usize> num_traits::WrappingSub for UInt<T, NUM_BITS>
 
 #[cfg(feature = "num-traits")]
 impl<T, const NUM_BITS: usize> num_traits::bounds::Bounded for UInt<T, NUM_BITS>
-    where Self:Number
+where
+    Self: Number,
 {
     fn min_value() -> Self {
         Self::MIN
@@ -571,7 +634,6 @@ from_native_impl!(u16, [u8, u16, u32, u64, u128]);
 from_native_impl!(u32, [u8, u16, u32, u64, u128]);
 from_native_impl!(u64, [u8, u16, u32, u64, u128]);
 from_native_impl!(u128, [u8, u16, u32, u64, u128]);
-
 
 // Define type aliases like u1, u63 and u80 using the smallest possible underlying data type.
 // These are for convenience only - UInt<u32, 15> is still legal

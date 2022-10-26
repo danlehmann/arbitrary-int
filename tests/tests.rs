@@ -1,6 +1,8 @@
 extern crate core;
 
 use arbitrary_int::*;
+use num_traits::WrappingAdd;
+use std::fmt::Debug;
 
 #[test]
 fn create_simple() {
@@ -21,6 +23,12 @@ fn create_simple() {
 
     assert_eq!(value23.value(), 123);
     assert_eq!(value67.value(), 123);
+}
+
+#[test]
+fn create_try_new() {
+    assert_eq!(u7::new(123).value(), 123);
+    assert_eq!(u7::try_new(190).expect_err("No error seen"), TryNewError {});
 }
 
 #[test]
@@ -346,8 +354,14 @@ fn extract_typed() {
 
 #[test]
 fn extract_full_width_typed() {
-    assert_eq!(0b1010_0011, UInt::<u8, 8>::extract_u8(0b1010_0011, 0).value());
-    assert_eq!(0b1010_0011, UInt::<u8, 8>::extract_u16(0b1111_1111_1010_0011, 0).value());
+    assert_eq!(
+        0b1010_0011,
+        UInt::<u8, 8>::extract_u8(0b1010_0011, 0).value()
+    );
+    assert_eq!(
+        0b1010_0011,
+        UInt::<u8, 8>::extract_u16(0b1111_1111_1010_0011, 0).value()
+    );
 }
 
 #[test]
@@ -394,7 +408,10 @@ fn from_same_bit_widths() {
     assert_eq!(u5::from(UInt::<u64, 5>::new(0b10101)), u5::new(0b10101));
     assert_eq!(u5::from(UInt::<u128, 5>::new(0b10101)), u5::new(0b10101));
 
-    assert_eq!(UInt::<u8, 8>::from(UInt::<u128, 8>::new(0b1110_0101)), UInt::<u8, 8>::new(0b1110_0101));
+    assert_eq!(
+        UInt::<u8, 8>::from(UInt::<u128, 8>::new(0b1110_0101)),
+        UInt::<u8, 8>::new(0b1110_0101)
+    );
 
     assert_eq!(
         UInt::<u16, 6>::from(UInt::<u8, 5>::new(0b10101)),
@@ -452,6 +469,21 @@ fn from_same_bit_widths() {
         u120::from(UInt::<u128, 120>::new(0b10101)),
         u120::new(0b10101)
     );
+}
+
+#[test]
+fn add2() {
+    fn increment<T: WrappingAdd + Number>(foo: T) -> T
+    where
+        <<T as Number>::UnderlyingType as TryFrom<u32>>::Error: Debug,
+    {
+        foo.wrapping_add(&T::new(1.into()))
+            .wrapping_add(&T::new(512u32.try_into().unwrap()))
+    }
+
+    assert_eq!(increment(0u16), 513);
+    assert_eq!(increment(u15::new(3)), u15::new(516));
+    assert_eq!(increment(u31::new(4)), u31::new(517));
 }
 
 #[test]
