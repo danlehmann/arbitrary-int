@@ -5,6 +5,23 @@ use num_traits::WrappingAdd;
 use std::fmt::Debug;
 
 #[test]
+fn constants() {
+    // Make a constant to ensure new().value() works in a const-context
+    const TEST_CONSTANT: u8 = u7::new(127).value();
+    assert_eq!(TEST_CONSTANT, 127u8);
+
+    // Same with widen()
+    const TEST_CONSTANT2: u7 = u6::new(63).widen();
+    assert_eq!(TEST_CONSTANT2, u7::new(63));
+
+    // Same with widen()
+    const TEST_CONSTANT3A: Result<u6, TryNewError> = u6::try_new(62);
+    assert_eq!(TEST_CONSTANT3A, Ok(u6::new(62)));
+    const TEST_CONSTANT3B: Result<u6, TryNewError> = u6::try_new(64);
+    assert!(TEST_CONSTANT3B.is_err());
+}
+
+#[test]
 fn create_simple() {
     let value7 = u7::new(123);
     let value8 = UInt::<u8, 8>::new(189);

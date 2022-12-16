@@ -83,7 +83,7 @@ impl<T: Copy, const BITS: usize> UInt<T, BITS> {
 
     /// Returns the type as a fundamental data type
     #[inline]
-    pub const fn value(&self) -> T {
+    pub const fn value(self) -> T {
         self.value
     }
 
@@ -248,7 +248,7 @@ macro_rules! uint_impl {
 
                 /// Returns a UInt with a wider bit depth but with the same base data type
                 pub const fn widen<const BITS_RESULT: usize>(
-                    &self,
+                    self,
                 ) -> UInt<$type, BITS_RESULT> {
                     let _ = CompileTimeAssert::<BITS, BITS_RESULT>::SMALLER_THAN;
                     // Query MAX of the result to ensure we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
