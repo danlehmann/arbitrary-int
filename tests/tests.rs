@@ -1,7 +1,6 @@
 extern crate core;
 
 use arbitrary_int::*;
-use core::fmt::Debug;
 
 #[test]
 fn constants() {
@@ -83,9 +82,16 @@ fn add() {
     assert_eq!(u7::new(100) + u7::new(27), u7::new(127));
 }
 
+#[cfg(debug_assertions)]
 #[test]
 #[should_panic]
 fn add_overflow() {
+    let _ = u7::new(127) + u7::new(3);
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn add_no_overflow() {
     let _ = u7::new(127) + u7::new(3);
 }
 
@@ -125,9 +131,17 @@ fn addassign() {
     assert_eq!(value, u9::new(511));
 }
 
+#[cfg(debug_assertions)]
 #[test]
 #[should_panic]
 fn addassign_overflow() {
+    let mut value = u9::new(500);
+    value += u9::new(40);
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn addassign_no_overflow() {
     let mut value = u9::new(500);
     value += u9::new(40);
 }
@@ -138,9 +152,16 @@ fn sub() {
     assert_eq!(u7::new(127) - u7::new(127), u7::new(0));
 }
 
+#[cfg(debug_assertions)]
 #[test]
 #[should_panic]
 fn sub_overflow() {
+    let _ = u7::new(100) - u7::new(127);
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn sub_no_overflow() {
     let _ = u7::new(100) - u7::new(127);
 }
 
@@ -151,9 +172,17 @@ fn subassign() {
     assert_eq!(value, u9::new(489));
 }
 
+#[cfg(debug_assertions)]
 #[test]
 #[should_panic]
 fn subassign_overflow() {
+    let mut value = u9::new(30);
+    value -= u9::new(40);
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn subassign_no_overflow() {
     let mut value = u9::new(30);
     value -= u9::new(40);
 }
@@ -502,7 +531,7 @@ fn calculation_with_number_trait() {
         foo: T,
     ) -> Result<T, <<T as Number>::UnderlyingType as TryFrom<u32>>::Error>
     where
-        <<T as Number>::UnderlyingType as TryFrom<u32>>::Error: Debug,
+        <<T as Number>::UnderlyingType as TryFrom<u32>>::Error: core::fmt::Debug,
     {
         Ok(foo.wrapping_add(&T::new(512u32.try_into()?)))
     }

@@ -1,4 +1,4 @@
-name: test std/num-traits
+name: test no-std
 run-name: ${{ github.actor }}'s patch
 on: [push]
 jobs:
@@ -15,4 +15,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --release --no-default-features --features num-traits
+          args: --no-default-features
