@@ -1,4 +1,4 @@
-name: test std/num-traits
+name: test num-traits
 run-name: ${{ github.actor }}'s patch
 on: [push]
 jobs:
