@@ -1,7 +1,6 @@
 extern crate core;
 
 use arbitrary_int::*;
-use num_traits::WrappingAdd;
 use std::fmt::Debug;
 
 #[test]
@@ -90,6 +89,7 @@ fn add_overflow() {
     let _ = u7::new(127) + u7::new(3);
 }
 
+#[cfg(feature="num-traits")]
 #[test]
 fn num_traits_add_wrapping() {
     let v1 = u7::new(120);
@@ -98,6 +98,7 @@ fn num_traits_add_wrapping() {
     assert_eq!(v3, u7::new(2));
 }
 
+#[cfg(feature="num-traits")]
 #[test]
 fn num_traits_sub_wrapping() {
     let v1 = u7::new(15);
@@ -488,13 +489,14 @@ fn from_same_bit_widths() {
     );
 }
 
+#[cfg(feature="num-traits")]
 #[test]
 fn calculation_with_number_trait() {
-    fn increment_by_1<T: WrappingAdd + Number>(foo: T) -> T {
+    fn increment_by_1<T: num_traits::WrappingAdd + Number>(foo: T) -> T {
         foo.wrapping_add(&T::new(1.into()))
     }
 
-    fn increment_by_512<T: WrappingAdd + Number>(
+    fn increment_by_512<T: num_traits::WrappingAdd + Number>(
         foo: T,
     ) -> Result<T, <<T as Number>::UnderlyingType as TryFrom<u32>>::Error>
     where
