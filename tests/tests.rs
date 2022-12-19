@@ -1,7 +1,7 @@
 extern crate core;
 
 use arbitrary_int::*;
-use std::fmt::Debug;
+use core::fmt::Debug;
 
 #[test]
 fn constants() {
@@ -107,6 +107,8 @@ fn num_traits_sub_wrapping() {
     assert_eq!(v3, u7::new(123));
 }
 
+
+#[cfg(feature="num-traits")]
 #[test]
 fn num_traits_bounded() {
     use num_traits::bounds::Bounded;
