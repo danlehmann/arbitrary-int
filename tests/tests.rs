@@ -645,6 +645,14 @@ fn into_native_ints_fewer_bits() {
 }
 
 #[test]
+fn from_into_bool() {
+    assert_eq!(u1::from(true), u1::new(1));
+    assert_eq!(u1::from(false), u1::new(0));
+    assert_eq!(bool::from(u1::new(1)), true);
+    assert_eq!(bool::from(u1::new(0)), false);
+}
+
+#[test]
 fn widen() {
     // As From() can't be used while keeping the base-data-type, there's widen
 
