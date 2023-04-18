@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(feature = "nightly", feature(const_convert, const_trait_impl))]
 
 use core::fmt::{Debug, Display, Formatter};
 #[cfg(feature = "num-traits")]
@@ -17,6 +18,7 @@ impl Display for TryNewError {
     }
 }
 
+#[cfg_attr(feature = "nightly", const_trait)]
 pub trait Number: Sized {
     type UnderlyingType: Debug
         + From<u8>
@@ -41,6 +43,27 @@ pub trait Number: Sized {
     fn value(self) -> Self::UnderlyingType;
 }
 
+#[cfg(feature = "nightly")]
+macro_rules! impl_number_native {
+    ($( $type:ty ),+) => {
+        $(
+            impl const Number for $type {
+                type UnderlyingType = $type;
+                const BITS: usize = Self::BITS as usize;
+                const MIN: Self = Self::MIN;
+                const MAX: Self = Self::MAX;
+
+                fn new(value: Self::UnderlyingType) -> Self { value }
+
+                fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> { Ok(value) }
+
+                fn value(self) -> Self::UnderlyingType { self }
+            }
+        )+
+    };
+}
+
+#[cfg(not(feature = "nightly"))]
 macro_rules! impl_number_native {
     ($( $type:ty ),+) => {
         $(
@@ -110,7 +133,48 @@ where
 //   the subtraction overflows which will fail to compile. This simplifies things a lot.
 //   However, that only works if every constructor also uses MAX somehow (doing let _ = MAX is enough)
 
-macro_rules! uint_impl {
+#[cfg(feature = "nightly")]
+macro_rules! uint_impl_num {
+    ($($type:ident),+) => {
+        $(
+            impl<const BITS: usize> const Number for UInt<$type, BITS> {
+                type UnderlyingType = $type;
+
+                const BITS: usize = BITS;
+
+                const MIN: Self = Self { value: 0 };
+
+                // The existence of MAX also serves as a bounds check: If NUM_BITS is > available bits,
+                // we will get a compiler error right here
+                const MAX: Self = Self { value: (<$type as Number>::MAX >> (<$type as Number>::BITS - Self::BITS)) };
+
+                #[inline]
+                fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> {
+                    if value <= Self::MAX.value {
+                        Ok(Self { value })
+                    } else {
+                        Err(TryNewError{})
+                    }
+                }
+
+                #[inline]
+                fn new(value: $type) -> Self {
+                    assert!(value <= Self::MAX.value);
+
+                    Self { value }
+                }
+
+                #[inline]
+                fn value(self) -> $type {
+                    self.value
+                }
+            }
+        )+
+    };
+}
+
+#[cfg(not(feature = "nightly"))]
+macro_rules! uint_impl_num {
     ($($type:ident),+) => {
         $(
             impl<const BITS: usize> Number for UInt<$type, BITS> {
@@ -145,7 +209,15 @@ macro_rules! uint_impl {
                     self.value
                 }
             }
+        )+
+    };
+}
 
+uint_impl_num!(u8, u16, u32, u64, u128);
+    
+macro_rules! uint_impl {
+    ($($type:ident),+) => {
+        $(
             impl<const BITS: usize> UInt<$type, BITS> {
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
@@ -589,6 +661,24 @@ where
 }
 
 // Conversions
+
+#[cfg(feature = "nightly")]
+macro_rules! from_arbitrary_int_impl {
+    ($from:ty, [$($into:ty),+]) => {
+        $(
+            impl<const BITS: usize, const BITS_FROM: usize> const From<UInt<$from, BITS_FROM>>
+                for UInt<$into, BITS>
+            {
+                fn from(item: UInt<$from, BITS_FROM>) -> Self {
+                    let _ = CompileTimeAssert::<BITS_FROM, BITS>::SMALLER_OR_EQUAL;
+                    Self { value: item.value as $into }
+                }
+            }
+        )+
+    };
+}
+
+#[cfg(not(feature = "nightly"))]
 macro_rules! from_arbitrary_int_impl {
     ($from:ty, [$($into:ty),+]) => {
         $(
@@ -604,6 +694,28 @@ macro_rules! from_arbitrary_int_impl {
     };
 }
 
+#[cfg(feature = "nightly")]
+macro_rules! from_native_impl {
+    ($from:ty, [$($into:ty),+]) => {
+        $(
+            impl<const BITS: usize> const From<$from> for UInt<$into, BITS> {
+                fn from(from: $from) -> Self {
+                    let _ = CompileTimeAssert::<{ <$from>::BITS as usize }, BITS>::SMALLER_OR_EQUAL;
+                    Self { value: from as $into }
+                }
+            }
+
+            impl<const BITS: usize> const From<UInt<$from, BITS>> for $into {
+                fn from(from: UInt<$from, BITS>) -> Self {
+                    let _ = CompileTimeAssert::<BITS, { <$into>::BITS as usize }>::SMALLER_OR_EQUAL;
+                    from.value as $into
+                }
+            }
+        )+
+    };
+}
+
+#[cfg(not(feature = "nightly"))]
 macro_rules! from_native_impl {
     ($from:ty, [$($into:ty),+]) => {
         $(
@@ -656,18 +768,46 @@ mod aliases {
     type_alias!(u128, (u65, 65), (u66, 66), (u67, 67), (u68, 68), (u69, 69), (u70, 70), (u71, 71), (u72, 72), (u73, 73), (u74, 74), (u75, 75), (u76, 76), (u77, 77), (u78, 78), (u79, 79), (u80, 80), (u81, 81), (u82, 82), (u83, 83), (u84, 84), (u85, 85), (u86, 86), (u87, 87), (u88, 88), (u89, 89), (u90, 90), (u91, 91), (u92, 92), (u93, 93), (u94, 94), (u95, 95), (u96, 96), (u97, 97), (u98, 98), (u99, 99), (u100, 100), (u101, 101), (u102, 102), (u103, 103), (u104, 104), (u105, 105), (u106, 106), (u107, 107), (u108, 108), (u109, 109), (u110, 110), (u111, 111), (u112, 112), (u113, 113), (u114, 114), (u115, 115), (u116, 116), (u117, 117), (u118, 118), (u119, 119), (u120, 120), (u121, 121), (u122, 122), (u123, 123), (u124, 124), (u125, 125), (u126, 126), (u127, 127));
 }
 
-impl From<bool> for u1 {
-    fn from(value: bool) -> Self {
-        u1::new(value as u8)
-    }
+// We need to wrap this in a macro, currently: https://github.com/rust-lang/rust/issues/67792#issuecomment-1130369066
+
+#[cfg(feature = "nightly")]
+macro_rules! boolu1 {
+    () => { 
+        impl const From<bool> for u1 {
+            fn from(value: bool) -> Self {
+                u1::new(value as u8)
+            }
+        }
+        impl const From<u1> for bool {
+            fn from(value: u1) -> Self {
+                match value.value() {
+                    0 => false,
+                    1 => true,
+                    _ => panic!("arbitrary_int_type already validates that this is unreachable") //TODO: unreachable!() is not const yet
+                }
+            }
+        }
+    };
 }
 
-impl From<u1> for bool {
-    fn from(value: u1) -> Self {
-        match value.value() {
-            0 => false,
-            1 => true,
-            _ => unreachable!("arbitrary_int_type already validates that this is unreachable")
+#[cfg(not(feature = "nightly"))]
+macro_rules! boolu1 {
+    () => {
+        impl From<bool> for u1 {
+            fn from(value: bool) -> Self {
+                u1::new(value as u8)
+            }
         }
-    }
+        impl From<u1> for bool {
+            fn from(value: u1) -> Self {
+                match value.value() {
+                    0 => false,
+                    1 => true,
+                    _ => panic!("arbitrary_int_type already validates that this is unreachable") //TODO: unreachable!() is not const yet
+                }
+            }
+        }
+    };
 }
+
+boolu1!();

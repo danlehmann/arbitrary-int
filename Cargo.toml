@@ -12,6 +12,7 @@ categories = ["embedded", "no-std", "data-structures"]
 
 [features]
 std = []
+nightly = []
 
 [dependencies]
 num-traits = { version = "0.2.15", default-features = false, optional = true }
