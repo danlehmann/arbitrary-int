@@ -53,10 +53,13 @@ macro_rules! impl_number_native {
                 const MIN: Self = Self::MIN;
                 const MAX: Self = Self::MAX;
 
+                #[inline]
                 fn new(value: Self::UnderlyingType) -> Self { value }
 
+                #[inline]
                 fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> { Ok(value) }
 
+                #[inline]
                 fn value(self) -> Self::UnderlyingType { self }
             }
         )+
@@ -73,10 +76,13 @@ macro_rules! impl_number_native {
                 const MIN: Self = Self::MIN;
                 const MAX: Self = Self::MAX;
 
+                #[inline]
                 fn new(value: Self::UnderlyingType) -> Self { value }
 
+                #[inline]
                 fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> { Ok(value) }
 
+                #[inline]
                 fn value(self) -> Self::UnderlyingType { self }
             }
         )+
@@ -582,6 +588,7 @@ impl<T, const BITS: usize> Display for UInt<T, BITS>
 where
     T: Display,
 {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         self.value.fmt(f)
     }
@@ -591,6 +598,7 @@ impl<T, const BITS: usize> Debug for UInt<T, BITS>
 where
     T: Debug,
 {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         self.value.fmt(f)
     }
@@ -669,6 +677,7 @@ macro_rules! from_arbitrary_int_impl {
             impl<const BITS: usize, const BITS_FROM: usize> const From<UInt<$from, BITS_FROM>>
                 for UInt<$into, BITS>
             {
+                #[inline]
                 fn from(item: UInt<$from, BITS_FROM>) -> Self {
                     let _ = CompileTimeAssert::<BITS_FROM, BITS>::SMALLER_OR_EQUAL;
                     Self { value: item.value as $into }
@@ -685,6 +694,7 @@ macro_rules! from_arbitrary_int_impl {
             impl<const BITS: usize, const BITS_FROM: usize> From<UInt<$from, BITS_FROM>>
                 for UInt<$into, BITS>
             {
+                #[inline]
                 fn from(item: UInt<$from, BITS_FROM>) -> Self {
                     let _ = CompileTimeAssert::<BITS_FROM, BITS>::SMALLER_OR_EQUAL;
                     Self { value: item.value as $into }
@@ -699,6 +709,7 @@ macro_rules! from_native_impl {
     ($from:ty, [$($into:ty),+]) => {
         $(
             impl<const BITS: usize> const From<$from> for UInt<$into, BITS> {
+                #[inline]
                 fn from(from: $from) -> Self {
                     let _ = CompileTimeAssert::<{ <$from>::BITS as usize }, BITS>::SMALLER_OR_EQUAL;
                     Self { value: from as $into }
@@ -706,6 +717,7 @@ macro_rules! from_native_impl {
             }
 
             impl<const BITS: usize> const From<UInt<$from, BITS>> for $into {
+                #[inline]
                 fn from(from: UInt<$from, BITS>) -> Self {
                     let _ = CompileTimeAssert::<BITS, { <$into>::BITS as usize }>::SMALLER_OR_EQUAL;
                     from.value as $into
@@ -720,6 +732,7 @@ macro_rules! from_native_impl {
     ($from:ty, [$($into:ty),+]) => {
         $(
             impl<const BITS: usize> From<$from> for UInt<$into, BITS> {
+                #[inline]
                 fn from(from: $from) -> Self {
                     let _ = CompileTimeAssert::<{ <$from>::BITS as usize }, BITS>::SMALLER_OR_EQUAL;
                     Self { value: from as $into }
@@ -727,6 +740,7 @@ macro_rules! from_native_impl {
             }
 
             impl<const BITS: usize> From<UInt<$from, BITS>> for $into {
+                #[inline]
                 fn from(from: UInt<$from, BITS>) -> Self {
                     let _ = CompileTimeAssert::<BITS, { <$into>::BITS as usize }>::SMALLER_OR_EQUAL;
                     from.value as $into
@@ -774,11 +788,13 @@ mod aliases {
 macro_rules! boolu1 {
     () => { 
         impl const From<bool> for u1 {
+            #[inline]
             fn from(value: bool) -> Self {
                 u1::new(value as u8)
             }
         }
         impl const From<u1> for bool {
+            #[inline]
             fn from(value: u1) -> Self {
                 match value.value() {
                     0 => false,
@@ -794,11 +810,13 @@ macro_rules! boolu1 {
 macro_rules! boolu1 {
     () => {
         impl From<bool> for u1 {
+            #[inline]
             fn from(value: bool) -> Self {
                 u1::new(value as u8)
             }
         }
         impl From<u1> for bool {
+            #[inline]
             fn from(value: u1) -> Self {
                 match value.value() {
                     0 => false,
