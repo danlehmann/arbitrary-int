@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "nightly", feature(const_convert, const_trait_impl))]
 
-use core::fmt::{Debug, Display, Formatter};
+use core::{fmt::{Debug, Display, Formatter}, mem};
 #[cfg(feature = "num-traits")]
 use core::num::Wrapping;
 use core::ops::{
@@ -829,3 +829,157 @@ macro_rules! boolu1 {
 }
 
 boolu1!();
+
+// we can use .len and .swap and BITS
+macro_rules! le_bytes_be_bytes {
+    ($(($type:ident)),+) => {
+    $(
+        impl $type {
+            // used internally
+            const fn raw_bytes(self) -> [u8; Self::BITS / 8] {
+                [
+                    (self.value       & u8::MAX as u32) as u8, // le: 1 --- be: 0
+                    (self.value >>  8 & u8::MAX as u32) as u8, // le: 0 --- be: 0
+                    (self.value >> 16 & u8::MAX as u32) as u8, // le: 0 --- be: 1
+                ]
+            }
+            #[must_use = "this returns the result of the operation, \
+                              without modifying the original"]
+            #[inline(always)]
+            pub const fn swap_bytes(self) -> Self { // le: 0b00000000_00000000_00000001 --- be: 0b00000001_00000000_00000000
+                #[cfg(target_endian = "little")]
+                {
+                    let [byte1, byte2, byte3] = self.raw_bytes(); // le: [1, 0, 0]
+                    let bytes = [byte3, byte2, byte1, 0]; // le: [0, 0, 1, 0]
+                    // SAFETY: integers are plain old datatypes so we can always transmute to them
+                    unsafe { mem::transmute(bytes) } // le: 0b00000000__00000001_00000000_00000000
+                }
+                #[cfg(target_endian = "big")]
+                {
+                    let [byte1, byte2, byte3] = self.raw_bytes(); // be: [0, 0, 1]
+                    let bytes = [0, byte1, byte2, byte3]; // be: [0, 0, 0, 1]
+                    // SAFETY: integers are plain old datatypes so we can always transmute to them
+                    unsafe { mem::transmute(bytes) }
+                }
+            }
+
+            #[must_use]
+            #[inline]
+            pub const fn from_ne_bytes(bytes: [u8; Self::BITS / 8]) -> Self {
+                let [byte1, byte2, byte3] = bytes; // le: [1, 0, 0] --- be: [0, 0, 1]
+                #[cfg(target_endian = "little")]
+                {
+                    let bytes = [byte1, byte2, byte3, 0]; // le: [1, 0, 0, 0]
+                    // SAFETY: integers are plain old datatypes so we can always transmute to them
+                    unsafe { mem::transmute(bytes) } // le: 0b00000000_00000000_00000001
+                }
+                #[cfg(target_endian = "big")]
+                {
+                    let bytes = [0, byte1, byte2, byte3]; // be: [0, 0, 0, 1]
+                    // SAFETY: integers are plain old datatypes so we can always transmute to them
+                    unsafe { mem::transmute(bytes) } // be: 0b00000000_00000000_00000001
+                }
+            }
+
+            #[must_use = "this returns the result of the operation, \
+                            without modifying the original"]
+            #[inline]
+            pub const fn to_ne_bytes(self) -> [u8; Self::BITS / 8] { // be: 0b00000001_00000000_00000000
+                #[cfg(target_endian = "little")]
+                {
+                    self.raw_bytes()
+                }
+                #[cfg(target_endian = "big")]
+                {
+                    let [byte1, byte2, byte3] = self.raw_bytes(); // be: [1, 0, 0]
+                    [byte3, byte2, byte1]
+                }
+            }
+
+
+
+
+
+
+
+            #[must_use]
+            #[inline(always)]
+            pub const fn from_le(x: Self) -> Self { // le: 0b00000000_00000000_00000001
+                #[cfg(target_endian = "little")]
+                {
+                    x
+                }
+                #[cfg(not(target_endian = "little"))]
+                {
+                    x.swap_bytes()
+                }
+            }
+            #[must_use]
+            #[inline(always)]
+            pub const fn from_be(x: Self) -> Self { // le: 0b00000000_00000000_00000001
+                #[cfg(target_endian = "big")]
+                {
+                    x
+                }
+                #[cfg(not(target_endian = "big"))]
+                {
+                    x.swap_bytes()
+                }
+            }
+            #[must_use]
+            #[inline]
+            pub const fn from_be_bytes(bytes: [u8; Self::BITS / 8]) -> Self {
+                Self::from_be(Self::from_ne_bytes(bytes))
+            }
+            #[must_use]
+            #[inline]
+            pub const fn from_le_bytes(bytes: [u8; Self::BITS / 8]) -> Self {
+                Self::from_le(Self::from_ne_bytes(bytes))
+            }
+        
+            #[must_use = "this returns the result of the operation, \
+                            without modifying the original"]
+            #[inline(always)]
+            pub const fn to_be(self) -> Self { // or not to be?
+                #[cfg(target_endian = "big")]
+                {
+                    self
+                }
+                #[cfg(not(target_endian = "big"))]
+                {
+                    self.swap_bytes()
+                }
+            }
+            #[must_use = "this returns the result of the operation, \
+                            without modifying the original"]
+            #[inline(always)]
+            pub const fn to_le(self) -> Self {
+                #[cfg(target_endian = "little")]
+                {
+                    self
+                }
+                #[cfg(not(target_endian = "little"))]
+                {
+                    self.swap_bytes()
+                }
+            }
+            #[must_use = "this returns the result of the operation, \
+                            without modifying the original"]
+            #[inline]
+            pub const fn to_be_bytes(self) -> [u8; Self::BITS / 8] {
+                self.to_be().to_ne_bytes()
+            }
+            #[must_use = "this returns the result of the operation, \
+                            without modifying the original"]
+            #[inline]
+            pub const fn to_le_bytes(self) -> [u8; Self::BITS / 8] {
+                self.to_le().to_ne_bytes()
+            }
+        }
+    )+
+    };
+}
+
+le_bytes_be_bytes!((u24));
+// le_bytes_be_bytes!((u40));
+// le_bytes_be_bytes!((u24), (u40), (u48), (u56), (u72), (u80), (u88), (u96), (u104), (u112), (u120));

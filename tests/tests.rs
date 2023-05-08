@@ -665,6 +665,39 @@ fn widen() {
 }
 
 #[test]
+fn le_bytes_be_bytes() {
+    #[cfg(target_endian = "little")]
+    {
+        assert_eq!(u24::from_ne_bytes([1, 0, 0]), u24::new(0b00000000_00000000_00000001));
+        assert_eq!(u24::new(0b00000000_00000000_00000001).to_ne_bytes(), [1, 0, 0]);
+        assert_eq!(u24::from_le_bytes([1, 0, 0]), u24::new(0b00000000_00000000_00000001));
+        assert_eq!(u24::new(0b00000000_00000000_00000001).to_le_bytes(), [1, 0, 0]);
+        assert_eq!(u24::from_be_bytes([1, 0, 0]), u24::new(0b00000001_00000000_00000000));
+        assert_eq!(u24::new(0b00000001_00000000_00000000).to_be_bytes(), [1, 0, 0]);
+        assert_eq!(u24::new(0b00000000_00000000_00000001).to_be_bytes(), [0, 0, 1]);
+        assert_eq!(
+            u24::new(0b00000001_00000000_00000000).swap_bytes(),
+            u24::new(0b00000000_00000000_00000001)
+        );
+    }
+    // cargo miri test --target mips64-unknown-linux-gnuabi64 -- le_bytes_be_bytes
+    #[cfg(target_endian = "big")]
+    {
+        assert_eq!(u24::from_ne_bytes([0, 0, 1]), u24::new(0b00000000_00000000_00000001));
+        assert_eq!(u24::new(0b00000001_00000000_00000000).to_ne_bytes(), [1, 0, 0]);
+        assert_eq!(u24::from_be_bytes([0, 0, 1]), u24::new(0b00000000_00000000_00000001));
+        assert_eq!(u24::new(0b00000001_00000000_00000000).to_be_bytes(), [1, 0, 0]);
+        assert_eq!(u24::from_le_bytes([0, 0, 1]), u24::new(0b00000001_00000000_00000000));
+        assert_eq!(u24::new(0b00000000_00000000_00000001).to_le_bytes(), [1, 0, 0]);
+        assert_eq!(u24::new(0b00000001_00000000_00000000).to_le_bytes(), [0, 0, 1]);
+        assert_eq!(
+            u24::new(0b00000001_00000000_00000000).swap_bytes(),
+            u24::new(0b00000000_00000000_00000001)
+        );
+    }
+}
+
+#[test]
 fn to_string() {
     assert_eq!("Value: 5", format!("Value: {}", 5u32.to_string()));
     assert_eq!("Value: 5", format!("Value: {}", u5::new(5).to_string()));
