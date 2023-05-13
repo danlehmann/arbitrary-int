@@ -668,6 +668,37 @@ where
     }
 }
 
+// swap_bytes: This is available for all integer multiples of 8
+// We can fairly easily do this by using the swap_bytes() of the underlying type and shifting right
+macro_rules! swap_bytes_impl {
+    ($base_data_type:ty, $bits:expr) => {
+        impl UInt<$base_data_type, $bits>
+        {
+            #[inline]
+            pub const fn swap_bytes(&self) -> Self {
+                Self { value: self.value.swap_bytes() >> ((core::mem::size_of::<$base_data_type>() << 3) - $bits) }
+            }
+        }
+    };
+}
+
+swap_bytes_impl!(u32, 24);
+swap_bytes_impl!(u64, 24);
+swap_bytes_impl!(u128, 24);
+swap_bytes_impl!(u64, 40);
+swap_bytes_impl!(u128, 40);
+swap_bytes_impl!(u64, 48);
+swap_bytes_impl!(u128, 48);
+swap_bytes_impl!(u64, 56);
+swap_bytes_impl!(u128, 56);
+swap_bytes_impl!(u128, 72);
+swap_bytes_impl!(u128, 80);
+swap_bytes_impl!(u128, 88);
+swap_bytes_impl!(u128, 96);
+swap_bytes_impl!(u128, 104);
+swap_bytes_impl!(u128, 112);
+swap_bytes_impl!(u128, 120);
+
 // Conversions
 
 #[cfg(feature = "nightly")]

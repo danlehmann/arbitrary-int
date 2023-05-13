@@ -693,3 +693,81 @@ fn debug() {
     assert_eq!("Value: 5", format!("Value: {:?}", u38::new(5)));
     assert_eq!("Value: 60", format!("Value: {:?}", u65::new(60)));
 }
+
+#[test]
+fn swap_bytes() {
+    assert_eq!(
+        u24::new(0x12_34_56).swap_bytes(),
+        u24::new(0x56_34_12)
+    );
+    assert_eq!(
+        UInt::<u64, 24>::new(0x12_34_56).swap_bytes(),
+        UInt::<u64, 24>::new(0x56_34_12)
+    );
+    assert_eq!(
+        UInt::<u128, 24>::new(0x12_34_56).swap_bytes(),
+        UInt::<u128, 24>::new(0x56_34_12)
+    );
+
+    assert_eq!(
+        u40::new(0x12_34_56_78_9A).swap_bytes(),
+        u40::new(0x9A_78_56_34_12)
+    );
+    assert_eq!(
+        UInt::<u128, 40>::new(0x12_34_56_78_9A).swap_bytes(),
+        UInt::<u128, 40>::new(0x9A_78_56_34_12)
+    );
+
+    assert_eq!(
+        u48::new(0x12_34_56_78_9A_BC).swap_bytes(),
+        u48::new(0xBC_9A_78_56_34_12)
+    );
+    assert_eq!(
+        UInt::<u128, 48>::new(0x12_34_56_78_9A_BC).swap_bytes(),
+        UInt::<u128, 48>::new(0xBC_9A_78_56_34_12)
+    );
+
+    assert_eq!(
+        u56::new(0x12_34_56_78_9A_BC_DE).swap_bytes(),
+        u56::new(0xDE_BC_9A_78_56_34_12)
+    );
+    assert_eq!(
+        UInt::<u128, 56>::new(0x12_34_56_78_9A_BC_DE).swap_bytes(),
+        UInt::<u128, 56>::new(0xDE_BC_9A_78_56_34_12)
+    );
+
+    assert_eq!(
+        u72::new(0x12_34_56_78_9A_BC_DE_FE_DC).swap_bytes(),
+        u72::new(0xDC_FE_DE_BC_9A_78_56_34_12)
+    );
+
+    assert_eq!(
+        u80::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA).swap_bytes(),
+        u80::new(0xBA_DC_FE_DE_BC_9A_78_56_34_12)
+    );
+
+    assert_eq!(
+        u88::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98).swap_bytes(),
+        u88::new(0x98_BA_DC_FE_DE_BC_9A_78_56_34_12)
+    );
+
+    assert_eq!(
+        u96::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98_76).swap_bytes(),
+        u96::new(0x76_98_BA_DC_FE_DE_BC_9A_78_56_34_12)
+    );
+
+    assert_eq!(
+        u104::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98_76_54).swap_bytes(),
+        u104::new(0x54_76_98_BA_DC_FE_DE_BC_9A_78_56_34_12)
+    );
+
+    assert_eq!(
+        u112::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98_76_54_32).swap_bytes(),
+        u112::new(0x32_54_76_98_BA_DC_FE_DE_BC_9A_78_56_34_12)
+    );
+
+    assert_eq!(
+        u120::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98_76_54_32_10).swap_bytes(),
+        u120::new(0x10_32_54_76_98_BA_DC_FE_DE_BC_9A_78_56_34_12)
+    );
+}
