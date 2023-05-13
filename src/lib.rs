@@ -676,7 +676,8 @@ macro_rules! swap_bytes_impl {
         {
             #[inline]
             pub const fn swap_bytes(&self) -> Self {
-                Self { value: self.value.swap_bytes() >> ((core::mem::size_of::<$base_data_type>() << 3) - $bits) }
+                const SHIFT_RIGHT: usize = ((core::mem::size_of::<$base_data_type>() << 3) - $bits);
+                Self { value: self.value.swap_bytes() >> SHIFT_RIGHT }
             }
         }
     };
