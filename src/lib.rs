@@ -674,6 +674,7 @@ macro_rules! swap_bytes_impl {
     ($base_data_type:ty, $bits:expr) => {
         impl UInt<$base_data_type, $bits>
         {
+            /// Reverses the byte order of the integer.
             #[inline]
             pub const fn swap_bytes(&self) -> Self {
                 const SHIFT_RIGHT: usize = (core::mem::size_of::<$base_data_type>() << 3) - $bits;
