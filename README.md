@@ -41,7 +41,7 @@ let a = UInt::<u8, 5>::new(0b10101));
 let b = UInt::<u32, 5>::new(0b10101));
 ```
 
-In this example, a will have 5 bytes and be represented by a u8. This is identical to u5. b however is represented by a
+In this example, a will have 5 bits and be represented by a u8. This is identical to u5. b however is represented by a
 u32, so it is a different type from u5.
 
 ## Extract
