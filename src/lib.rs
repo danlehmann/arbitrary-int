@@ -668,38 +668,117 @@ where
     }
 }
 
-// swap_bytes: This is available for all integer multiples of 8
-// We can fairly easily do this by using the swap_bytes() of the underlying type and shifting right
-macro_rules! swap_bytes_impl {
-    ($base_data_type:ty, $bits:expr) => {
+macro_rules! bytes_operation_impl {
+    ($base_data_type:ty, $bits:expr, [$($indices:expr),+]) => {
         impl UInt<$base_data_type, $bits>
         {
             /// Reverses the byte order of the integer.
             #[inline]
             pub const fn swap_bytes(&self) -> Self {
+                // swap_bytes() of the underlying type does most of the work. Then, we just need to shift
                 const SHIFT_RIGHT: usize = (core::mem::size_of::<$base_data_type>() << 3) - $bits;
                 Self { value: self.value.swap_bytes() >> SHIFT_RIGHT }
+            }
+
+            pub const fn to_le_bytes(&self) -> [u8; $bits >> 3] {
+                let v = self.value();
+
+                [ $( (v >> ($indices << 3)) as u8, )+ ]
+            }
+
+            pub const fn from_le_bytes(from: [u8; $bits >> 3]) -> Self {
+                let value = { 0 $( | (from[$indices] as $base_data_type) << ($indices << 3))+ };
+                Self { value }
+            }
+
+            pub const fn to_be_bytes(&self) -> [u8; $bits >> 3] {
+                 let v = self.value();
+
+                [ $( (v >> ($bits - 8 - ($indices << 3))) as u8, )+ ]
+            }
+
+            pub const fn from_be_bytes(from: [u8; $bits >> 3]) -> Self {
+                let value = { 0 $( | (from[$indices] as $base_data_type) << ($bits - 8 - ($indices << 3)))+ };
+                Self { value }
+            }
+
+            #[inline]
+            pub const fn to_ne_bytes(&self) -> [u8; $bits >> 3] {
+                #[cfg(target_endian = "little")]
+                {
+                    self.to_le_bytes()
+                }
+                #[cfg(target_endian = "big")]
+                {
+                    self.to_be_bytes()
+                }
+            }
+
+            #[inline]
+            pub const fn from_ne_bytes(bytes: [u8; $bits >> 3]) -> Self {
+                #[cfg(target_endian = "little")]
+                {
+                    Self::from_le_bytes(bytes)
+                }
+                #[cfg(target_endian = "big")]
+                {
+                    Self::from_be_bytes(bytes)
+                }
+            }
+
+            #[inline]
+            pub const fn to_le(self) -> Self {
+                #[cfg(target_endian = "little")]
+                {
+                    self
+                }
+                #[cfg(target_endian = "big")]
+                {
+                    self.swap_bytes()
+                }
+            }
+
+            #[inline]
+            pub const fn to_be(self) -> Self {
+                #[cfg(target_endian = "little")]
+                {
+                    self.swap_bytes()
+                }
+                #[cfg(target_endian = "big")]
+                {
+                    self
+                }
+            }
+
+            #[inline]
+            pub const fn from_le(value: Self) -> Self {
+                value.to_le()
+            }
+
+            #[inline]
+            pub const fn from_be(value: Self) -> Self {
+                value.to_be()
             }
         }
     };
 }
 
-swap_bytes_impl!(u32, 24);
-swap_bytes_impl!(u64, 24);
-swap_bytes_impl!(u128, 24);
-swap_bytes_impl!(u64, 40);
-swap_bytes_impl!(u128, 40);
-swap_bytes_impl!(u64, 48);
-swap_bytes_impl!(u128, 48);
-swap_bytes_impl!(u64, 56);
-swap_bytes_impl!(u128, 56);
-swap_bytes_impl!(u128, 72);
-swap_bytes_impl!(u128, 80);
-swap_bytes_impl!(u128, 88);
-swap_bytes_impl!(u128, 96);
-swap_bytes_impl!(u128, 104);
-swap_bytes_impl!(u128, 112);
-swap_bytes_impl!(u128, 120);
+bytes_operation_impl!(u32, 24, [0, 1, 2]);
+bytes_operation_impl!(u64, 24, [0, 1, 2]);
+bytes_operation_impl!(u128, 24, [0, 1, 2]);
+bytes_operation_impl!(u64, 40, [0, 1, 2, 3, 4]);
+bytes_operation_impl!(u128, 40, [0, 1, 2, 3, 4]);
+bytes_operation_impl!(u64, 48, [0, 1, 2, 3, 4, 5]);
+bytes_operation_impl!(u128, 48, [0, 1, 2, 3, 4, 5]);
+bytes_operation_impl!(u64, 56, [0, 1, 2, 3, 4, 5, 6]);
+bytes_operation_impl!(u128, 56, [0, 1, 2, 3, 4, 5, 6]);
+bytes_operation_impl!(u128, 72, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+bytes_operation_impl!(u128, 80, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+bytes_operation_impl!(u128, 88, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+bytes_operation_impl!(u128, 96, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+bytes_operation_impl!(u128, 104, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+bytes_operation_impl!(u128, 112, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+bytes_operation_impl!(u128, 120, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
 
 // Conversions
 
