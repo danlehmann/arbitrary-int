@@ -722,7 +722,7 @@ macro_rules! bytes_operation_impl {
                 }
                 #[cfg(target_endian = "big")]
                 {
-                    Self::to_le_bytes(bytes)
+                    Self::from_be_bytes(bytes)
                 }
             }
 
