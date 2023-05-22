@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "nightly", feature(const_convert, const_trait_impl))]
 
-use core::fmt::{Debug, Display, Formatter};
+use core::fmt::{Debug, Display, Formatter, LowerHex, UpperHex};
 #[cfg(feature = "num-traits")]
 use core::num::Wrapping;
 use core::ops::{
@@ -220,7 +220,7 @@ macro_rules! uint_impl_num {
 }
 
 uint_impl_num!(u8, u16, u32, u64, u128);
-    
+
 macro_rules! uint_impl {
     ($($type:ident),+) => {
         $(
@@ -604,6 +604,26 @@ where
     }
 }
 
+impl<T, const BITS: usize> LowerHex for UInt<T, BITS>
+where
+    T: LowerHex,
+{
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        self.value.fmt(f)
+    }
+}
+
+impl<T, const BITS: usize> UpperHex for UInt<T, BITS>
+where
+    T: UpperHex,
+{
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        self.value.fmt(f)
+    }
+}
+
 #[cfg(feature = "num-traits")]
 impl<T, const NUM_BITS: usize> num_traits::WrappingAdd for UInt<T, NUM_BITS>
 where
@@ -778,7 +798,11 @@ bytes_operation_impl!(u128, 88, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 bytes_operation_impl!(u128, 96, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
 bytes_operation_impl!(u128, 104, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
 bytes_operation_impl!(u128, 112, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
-bytes_operation_impl!(u128, 120, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+bytes_operation_impl!(
+    u128,
+    120,
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+);
 
 // Conversions
 
@@ -898,7 +922,7 @@ mod aliases {
 
 #[cfg(feature = "nightly")]
 macro_rules! boolu1 {
-    () => { 
+    () => {
         impl const From<bool> for u1 {
             #[inline]
             fn from(value: bool) -> Self {
@@ -911,7 +935,7 @@ macro_rules! boolu1 {
                 match value.value() {
                     0 => false,
                     1 => true,
-                    _ => panic!("arbitrary_int_type already validates that this is unreachable") //TODO: unreachable!() is not const yet
+                    _ => panic!("arbitrary_int_type already validates that this is unreachable"), //TODO: unreachable!() is not const yet
                 }
             }
         }
@@ -933,7 +957,7 @@ macro_rules! boolu1 {
                 match value.value() {
                     0 => false,
                     1 => true,
-                    _ => panic!("arbitrary_int_type already validates that this is unreachable") //TODO: unreachable!() is not const yet
+                    _ => panic!("arbitrary_int_type already validates that this is unreachable"), //TODO: unreachable!() is not const yet
                 }
             }
         }
