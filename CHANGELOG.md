@@ -1,5 +1,11 @@
 # Changelog
 
+## arbitrary-int 1.2.6
+
+### Added
+
+- Support LowerHex and UpperHex so that arbitrary-int can be printed via e.g. `format!("{:x}", u4::new(12))`
+
 ## arbitrary-int 1.2.5
 
 ### Added
