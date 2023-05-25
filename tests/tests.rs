@@ -1198,3 +1198,73 @@ fn simple_le_be() {
         assert_eq!(u40::from_be(REGULAR), REGULAR);
     }
 }
+
+#[test]
+fn reverse_bits() {
+    const A: u5 = u5::new(0b11101);
+    const B: u5 = A.reverse_bits();
+    assert_eq!(B, u5::new(0b10111));
+
+    assert_eq!(
+        UInt::<u128, 6>::new(0b101011),
+        UInt::<u128, 6>::new(0b110101).reverse_bits()
+    );
+
+    assert_eq!(u1::new(1).reverse_bits().value(), 1);
+    assert_eq!(u1::new(0).reverse_bits().value(), 0);
+}
+
+#[test]
+fn count_ones_and_zeros() {
+    assert_eq!(4, u5::new(0b10111).count_ones());
+    assert_eq!(1, u5::new(0b10111).count_zeros());
+    assert_eq!(1, u5::new(0b10111).leading_ones());
+    assert_eq!(0, u5::new(0b10111).leading_zeros());
+    assert_eq!(3, u5::new(0b10111).trailing_ones());
+    assert_eq!(0, u5::new(0b10111).trailing_zeros());
+
+    assert_eq!(2, u5::new(0b10100).trailing_zeros());
+    assert_eq!(3, u5::new(0b00011).leading_zeros());
+
+    assert_eq!(0, u5::new(0b00000).count_ones());
+    assert_eq!(5, u5::new(0b00000).count_zeros());
+
+    assert_eq!(5, u5::new(0b11111).count_ones());
+    assert_eq!(0, u5::new(0b11111).count_zeros());
+
+    assert_eq!(3, u127::new(0b111).count_ones());
+    assert_eq!(124, u127::new(0b111).count_zeros());
+}
+
+#[test]
+fn rotate_left() {
+    assert_eq!(u1::new(0b1), u1::new(0b1).rotate_left(1));
+    assert_eq!(u2::new(0b01), u2::new(0b10).rotate_left(1));
+
+    assert_eq!(u5::new(0b10111), u5::new(0b10111).rotate_left(0));
+    assert_eq!(u5::new(0b01111), u5::new(0b10111).rotate_left(1));
+    assert_eq!(u5::new(0b11110), u5::new(0b10111).rotate_left(2));
+    assert_eq!(u5::new(0b11101), u5::new(0b10111).rotate_left(3));
+    assert_eq!(u5::new(0b11011), u5::new(0b10111).rotate_left(4));
+    assert_eq!(u5::new(0b10111), u5::new(0b10111).rotate_left(5));
+    assert_eq!(u5::new(0b01111), u5::new(0b10111).rotate_left(6));
+    assert_eq!(u5::new(0b01111), u5::new(0b10111).rotate_left(556));
+
+    assert_eq!(u24::new(0x0FFEEC), u24::new(0xC0FFEE).rotate_left(4));
+}
+
+#[test]
+fn rotate_right() {
+    assert_eq!(u1::new(0b1), u1::new(0b1).rotate_right(1));
+    assert_eq!(u2::new(0b01), u2::new(0b10).rotate_right(1));
+
+    assert_eq!(u5::new(0b10011), u5::new(0b10011).rotate_right(0));
+    assert_eq!(u5::new(0b11001), u5::new(0b10011).rotate_right(1));
+    assert_eq!(u5::new(0b11100), u5::new(0b10011).rotate_right(2));
+    assert_eq!(u5::new(0b01110), u5::new(0b10011).rotate_right(3));
+    assert_eq!(u5::new(0b00111), u5::new(0b10011).rotate_right(4));
+    assert_eq!(u5::new(0b10011), u5::new(0b10011).rotate_right(5));
+    assert_eq!(u5::new(0b11001), u5::new(0b10011).rotate_right(6));
+
+    assert_eq!(u24::new(0xEC0FFE), u24::new(0xC0FFEE).rotate_right(4));
+}

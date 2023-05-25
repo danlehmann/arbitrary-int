@@ -333,6 +333,69 @@ macro_rules! uint_impl {
                     let _ = UInt::<$type, BITS_RESULT>::MAX;
                     UInt::<$type, BITS_RESULT> { value: self.value }
                 }
+
+                /// Reverses the order of bits in the integer. The least significant bit becomes the most significant bit, second least-significant bit becomes second most-significant bit, etc.
+                pub const fn reverse_bits(self) -> Self {
+                    let shift_right = (core::mem::size_of::<$type>() << 3) - BITS;
+                    Self { value: self.value.reverse_bits() >> shift_right }
+                }
+
+                /// Returns the number of ones in the binary representation of self.
+                pub const fn count_ones(self) -> u32 {
+                    // The upper bits are zero, so we can ignore them
+                    self.value.count_ones()
+                }
+
+                /// Returns the number of zeros in the binary representation of self.
+                pub const fn count_zeros(self) -> u32 {
+                    // The upper bits are zero, so we can have to subtract them from the result
+                    let filler_bits = ((core::mem::size_of::<$type>() << 3) - BITS) as u32;
+                    self.value.count_zeros() - filler_bits
+                }
+
+                /// Returns the number of leading ones in the binary representation of self.
+                pub const fn leading_ones(self) -> u32 {
+                    let shift = ((core::mem::size_of::<$type>() << 3) - BITS) as u32;
+                    (self.value << shift).leading_ones()
+                }
+
+                /// Returns the number of leading zeros in the binary representation of self.
+                pub const fn leading_zeros(self) -> u32 {
+                    let shift = ((core::mem::size_of::<$type>() << 3) - BITS) as u32;
+                    (self.value << shift).leading_zeros()
+                }
+
+                /// Returns the number of leading ones in the binary representation of self.
+                pub const fn trailing_ones(self) -> u32 {
+                    self.value.trailing_ones()
+                }
+
+                /// Returns the number of leading zeros in the binary representation of self.
+                pub const fn trailing_zeros(self) -> u32 {
+                    self.value.trailing_zeros()
+                }
+
+                /// Shifts the bits to the left by a specified amount, n, wrapping the truncated bits to the end of the resulting integer.
+                /// Please note this isn't the same operation as the << shifting operator!
+                pub const fn rotate_left(self, n: u32) -> Self {
+                    let b = BITS as u32;
+                    let n = if n >= b { n % b } else { n };
+
+                    let moved_bits = (self.value << n) & Self::MASK;
+                    let truncated_bits = self.value >> (b - n);
+                    Self { value: moved_bits | truncated_bits }
+                }
+
+                /// Shifts the bits to the right by a specified amount, n, wrapping the truncated bits to the beginning of the resulting integer.
+                /// Please note this isn't the same operation as the >> shifting operator!
+                pub const fn rotate_right(self, n: u32) -> Self {
+                    let b = BITS as u32;
+                    let n = if n >= b { n % b } else { n };
+
+                    let moved_bits = self.value >> n;
+                    let truncated_bits = (self.value << (b - n)) & Self::MASK;
+                    Self { value: moved_bits | truncated_bits }
+                }
             }
         )+
     };
