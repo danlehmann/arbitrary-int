@@ -1,5 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(feature = "nightly", feature(const_convert, const_trait_impl))]
+#![cfg_attr(
+    feature = "const_convert_and_const_trait_impl",
+    feature(const_convert, const_trait_impl)
+)]
 
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
 use core::hash::{Hash, Hasher};
@@ -19,7 +22,7 @@ impl Display for TryNewError {
     }
 }
 
-#[cfg_attr(feature = "nightly", const_trait)]
+#[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
 pub trait Number: Sized {
     type UnderlyingType: Debug
         + From<u8>
@@ -44,7 +47,7 @@ pub trait Number: Sized {
     fn value(self) -> Self::UnderlyingType;
 }
 
-#[cfg(feature = "nightly")]
+#[cfg(feature = "const_convert_and_const_trait_impl")]
 macro_rules! impl_number_native {
     ($( $type:ty ),+) => {
         $(
@@ -67,7 +70,7 @@ macro_rules! impl_number_native {
     };
 }
 
-#[cfg(not(feature = "nightly"))]
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 macro_rules! impl_number_native {
     ($( $type:ty ),+) => {
         $(
@@ -137,7 +140,7 @@ where
 //   the subtraction overflows which will fail to compile. This simplifies things a lot.
 //   However, that only works if every constructor also uses MAX somehow (doing let _ = MAX is enough)
 
-#[cfg(feature = "nightly")]
+#[cfg(feature = "const_convert_and_const_trait_impl")]
 macro_rules! uint_impl_num {
     ($($type:ident),+) => {
         $(
@@ -177,7 +180,7 @@ macro_rules! uint_impl_num {
     };
 }
 
-#[cfg(not(feature = "nightly"))]
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 macro_rules! uint_impl_num {
     ($($type:ident),+) => {
         $(
@@ -897,7 +900,7 @@ bytes_operation_impl!(
 
 // Conversions
 
-#[cfg(feature = "nightly")]
+#[cfg(feature = "const_convert_and_const_trait_impl")]
 macro_rules! from_arbitrary_int_impl {
     ($from:ty, [$($into:ty),+]) => {
         $(
@@ -914,7 +917,7 @@ macro_rules! from_arbitrary_int_impl {
     };
 }
 
-#[cfg(not(feature = "nightly"))]
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 macro_rules! from_arbitrary_int_impl {
     ($from:ty, [$($into:ty),+]) => {
         $(
@@ -931,7 +934,7 @@ macro_rules! from_arbitrary_int_impl {
     };
 }
 
-#[cfg(feature = "nightly")]
+#[cfg(feature = "const_convert_and_const_trait_impl")]
 macro_rules! from_native_impl {
     ($from:ty, [$($into:ty),+]) => {
         $(
@@ -954,7 +957,7 @@ macro_rules! from_native_impl {
     };
 }
 
-#[cfg(not(feature = "nightly"))]
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 macro_rules! from_native_impl {
     ($from:ty, [$($into:ty),+]) => {
         $(
@@ -1011,7 +1014,7 @@ mod aliases {
 
 // We need to wrap this in a macro, currently: https://github.com/rust-lang/rust/issues/67792#issuecomment-1130369066
 
-#[cfg(feature = "nightly")]
+#[cfg(feature = "const_convert_and_const_trait_impl")]
 macro_rules! boolu1 {
     () => {
         impl const From<bool> for u1 {
@@ -1033,7 +1036,7 @@ macro_rules! boolu1 {
     };
 }
 
-#[cfg(not(feature = "nightly"))]
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 macro_rules! boolu1 {
     () => {
         impl From<bool> for u1 {
