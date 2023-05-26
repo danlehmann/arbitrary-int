@@ -4,7 +4,8 @@
 
 ### Added
 
-- Support LowerHex and UpperHex so that arbitrary-int can be printed via e.g. `format!("{:x}", u4::new(12))`
+- Support `LowerHex`, `UpperHex`, `Octal`, `Binary` so that arbitrary-int can be printed via e.g. `format!("{:x}", u4::new(12))`
+- Support `Hash` so that arbitrary-int can be used in hash tables
 
 ## arbitrary-int 1.2.5
 
