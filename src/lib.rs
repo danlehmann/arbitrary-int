@@ -97,9 +97,6 @@ impl<const A: usize, const B: usize> CompileTimeAssert<A, B> {
     pub const SMALLER_OR_EQUAL: () = {
         assert!(A <= B);
     };
-    pub const SMALLER_THAN: () = {
-        assert!(A <= B);
-    };
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd)]
@@ -328,7 +325,7 @@ macro_rules! uint_impl {
                 pub const fn widen<const BITS_RESULT: usize>(
                     self,
                 ) -> UInt<$type, BITS_RESULT> {
-                    let _ = CompileTimeAssert::<BITS, BITS_RESULT>::SMALLER_THAN;
+                    let _ = CompileTimeAssert::<BITS, BITS_RESULT>::SMALLER_OR_EQUAL;
                     // Query MAX of the result to ensure we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
                     let _ = UInt::<$type, BITS_RESULT>::MAX;
                     UInt::<$type, BITS_RESULT> { value: self.value }
