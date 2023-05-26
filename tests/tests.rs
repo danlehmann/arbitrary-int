@@ -1,6 +1,7 @@
 extern crate core;
 
 use arbitrary_int::*;
+use std::collections::HashMap;
 
 #[test]
 fn constants() {
@@ -757,6 +758,38 @@ fn debug_upper_hex_fancy() {
     assert_eq!("Value: 0xA", format!("Value: {:#X?}", u38::new(10)));
     assert_eq!("Value: 0x3C", format!("Value: {:#X?}", 60));
     assert_eq!("Value: 0x3C", format!("Value: {:#X?}", u65::new(60)));
+}
+
+#[test]
+fn octal() {
+    assert_eq!("Value: 12", format!("Value: {:o}", 10u32));
+    assert_eq!("Value: 12", format!("Value: {:o}", u5::new(10)));
+    assert_eq!("Value: 12", format!("Value: {:o}", u11::new(10)));
+    assert_eq!("Value: 12", format!("Value: {:o}", u17::new(10)));
+    assert_eq!("Value: 12", format!("Value: {:o}", u38::new(10)));
+    assert_eq!("Value: 74", format!("Value: {:o}", 0o74));
+    assert_eq!("Value: 74", format!("Value: {:o}", u65::new(0o74)));
+}
+
+#[test]
+fn binary() {
+    assert_eq!("Value: 1010", format!("Value: {:b}", 10u32));
+    assert_eq!("Value: 1010", format!("Value: {:b}", u5::new(10)));
+    assert_eq!("Value: 1010", format!("Value: {:b}", u11::new(10)));
+    assert_eq!("Value: 1010", format!("Value: {:b}", u17::new(10)));
+    assert_eq!("Value: 1010", format!("Value: {:b}", u38::new(10)));
+    assert_eq!("Value: 111100", format!("Value: {:b}", 0b111100));
+    assert_eq!("Value: 111100", format!("Value: {:b}", u65::new(0b111100)));
+}
+
+#[test]
+fn hash() {
+    let mut hashmap = HashMap::<u5, u7>::new();
+
+    hashmap.insert(u5::new(11), u7::new(9));
+
+    assert_eq!(Some(&u7::new(9)), hashmap.get(&u5::new(11)));
+    assert_eq!(None, hashmap.get(&u5::new(12)));
 }
 
 #[test]

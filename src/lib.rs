@@ -1,7 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "nightly", feature(const_convert, const_trait_impl))]
 
-use core::fmt::{Debug, Display, Formatter, LowerHex, UpperHex};
+use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
+use core::hash::{Hash, Hasher};
 #[cfg(feature = "num-traits")]
 use core::num::Wrapping;
 use core::ops::{
@@ -681,6 +682,36 @@ where
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         self.value.fmt(f)
+    }
+}
+
+impl<T, const BITS: usize> Octal for UInt<T, BITS>
+where
+    T: Octal,
+{
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        self.value.fmt(f)
+    }
+}
+
+impl<T, const BITS: usize> Binary for UInt<T, BITS>
+where
+    T: Binary,
+{
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        self.value.fmt(f)
+    }
+}
+
+impl<T, const BITS: usize> Hash for UInt<T, BITS>
+where
+    T: Hash,
+{
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.value.hash(state)
     }
 }
 
