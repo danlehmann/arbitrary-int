@@ -7,6 +7,10 @@
 - Support `LowerHex`, `UpperHex`, `Octal`, `Binary` so that arbitrary-int can be printed via e.g. `format!("{:x}", u4::new(12))`
 - Support `Hash` so that arbitrary-int can be used in hash tables
 
+### Changed
+
+- As support for `[const_trait]` has recently been removed from structs like `From<T>` in upstream Rust, opting-in to the `nightly` feature no longer enables this behavior as that would break the build. To continue using this feature with older compiler versions, use `const_convert_and_const_trait_impl` instead.
+
 ## arbitrary-int 1.2.5
 
 ### Added

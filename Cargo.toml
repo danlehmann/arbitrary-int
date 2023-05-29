@@ -12,7 +12,11 @@ categories = ["embedded", "no-std", "data-structures"]
 
 [features]
 std = []
-nightly = []
+
+# Supports const trait implementation through const_convert and const_trait_impl. Support for those was removed
+# from more recent Rust nightlies, so this feature requires an older Rust compiler
+# (2023-04-20 is broken, 2022-11-23 works. The exact day is somewhere inbetween)
+const_convert_and_const_trait_impl = []
 
 [dependencies]
 num-traits = { version = "0.2.15", default-features = false, optional = true }
