@@ -1301,3 +1301,25 @@ fn rotate_right() {
 
     assert_eq!(u24::new(0xEC0FFE), u24::new(0xC0FFEE).rotate_right(4));
 }
+
+#[cfg(feature = "step_trait")]
+#[test]
+fn step_forward() {
+    let (arb_start, arb_end) = (u19::MIN, u19::MAX);
+    
+    let arbint_range = (arb_start..arb_end).map(UInt::value);
+    let underlying_range = arb_start.value()..arb_end.value();
+
+    assert!(arbint_range.eq(underlying_range));
+}
+
+#[cfg(feature = "step_trait")]
+#[test]
+fn step_backward() {
+    let (arb_start, arb_end) = (u23::MAX, u23::MIN);
+
+    let arbint_range = (arb_start..arb_end).map(UInt::value);
+    let underlying_range = arb_start.value()..arb_end.value();
+    
+    assert!(arbint_range.eq(underlying_range));
+}
