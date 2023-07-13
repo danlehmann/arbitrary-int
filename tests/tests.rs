@@ -2,6 +2,8 @@ extern crate core;
 
 use arbitrary_int::*;
 use std::collections::HashMap;
+#[cfg(feature = "step_trait")]
+use std::iter::Step;
 
 #[test]
 fn constants() {
@@ -1305,21 +1307,30 @@ fn rotate_right() {
 #[cfg(feature = "step_trait")]
 #[test]
 fn step_forward() {
-    let (arb_start, arb_end) = (u19::MIN, u19::MAX);
-    
-    let arbint_range = (arb_start..arb_end).map(UInt::value);
-    let underlying_range = arb_start.value()..arb_end.value();
-
-    assert!(arbint_range.eq(underlying_range));
+    compare_range(u19::MIN, u19::MAX);
+    compare_range(u37::new(95993), u37::new(1994910));
+    compare_range(u68::new(58858348), u68::new(58860000));
+    compare_range(u122::new(111_222_333_444), u122::new(111_222_444_555));
 }
 
 #[cfg(feature = "step_trait")]
 #[test]
 fn step_backward() {
-    let (arb_start, arb_end) = (u23::MAX, u23::MIN);
+    compare_range(u5::MAX, u5::MIN);
+    compare_range(u23::MAX, u23::MIN);
+    compare_range(u48::new(1_005_000), u48::new(999_444));
+    compare_range(u99::new(54321), u99::new(12345));
+}
 
+#[cfg(feature = "step_trait")]
+#[cfg(test)]
+fn compare_range<T, const BITS: usize>(arb_start: UInt<T, BITS>, arb_end: UInt<T, BITS>)
+where
+    T: Copy + Step,
+    UInt<T, BITS>: Step,
+{
     let arbint_range = (arb_start..arb_end).map(UInt::value);
     let underlying_range = arb_start.value()..arb_end.value();
-    
+
     assert!(arbint_range.eq(underlying_range));
 }
