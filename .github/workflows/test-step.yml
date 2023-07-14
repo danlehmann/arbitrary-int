@@ -1,4 +1,4 @@
-name: test const
+name: test step
 run-name: ${{ github.actor }}'s patch
 on: [push]
 jobs:
