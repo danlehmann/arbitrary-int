@@ -18,5 +18,8 @@ std = []
 # (2023-04-20 is broken, 2022-11-23 works. The exact day is somewhere inbetween)
 const_convert_and_const_trait_impl = []
 
+# core::fmt::Step is currently unstable and is available on nightly behind a feature gate
+step_trait = []
+
 [dependencies]
 num-traits = { version = "0.2.15", default-features = false, optional = true }

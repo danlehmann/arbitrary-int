@@ -1,5 +1,11 @@
 # Changelog
 
+## arbitrary-int 1.2.7
+
+### Added
+
+- Support `Step` so that arbitrary-int can be used in a range expression, e.g. `for n in u3::MIN..=u3::MAX { println!("{n}") }`. Note this trait is currently unstable, and so is only usable in nightly. Enable this feature with `step_trait`.
+
 ## arbitrary-int 1.2.6
 
 ### Added

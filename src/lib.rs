@@ -3,9 +3,12 @@
     feature = "const_convert_and_const_trait_impl",
     feature(const_convert, const_trait_impl)
 )]
+#![cfg_attr(feature = "step_trait", feature(step_trait))]
 
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
 use core::hash::{Hash, Hasher};
+#[cfg(feature = "step_trait")]
+use core::iter::Step;
 #[cfg(feature = "num-traits")]
 use core::num::Wrapping;
 use core::ops::{
@@ -717,6 +720,37 @@ where
         self.value.hash(state)
     }
 }
+
+#[cfg(feature = "step_trait")]
+impl<T, const BITS: usize> Step for UInt<T, BITS>
+where
+    Self: Number<UnderlyingType = T>,
+    T: Copy + Step,
+{
+    #[inline]
+    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
+        Step::steps_between(&start.value(), &end.value())
+    }
+
+    #[inline]
+    fn forward_checked(start: Self, count: usize) -> Option<Self> {
+        if let Some(res) = Step::forward_checked(start.value(), count) {
+            Self::try_new(res).ok()
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn backward_checked(start: Self, count: usize) -> Option<Self> {
+        if let Some(res) = Step::backward_checked(start.value(), count) {
+            Self::try_new(res).ok()
+        } else {
+            None
+        }
+    }
+}
+
 
 #[cfg(feature = "num-traits")]
 impl<T, const NUM_BITS: usize> num_traits::WrappingAdd for UInt<T, NUM_BITS>
