@@ -1327,3 +1327,47 @@ fn range_agrees_with_underlying() {
         assert!(arbint_range.eq(underlying_range));
     }
 }
+
+#[cfg(feature = "step_trait")]
+#[test]
+fn forward_checked() {
+    // In range
+    assert_eq!(Some(u7::new(121)), Step::forward_checked(u7::new(120), 1));
+    assert_eq!(Some(u7::new(127)), Step::forward_checked(u7::new(120), 7));
+
+    // Out of range
+    assert_eq!(None, Step::forward_checked(u7::new(120), 8));
+
+    // Out of range for the underlying type
+    assert_eq!(None, Step::forward_checked(u7::new(120), 140));
+}
+
+#[cfg(feature = "step_trait")]
+#[test]
+fn backward_checked() {
+    // In range
+    assert_eq!(Some(u7::new(1)), Step::backward_checked(u7::new(10), 9));
+    assert_eq!(Some(u7::new(0)), Step::backward_checked(u7::new(10), 10));
+
+    // Out of range (for both the arbitrary int and and the underlying type)
+    assert_eq!(None, Step::backward_checked(u7::new(10), 11));
+}
+
+#[cfg(feature = "step_trait")]
+#[test]
+fn steps_between() {
+    assert_eq!(Some(0), Step::steps_between(&u50::new(50), &u50::new(50)));
+
+    assert_eq!(Some(4), Step::steps_between(&u24::new(5), &u24::new(9)));
+    assert_eq!(None, Step::steps_between(&u24::new(9), &u24::new(5)));
+
+    // this assumes usize is <= 64 bits. a test like this one exists in `core::iter::step`.
+    assert_eq!(
+        Some(usize::MAX),
+        Step::steps_between(&u125::new(0x7), &u125::new(0x1_0000_0000_0000_0006))
+    );
+    assert_eq!(
+        None,
+        Step::steps_between(&u125::new(0x7), &u125::new(0x1_0000_0000_0000_0007))
+    );
+}
