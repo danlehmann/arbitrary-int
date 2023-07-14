@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "step_trait", feature(step_trait))]
+
 extern crate core;
 
 use arbitrary_int::*;
