@@ -1329,8 +1329,8 @@ where
     T: Copy + Step,
     UInt<T, BITS>: Step,
 {
-    let arbint_range = (arb_start..arb_end).map(UInt::value);
-    let underlying_range = arb_start.value()..arb_end.value();
+    let arbint_range = (arb_start..=arb_end).map(UInt::value);
+    let underlying_range = arb_start.value()..=arb_end.value();
 
     assert!(arbint_range.eq(underlying_range));
 }
