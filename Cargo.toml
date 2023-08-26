@@ -21,5 +21,9 @@ const_convert_and_const_trait_impl = []
 # core::fmt::Step is currently unstable and is available on nightly behind a feature gate
 step_trait = []
 
+# Supports defmt
+defmt = ["dep:defmt"]
+
 [dependencies]
 num-traits = { version = "0.2.15", default-features = false, optional = true }
+defmt = { version = "0.3.4", optional = true }
