@@ -711,6 +711,17 @@ where
     }
 }
 
+#[cfg(feature = "defmt")]
+impl<T, const BITS: usize> defmt::Format for UInt<T, BITS>
+where
+    T: defmt::Format,
+{
+    #[inline]
+    fn format(&self, f: defmt::Formatter) {
+        self.value.format(f)
+    }
+}
+
 impl<T, const BITS: usize> Hash for UInt<T, BITS>
 where
     T: Hash,
@@ -750,7 +761,6 @@ where
         }
     }
 }
-
 
 #[cfg(feature = "num-traits")]
 impl<T, const NUM_BITS: usize> num_traits::WrappingAdd for UInt<T, NUM_BITS>
