@@ -24,6 +24,13 @@ step_trait = []
 # Supports defmt
 defmt = ["dep:defmt"]
 
+# Supports serde
+serde = ["dep:serde"]
+
 [dependencies]
 num-traits = { version = "0.2.15", default-features = false, optional = true }
 defmt = { version = "0.3.5", optional = true }
+serde = { version = "1.0.188", optional = true, default-features = false}
+
+[dev-dependencies]
+serde_test = "1.0.176"
