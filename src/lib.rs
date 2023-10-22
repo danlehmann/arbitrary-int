@@ -12,8 +12,8 @@ use core::iter::Step;
 #[cfg(feature = "num-traits")]
 use core::num::Wrapping;
 use core::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl,
-    ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
+    Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -498,6 +498,102 @@ where
         // No need for extra overflow checking as the regular minus operator already handles it for us
         self.value -= rhs.value;
         self.value &= Self::MASK;
+    }
+}
+
+impl<T, const BITS: usize> Mul for UInt<T, BITS>
+where
+    Self: Number,
+    T: PartialEq
+        + Copy
+        + BitAnd<T, Output = T>
+        + Not<Output = T>
+        + Mul<T, Output = T>
+        + Sub<T, Output = T>
+        + Shr<usize, Output = T>
+        + Shl<usize, Output = T>
+        + From<u8>,
+{
+    type Output = UInt<T, BITS>;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        let product = self.value * rhs.value;
+        #[cfg(debug_assertions)]
+        if (product & !Self::MASK) != T::from(0) {
+            panic!("attempt to multiply with overflow");
+        }
+        Self {
+            value: product & Self::MASK,
+        }
+    }
+}
+
+impl<T, const BITS: usize> MulAssign for UInt<T, BITS>
+where
+    Self: Number,
+    T: PartialEq
+        + Eq
+        + Not<Output = T>
+        + Copy
+        + MulAssign<T>
+        + BitAnd<T, Output = T>
+        + BitAndAssign<T>
+        + Sub<T, Output = T>
+        + Shr<usize, Output = T>
+        + Shl<usize, Output = T>
+        + From<u8>,
+{
+    fn mul_assign(&mut self, rhs: Self) {
+        self.value *= rhs.value;
+        #[cfg(debug_assertions)]
+        if (self.value & !Self::MASK) != T::from(0) {
+            panic!("attempt to multiply with overflow");
+        }
+        self.value &= Self::MASK;
+    }
+}
+
+impl<T, const BITS: usize> Div for UInt<T, BITS>
+where
+    Self: Number,
+    T: PartialEq
+        + Copy
+        + BitAnd<T, Output = T>
+        + Not<Output = T>
+        + Div<T, Output = T>
+        + Sub<T, Output = T>
+        + Shr<usize, Output = T>
+        + Shl<usize, Output = T>
+        + From<u8>,
+{
+    type Output = UInt<T, BITS>;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        // Integer division can only make the value smaller. And as the result is same type as
+        // Self, there's no need to range-check or mask
+        Self {
+            value: self.value / rhs.value,
+        }
+    }
+}
+
+impl<T, const BITS: usize> DivAssign for UInt<T, BITS>
+where
+    Self: Number,
+    T: PartialEq
+        + Eq
+        + Not<Output = T>
+        + Copy
+        + DivAssign<T>
+        + BitAnd<T, Output = T>
+        + BitAndAssign<T>
+        + Sub<T, Output = T>
+        + Shr<usize, Output = T>
+        + Shl<usize, Output = T>
+        + From<u8>,
+{
+    fn div_assign(&mut self, rhs: Self) {
+        self.value /= rhs.value;
     }
 }
 

@@ -147,7 +147,8 @@ fn addassign_overflow() {
 #[test]
 fn addassign_no_overflow() {
     let mut value = u9::new(500);
-    value += u9::new(40);
+    value += u9::new(28);
+    assert_eq!(value, u9::new(16));
 }
 
 #[test]
@@ -166,7 +167,8 @@ fn sub_overflow() {
 #[cfg(not(debug_assertions))]
 #[test]
 fn sub_no_overflow() {
-    let _ = u7::new(100) - u7::new(127);
+    let value = u7::new(100) - u7::new(127);
+    assert_eq!(value, u7::new(101));
 }
 
 #[test]
@@ -189,6 +191,78 @@ fn subassign_overflow() {
 fn subassign_no_overflow() {
     let mut value = u9::new(30);
     value -= u9::new(40);
+    assert_eq!(value, u9::new(502));
+}
+
+#[test]
+fn mul() {
+    assert_eq!(u7::new(22) * u7::new(4), u7::new(88));
+    assert_eq!(u7::new(127) * u7::new(0), u7::new(0));
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn mul_overflow() {
+    let _ = u7::new(100) * u7::new(2);
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn mul_no_overflow() {
+    let result = u7::new(100) * u7::new(2);
+    assert_eq!(result, u7::new(72));
+}
+
+#[test]
+fn mulassign() {
+    let mut value = u9::new(240);
+    value *= u9::new(2);
+    assert_eq!(value, u9::new(480));
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn mulassign_overflow() {
+    let mut value = u9::new(500);
+    value *= u9::new(2);
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn mulassign_no_overflow() {
+    let mut value = u9::new(500);
+    value *= u9::new(40);
+    assert_eq!(value, u9::new(32));
+}
+
+#[test]
+fn div() {
+    // div just forwards to the underlying type, so there isn't much to do
+    assert_eq!(u7::new(22) / u7::new(4), u7::new(5));
+    assert_eq!(u7::new(127) / u7::new(1), u7::new(127));
+    assert_eq!(u7::new(127) / u7::new(127), u7::new(1));
+}
+
+#[should_panic]
+#[test]
+fn div_by_zero() {
+    let _ = u7::new(22) / u7::new(0);
+}
+
+#[test]
+fn divassign() {
+    let mut value = u9::new(240);
+    value /= u9::new(2);
+    assert_eq!(value, u9::new(120));
+}
+
+#[should_panic]
+#[test]
+fn divassign_by_zero() {
+    let mut value = u9::new(240);
+    value /= u9::new(0);
 }
 
 #[test]
