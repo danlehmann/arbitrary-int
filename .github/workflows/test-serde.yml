@@ -1,4 +1,4 @@
-name: test step
+name: test serde
 run-name: ${{ github.actor }}'s patch
 on: [push]
 jobs:
