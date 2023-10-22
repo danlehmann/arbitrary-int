@@ -15,6 +15,8 @@ use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl,
     ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TryNewError;
@@ -719,6 +721,58 @@ where
     #[inline]
     fn format(&self, f: defmt::Formatter) {
         self.value.format(f)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<T, const BITS: usize> Serialize for UInt<T, BITS>
+where
+    T: Serialize,
+{
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.value.serialize(serializer)
+    }
+}
+
+// Serde's invalid_value error (https://rust-lang.github.io/hashbrown/serde/de/trait.Error.html#method.invalid_value)
+// takes an Unexpected (https://rust-lang.github.io/hashbrown/serde/de/enum.Unexpected.html) which only accepts a 64 bit
+// unsigned integer. This is a problem for us because we want to support 128 bit unsigned integers. To work around this
+// we define our own error type using the UInt's underlying type which implements Display and then use
+// serde::de::Error::custom to create an error with our custom type.
+#[cfg(feature = "serde")]
+struct InvalidUIntValueError<T: Display> {
+    value: T,
+    max: T,
+}
+
+#[cfg(feature = "serde")]
+impl<T: Display> Display for InvalidUIntValueError<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "invalid value: integer `{}`, expected a value between `0` and `{}`",
+            self.value, self.max
+        )
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, T: Display, const BITS: usize> Deserialize<'de> for UInt<T, BITS>
+where
+    Self: Number,
+    T: Deserialize<'de> + PartialOrd,
+{
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = T::deserialize(deserializer)?;
+
+        if value <= Self::MAX.value {
+            Ok(Self { value })
+        } else {
+            Err(serde::de::Error::custom(InvalidUIntValueError {
+                value,
+                max: Self::MAX.value,
+            }))
+        }
     }
 }
 

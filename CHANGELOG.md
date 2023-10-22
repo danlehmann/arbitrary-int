@@ -6,6 +6,7 @@
 
 - Support `Step` so that arbitrary-int can be used in a range expression, e.g. `for n in u3::MIN..=u3::MAX { println!("{n}") }`. Note this trait is currently unstable, and so is only usable in nightly. Enable this feature with `step_trait`.
 - Support formatting via [defmt](https://crates.io/crates/defmt). Enable the option `defmt` feature
+- Support serializing and deserializing via [serde](https://crates.io/crates/serde). Enable the option `serde` feature
 
 ## arbitrary-int 1.2.6
 

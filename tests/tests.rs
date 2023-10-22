@@ -1373,3 +1373,29 @@ fn steps_between() {
         Step::steps_between(&u125::new(0x7), &u125::new(0x1_0000_0000_0000_0007))
     );
 }
+
+#[cfg(feature = "serde")]
+#[test]
+fn serde() {
+    use serde_test::{assert_de_tokens_error, assert_tokens, Token};
+
+    let a = u7::new(0b0101_0101);
+    assert_tokens(&a, &[Token::U8(0b0101_0101)]);
+
+    let b = u63::new(0x1234_5678_9ABC_DEFE);
+    assert_tokens(&b, &[Token::U64(0x1234_5678_9ABC_DEFE)]);
+
+    // This requires https://github.com/serde-rs/test/issues/18 (Add Token::I128 and Token::U128 to serde_test)
+    // let c = u127::new(0x1234_5678_9ABC_DEFE_DCBA_9876_5432_1010);
+    // assert_tokens(&c, &[Token::U128(0x1234_5678_9ABC_DEFE_DCBA_9876_5432_1010)]);
+
+    assert_de_tokens_error::<u2>(
+        &[Token::U8(0b0101_0101)],
+        "invalid value: integer `85`, expected a value between `0` and `3`",
+    );
+
+    assert_de_tokens_error::<u100>(
+        &[Token::I64(-1)],
+        "invalid value: integer `-1`, expected u128",
+    );
+}
