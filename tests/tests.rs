@@ -338,11 +338,69 @@ fn shl() {
     assert_eq!(u9::new(0b11110000) << 3u64, u9::new(0b1_10000000));
 }
 
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn shl_too_much8() {
+    let _ = u53::new(123) << 53u8;
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn shl_too_much16() {
+    let _ = u53::new(123) << 53u16;
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn shl_too_much32() {
+    let _ = u53::new(123) << 53u32;
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn shl_too_much64() {
+    let _ = u53::new(123) << 53u64;
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn shl_too_much128() {
+    let _ = u53::new(123) << 53u128;
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn shl_too_much_usize() {
+    let _ = u53::new(123) << 53usize;
+}
+
 #[test]
 fn shlassign() {
     let mut value = u9::new(0b11110000);
     value <<= 3;
     assert_eq!(value, u9::new(0b1_10000000));
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn shlassign_too_much() {
+    let mut value = u9::new(0b11110000);
+    value <<= 9;
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn shlassign_too_much2() {
+    let mut value = u9::new(0b11110000);
+    value <<= 10;
 }
 
 #[test]
@@ -1308,6 +1366,62 @@ fn simple_le_be() {
         assert_eq!(u40::from_le(REGULAR), SWAPPED);
         assert_eq!(u40::from_be(REGULAR), REGULAR);
     }
+}
+
+#[test]
+fn wrapping_add() {
+    assert_eq!(u7::new(120).wrapping_add(u7::new(1)), u7::new(121));
+    assert_eq!(u7::new(120).wrapping_add(u7::new(10)), u7::new(2));
+    assert_eq!(u7::new(127).wrapping_add(u7::new(127)), u7::new(126));
+}
+
+#[test]
+fn wrapping_sub() {
+    assert_eq!(u7::new(120).wrapping_sub(u7::new(1)), u7::new(119));
+    assert_eq!(u7::new(10).wrapping_sub(u7::new(20)), u7::new(118));
+    assert_eq!(u7::new(0).wrapping_sub(u7::new(1)), u7::new(127));
+}
+
+#[test]
+fn wrapping_mul() {
+    assert_eq!(u7::new(120).wrapping_mul(u7::new(0)), u7::new(0));
+    assert_eq!(u7::new(120).wrapping_mul(u7::new(1)), u7::new(120));
+
+    // Overflow u7
+    assert_eq!(u7::new(120).wrapping_mul(u7::new(2)), u7::new(112));
+
+    // Overflow the underlying type
+    assert_eq!(u7::new(120).wrapping_mul(u7::new(3)), u7::new(104));
+}
+
+#[test]
+fn wrapping_div() {
+    assert_eq!(u7::new(120).wrapping_div(u7::new(1)), u7::new(120));
+    assert_eq!(u7::new(120).wrapping_div(u7::new(2)), u7::new(60));
+    assert_eq!(u7::new(120).wrapping_div(u7::new(120)), u7::new(1));
+    assert_eq!(u7::new(120).wrapping_div(u7::new(121)), u7::new(0));
+}
+
+#[test]
+fn wrapping_shl() {
+    assert_eq!(u7::new(0b010_1101).wrapping_shl(0), u7::new(0b010_1101));
+    assert_eq!(u7::new(0b010_1101).wrapping_shl(1), u7::new(0b101_1010));
+    assert_eq!(u7::new(0b010_1101).wrapping_shl(6), u7::new(0b100_0000));
+    assert_eq!(u7::new(0b010_1101).wrapping_shl(7), u7::new(0b010_1101));
+    assert_eq!(u7::new(0b010_1101).wrapping_shl(8), u7::new(0b101_1010));
+    assert_eq!(u7::new(0b010_1101).wrapping_shl(14), u7::new(0b010_1101));
+    assert_eq!(u7::new(0b010_1101).wrapping_shl(15), u7::new(0b101_1010));
+}
+
+#[test]
+fn wrapping_shr() {
+    assert_eq!(u7::new(0b010_1101).wrapping_shr(0), u7::new(0b010_1101));
+    assert_eq!(u7::new(0b010_1101).wrapping_shr(1), u7::new(0b001_0110));
+    assert_eq!(u7::new(0b010_1101).wrapping_shr(5), u7::new(0b000_0001));
+    assert_eq!(u7::new(0b010_1101).wrapping_shr(7), u7::new(0b010_1101));
+    assert_eq!(u7::new(0b010_1101).wrapping_shr(8), u7::new(0b001_0110));
+    assert_eq!(u7::new(0b010_1101).wrapping_shr(14), u7::new(0b010_1101));
+    assert_eq!(u7::new(0b010_1101).wrapping_shr(15), u7::new(0b001_0110));
 }
 
 #[test]

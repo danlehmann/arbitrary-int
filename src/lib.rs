@@ -340,6 +340,61 @@ macro_rules! uint_impl {
                     UInt::<$type, BITS_RESULT> { value: self.value }
                 }
 
+                pub const fn wrapping_add(&self, rhs: Self) -> Self {
+                    let sum = self.value.wrapping_add(rhs.value);
+                    Self {
+                        value: sum & Self::MASK,
+                    }
+                }
+
+                pub const fn wrapping_sub(&self, rhs: Self) -> Self {
+                    let sum = self.value.wrapping_sub(rhs.value);
+                    Self {
+                        value: sum & Self::MASK,
+                    }
+                }
+
+                pub const fn wrapping_mul(&self, rhs: Self) -> Self {
+                    let sum = self.value.wrapping_mul(rhs.value);
+                    Self {
+                        value: sum & Self::MASK,
+                    }
+                }
+
+                pub const fn wrapping_div(&self, rhs: Self) -> Self {
+                    let sum = self.value.wrapping_div(rhs.value);
+                    Self {
+                        // No need to mask here - divisions always produce a result that is <= self
+                        value: sum,
+                    }
+                }
+
+                pub const fn wrapping_shl(&self, rhs: u32) -> Self {
+                    // modulo is expensive on some platforms, so only do it when necessary
+                    let shift_amount = if rhs >= (BITS as u32) {
+                        rhs % (BITS as u32)
+                    } else {
+                        rhs
+                    };
+
+                    Self {
+                        value: (self.value << shift_amount) & Self::MASK,
+                    }
+                }
+
+                pub const fn wrapping_shr(&self, rhs: u32) -> Self {
+                    // modulo is expensive on some platforms, so only do it when necessary
+                    let shift_amount = if rhs >= (BITS as u32) {
+                        rhs % (BITS as u32)
+                    } else {
+                        rhs
+                    };
+
+                    Self {
+                        value: (self.value >> shift_amount) & Self::MASK,
+                    }
+                }
+
                 /// Reverses the order of bits in the integer. The least significant bit becomes the most significant bit, second least-significant bit becomes second most-significant bit, etc.
                 pub const fn reverse_bits(self) -> Self {
                     let shift_right = (core::mem::size_of::<$type>() << 3) - BITS;
@@ -699,10 +754,18 @@ where
         + Shl<usize, Output = T>
         + Shr<usize, Output = T>
         + From<u8>,
+    TSHIFTBITS: TryInto<usize> + Copy,
 {
     type Output = UInt<T, BITS>;
 
     fn shl(self, rhs: TSHIFTBITS) -> Self::Output {
+        // With debug assertions, the << and >> operators throw an exception if the shift amount
+        // is larger than the number of bits (in which case the result would always be 0)
+        #[cfg(debug_assertions)]
+        if rhs.try_into().unwrap_or(usize::MAX) >= BITS {
+            panic!("attempt to shift left with overflow")
+        }
+
         Self {
             value: (self.value << rhs) & Self::MASK,
         }
@@ -720,8 +783,15 @@ where
         + Shr<usize, Output = T>
         + Shl<usize, Output = T>
         + From<u8>,
+    TSHIFTBITS: TryInto<usize> + Copy,
 {
     fn shl_assign(&mut self, rhs: TSHIFTBITS) {
+        // With debug assertions, the << and >> operators throw an exception if the shift amount
+        // is larger than the number of bits (in which case the result would always be 0)
+        #[cfg(debug_assertions)]
+        if rhs.try_into().unwrap_or(usize::MAX) >= BITS {
+            panic!("attempt to shift left with overflow")
+        }
         self.value <<= rhs;
         self.value &= Self::MASK;
     }
@@ -730,10 +800,17 @@ where
 impl<T, TSHIFTBITS, const BITS: usize> Shr<TSHIFTBITS> for UInt<T, BITS>
 where
     T: Copy + Shr<TSHIFTBITS, Output = T> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
+    TSHIFTBITS: TryInto<usize> + Copy,
 {
     type Output = UInt<T, BITS>;
 
     fn shr(self, rhs: TSHIFTBITS) -> Self::Output {
+        // With debug assertions, the << and >> operators throw an exception if the shift amount
+        // is larger than the number of bits (in which case the result would always be 0)
+        #[cfg(debug_assertions)]
+        if rhs.try_into().unwrap_or(usize::MAX) >= BITS {
+            panic!("attempt to shift left with overflow")
+        }
         Self {
             value: self.value >> rhs,
         }
@@ -743,8 +820,15 @@ where
 impl<T, TSHIFTBITS, const BITS: usize> ShrAssign<TSHIFTBITS> for UInt<T, BITS>
 where
     T: Copy + ShrAssign<TSHIFTBITS> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
+    TSHIFTBITS: TryInto<usize> + Copy,
 {
     fn shr_assign(&mut self, rhs: TSHIFTBITS) {
+        // With debug assertions, the << and >> operators throw an exception if the shift amount
+        // is larger than the number of bits (in which case the result would always be 0)
+        #[cfg(debug_assertions)]
+        if rhs.try_into().unwrap_or(usize::MAX) >= BITS {
+            panic!("attempt to shift left with overflow")
+        }
         self.value >>= rhs;
     }
 }

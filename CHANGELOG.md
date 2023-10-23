@@ -7,6 +7,11 @@
 - Support `Step` so that arbitrary-int can be used in a range expression, e.g. `for n in u3::MIN..=u3::MAX { println!("{n}") }`. Note this trait is currently unstable, and so is only usable in nightly. Enable this feature with `step_trait`.
 - Support formatting via [defmt](https://crates.io/crates/defmt). Enable the option `defmt` feature
 - Support serializing and deserializing via [serde](https://crates.io/crates/serde). Enable the option `serde` feature
+- Implement `Mul`, `MulAssign`, `Div`, `DivAssign`
+- Implement `wrapping_add`, `wrapping_sub`, `wrapping_mul`, `wrapping_div`, `wrapping_shl`, `wrapping_shr`
+
+### Changed
+- In debug builds, `<<` (`Shl`, `ShlAssign`) and `>>` (`Shr`, `ShrAssign`) now bounds-check the shift amount using the same semantics as built-in shifts. For example, shifting a u5 by 5 or more bits will now panic as expected.
 
 ## arbitrary-int 1.2.6
 
