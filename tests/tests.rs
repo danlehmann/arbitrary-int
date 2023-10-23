@@ -1425,6 +1425,73 @@ fn wrapping_shr() {
 }
 
 #[test]
+fn saturating_add() {
+    assert_eq!(u7::new(120).saturating_add(u7::new(1)), u7::new(121));
+    assert_eq!(u7::new(120).saturating_add(u7::new(10)), u7::new(127));
+    assert_eq!(u7::new(127).saturating_add(u7::new(127)), u7::new(127));
+    assert_eq!(
+        UInt::<u8, 8>::new(250).saturating_add(UInt::<u8, 8>::new(10)),
+        UInt::<u8, 8>::new(255)
+    );
+}
+
+#[test]
+fn saturating_sub() {
+    assert_eq!(u7::new(120).saturating_sub(u7::new(30)), u7::new(90));
+    assert_eq!(u7::new(120).saturating_sub(u7::new(119)), u7::new(1));
+    assert_eq!(u7::new(120).saturating_sub(u7::new(120)), u7::new(0));
+    assert_eq!(u7::new(120).saturating_sub(u7::new(121)), u7::new(0));
+    assert_eq!(u7::new(0).saturating_sub(u7::new(127)), u7::new(0));
+}
+
+#[test]
+fn saturating_mul() {
+    // Fast-path: Only the arbitrary int is bounds checked
+    assert_eq!(u4::new(5).saturating_mul(u4::new(2)), u4::new(10));
+    assert_eq!(u4::new(5).saturating_mul(u4::new(3)), u4::new(15));
+    assert_eq!(u4::new(5).saturating_mul(u4::new(4)), u4::new(15));
+    assert_eq!(u4::new(5).saturating_mul(u4::new(5)), u4::new(15));
+    assert_eq!(u4::new(5).saturating_mul(u4::new(6)), u4::new(15));
+    assert_eq!(u4::new(5).saturating_mul(u4::new(7)), u4::new(15));
+
+    // Slow-path (well, one more comparison)
+    assert_eq!(u5::new(5).saturating_mul(u5::new(2)), u5::new(10));
+    assert_eq!(u5::new(5).saturating_mul(u5::new(3)), u5::new(15));
+    assert_eq!(u5::new(5).saturating_mul(u5::new(4)), u5::new(20));
+    assert_eq!(u5::new(5).saturating_mul(u5::new(5)), u5::new(25));
+    assert_eq!(u5::new(5).saturating_mul(u5::new(6)), u5::new(30));
+    assert_eq!(u5::new(5).saturating_mul(u5::new(7)), u5::new(31));
+    assert_eq!(u5::new(30).saturating_mul(u5::new(1)), u5::new(30));
+    assert_eq!(u5::new(30).saturating_mul(u5::new(1)), u5::new(30));
+    assert_eq!(u5::new(30).saturating_mul(u5::new(10)), u5::new(31));
+}
+
+#[test]
+fn saturating_div() {
+    assert_eq!(u4::new(5).saturating_div(u4::new(1)), u4::new(5));
+    assert_eq!(u4::new(5).saturating_div(u4::new(2)), u4::new(2));
+    assert_eq!(u4::new(5).saturating_div(u4::new(3)), u4::new(1));
+    assert_eq!(u4::new(5).saturating_div(u4::new(4)), u4::new(1));
+    assert_eq!(u4::new(5).saturating_div(u4::new(5)), u4::new(1));
+}
+
+#[test]
+#[should_panic]
+fn saturating_divby0() {
+    assert_eq!(u4::new(5).saturating_div(u4::new(0)), u4::MAX);
+}
+
+#[test]
+fn saturating_pow() {
+    assert_eq!(u7::new(5).saturating_pow(0), u7::new(1));
+    assert_eq!(u7::new(5).saturating_pow(1), u7::new(5));
+    assert_eq!(u7::new(5).saturating_pow(2), u7::new(25));
+    assert_eq!(u7::new(5).saturating_pow(3), u7::new(125));
+    assert_eq!(u7::new(5).saturating_pow(4), u7::new(127));
+    assert_eq!(u7::new(5).saturating_pow(255), u7::new(127));
+}
+
+#[test]
 fn reverse_bits() {
     const A: u5 = u5::new(0b11101);
     const B: u5 = A.reverse_bits();

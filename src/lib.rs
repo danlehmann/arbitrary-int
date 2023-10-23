@@ -340,28 +340,28 @@ macro_rules! uint_impl {
                     UInt::<$type, BITS_RESULT> { value: self.value }
                 }
 
-                pub const fn wrapping_add(&self, rhs: Self) -> Self {
+                pub const fn wrapping_add(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_add(rhs.value);
                     Self {
                         value: sum & Self::MASK,
                     }
                 }
 
-                pub const fn wrapping_sub(&self, rhs: Self) -> Self {
+                pub const fn wrapping_sub(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_sub(rhs.value);
                     Self {
                         value: sum & Self::MASK,
                     }
                 }
 
-                pub const fn wrapping_mul(&self, rhs: Self) -> Self {
+                pub const fn wrapping_mul(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_mul(rhs.value);
                     Self {
                         value: sum & Self::MASK,
                     }
                 }
 
-                pub const fn wrapping_div(&self, rhs: Self) -> Self {
+                pub const fn wrapping_div(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_div(rhs.value);
                     Self {
                         // No need to mask here - divisions always produce a result that is <= self
@@ -369,7 +369,7 @@ macro_rules! uint_impl {
                     }
                 }
 
-                pub const fn wrapping_shl(&self, rhs: u32) -> Self {
+                pub const fn wrapping_shl(self, rhs: u32) -> Self {
                     // modulo is expensive on some platforms, so only do it when necessary
                     let shift_amount = if rhs >= (BITS as u32) {
                         rhs % (BITS as u32)
@@ -382,7 +382,7 @@ macro_rules! uint_impl {
                     }
                 }
 
-                pub const fn wrapping_shr(&self, rhs: u32) -> Self {
+                pub const fn wrapping_shr(self, rhs: u32) -> Self {
                     // modulo is expensive on some platforms, so only do it when necessary
                     let shift_amount = if rhs >= (BITS as u32) {
                         rhs % (BITS as u32)
@@ -392,6 +392,66 @@ macro_rules! uint_impl {
 
                     Self {
                         value: (self.value >> shift_amount) & Self::MASK,
+                    }
+                }
+
+                pub const fn saturating_add(self, rhs: Self) -> Self {
+                    let saturated = if core::mem::size_of::<$type>() << 3 == BITS {
+                        // We are something like a UInt::<u8; 8>. We can fallback to the base implementation
+                        self.value.saturating_add(rhs.value)
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. u7).
+                        // That means the addition can never overflow the underlying type
+                        let sum = self.value.wrapping_add(rhs.value);
+                        let max = Self::MAX.value();
+                        if sum > max { max } else { sum }
+                    };
+                    Self {
+                        value: saturated,
+                    }
+                }
+
+                pub const fn saturating_sub(self, rhs: Self) -> Self {
+                    // For unsigned numbers, the only difference is when we reach 0 - which is the same
+                    // no matter the data size
+                    Self {
+                        value: self.value.saturating_sub(rhs.value),
+                    }
+                }
+
+                pub const fn saturating_mul(self, rhs: Self) -> Self {
+                    let product = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                        // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
+                        self.value * rhs.value
+                    } else {
+                        // We have more than half the bits (e.g. u6 * u6)
+                        self.value.saturating_mul(rhs.value)
+                    };
+
+                    let max = Self::MAX.value();
+                    let saturated = if product > max { max } else { product };
+                    Self {
+                        value: saturated,
+                    }
+                }
+
+                pub const fn saturating_div(self, rhs: Self) -> Self {
+                    // When dividing unsigned numbers, we never need to saturate.
+                    // Divison by zero in saturating_div throws an exception (in debug and release mode),
+                    // so no need to do anything special there either
+                    Self {
+                        value: self.value.saturating_div(rhs.value),
+                    }
+                }
+
+                pub const fn saturating_pow(self, exp: u32) -> Self {
+                    // It might be possible to handwrite this to be slightly faster as both
+                    // saturating_pow has to do a bounds-check and then we do second one
+                    let powed = self.value.saturating_pow(exp);
+                    let max = Self::MAX.value();
+                    let saturated = if powed > max { max } else { powed };
+                    Self {
+                        value: saturated,
                     }
                 }
 

@@ -9,6 +9,7 @@
 - Support serializing and deserializing via [serde](https://crates.io/crates/serde). Enable the option `serde` feature
 - Implement `Mul`, `MulAssign`, `Div`, `DivAssign`
 - Implement `wrapping_add`, `wrapping_sub`, `wrapping_mul`, `wrapping_div`, `wrapping_shl`, `wrapping_shr`
+- Implement `saturating_add`, `saturating_sub`, `saturating_mul`, `saturating_div`, `saturating_pow`
 
 ### Changed
 - In debug builds, `<<` (`Shl`, `ShlAssign`) and `>>` (`Shr`, `ShrAssign`) now bounds-check the shift amount using the same semantics as built-in shifts. For example, shifting a u5 by 5 or more bits will now panic as expected.
