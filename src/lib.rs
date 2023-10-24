@@ -12,8 +12,8 @@ use core::iter::Step;
 #[cfg(feature = "num-traits")]
 use core::num::Wrapping;
 use core::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl,
-    ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
+    Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -340,6 +340,254 @@ macro_rules! uint_impl {
                     UInt::<$type, BITS_RESULT> { value: self.value }
                 }
 
+                pub const fn wrapping_add(self, rhs: Self) -> Self {
+                    let sum = self.value.wrapping_add(rhs.value);
+                    Self {
+                        value: sum & Self::MASK,
+                    }
+                }
+
+                pub const fn wrapping_sub(self, rhs: Self) -> Self {
+                    let sum = self.value.wrapping_sub(rhs.value);
+                    Self {
+                        value: sum & Self::MASK,
+                    }
+                }
+
+                pub const fn wrapping_mul(self, rhs: Self) -> Self {
+                    let sum = self.value.wrapping_mul(rhs.value);
+                    Self {
+                        value: sum & Self::MASK,
+                    }
+                }
+
+                pub const fn wrapping_div(self, rhs: Self) -> Self {
+                    let sum = self.value.wrapping_div(rhs.value);
+                    Self {
+                        // No need to mask here - divisions always produce a result that is <= self
+                        value: sum,
+                    }
+                }
+
+                pub const fn wrapping_shl(self, rhs: u32) -> Self {
+                    // modulo is expensive on some platforms, so only do it when necessary
+                    let shift_amount = if rhs >= (BITS as u32) {
+                        rhs % (BITS as u32)
+                    } else {
+                        rhs
+                    };
+
+                    Self {
+                        // We could use wrapping_shl here to make Debug builds slightly smaller;
+                        // the downside would be that on weird CPUs that don't do wrapping_shl by
+                        // default release builds would get slightly worse. Using << should give
+                        // good release performance everywere
+                        value: (self.value << shift_amount) & Self::MASK,
+                    }
+                }
+
+                pub const fn wrapping_shr(self, rhs: u32) -> Self {
+                    // modulo is expensive on some platforms, so only do it when necessary
+                    let shift_amount = if rhs >= (BITS as u32) {
+                        rhs % (BITS as u32)
+                    } else {
+                        rhs
+                    };
+
+                    Self {
+                        value: (self.value >> shift_amount),
+                    }
+                }
+
+                pub const fn saturating_add(self, rhs: Self) -> Self {
+                    let saturated = if core::mem::size_of::<$type>() << 3 == BITS {
+                        // We are something like a UInt::<u8; 8>. We can fallback to the base implementation
+                        self.value.saturating_add(rhs.value)
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. u7).
+                        // That means the addition can never overflow the underlying type
+                        let sum = self.value.wrapping_add(rhs.value);
+                        let max = Self::MAX.value();
+                        if sum > max { max } else { sum }
+                    };
+                    Self {
+                        value: saturated,
+                    }
+                }
+
+                pub const fn saturating_sub(self, rhs: Self) -> Self {
+                    // For unsigned numbers, the only difference is when we reach 0 - which is the same
+                    // no matter the data size
+                    Self {
+                        value: self.value.saturating_sub(rhs.value),
+                    }
+                }
+
+                pub const fn saturating_mul(self, rhs: Self) -> Self {
+                    let product = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                        // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
+                        // wrapping_mul likely provides the best performance on all cpus
+                        self.value.wrapping_mul(rhs.value)
+                    } else {
+                        // We have more than half the bits (e.g. u6 * u6)
+                        self.value.saturating_mul(rhs.value)
+                    };
+
+                    let max = Self::MAX.value();
+                    let saturated = if product > max { max } else { product };
+                    Self {
+                        value: saturated,
+                    }
+                }
+
+                pub const fn saturating_div(self, rhs: Self) -> Self {
+                    // When dividing unsigned numbers, we never need to saturate.
+                    // Divison by zero in saturating_div throws an exception (in debug and release mode),
+                    // so no need to do anything special there either
+                    Self {
+                        value: self.value.saturating_div(rhs.value),
+                    }
+                }
+
+                pub const fn saturating_pow(self, exp: u32) -> Self {
+                    // It might be possible to handwrite this to be slightly faster as both
+                    // saturating_pow has to do a bounds-check and then we do second one
+                    let powed = self.value.saturating_pow(exp);
+                    let max = Self::MAX.value();
+                    let saturated = if powed > max { max } else { powed };
+                    Self {
+                        value: saturated,
+                    }
+                }
+
+                pub const fn checked_add(self, rhs: Self) -> Option<Self> {
+                    if core::mem::size_of::<$type>() << 3 == BITS {
+                        // We are something like a UInt::<u8; 8>. We can fallback to the base implementation
+                        match self.value.checked_add(rhs.value) {
+                            Some(value) => Some(Self { value }),
+                            None => None
+                        }
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. u7).
+                        // That means the addition can never overflow the underlying type
+                        let sum = self.value.wrapping_add(rhs.value);
+                        if sum > Self::MAX.value() { None } else { Some(Self { value: sum })}
+                    }
+                }
+
+                pub const fn checked_sub(self, rhs: Self) -> Option<Self> {
+                    match self.value.checked_sub(rhs.value) {
+                        Some(value) => Some(Self { value }),
+                        None => None
+                    }
+                }
+
+                pub const fn checked_mul(self, rhs: Self) -> Option<Self> {
+                    let product = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                        // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
+                        // wrapping_mul likely provides the best performance on all cpus
+                        Some(self.value.wrapping_mul(rhs.value))
+                    } else {
+                        // We have more than half the bits (e.g. u6 * u6)
+                        self.value.checked_mul(rhs.value)
+                    };
+
+                    match product {
+                        Some(value) => {
+                            if value > Self::MAX.value() {
+                                None
+                            } else {
+                                Some(Self {value})
+                            }
+                        }
+                        None => None
+                    }
+                }
+
+                pub const fn checked_div(self, rhs: Self) -> Option<Self> {
+                    match self.value.checked_div(rhs.value) {
+                        Some(value) => Some(Self { value }),
+                        None => None
+                    }
+                }
+
+                pub const fn checked_shl(self, rhs: u32) -> Option<Self> {
+                    if rhs >= (BITS as u32) {
+                        None
+                    } else {
+                        Some(Self {
+                            value: (self.value << rhs) & Self::MASK,
+                        })
+                    }
+                }
+
+                pub const fn checked_shr(self, rhs: u32) -> Option<Self> {
+                    if rhs >= (BITS as u32) {
+                        None
+                    } else {
+                        Some(Self {
+                            value: (self.value >> rhs),
+                        })
+                    }
+                }
+
+                pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
+                    let (value, overflow) = if core::mem::size_of::<$type>() << 3 == BITS {
+                        // We are something like a UInt::<u8; 8>. We can fallback to the base implementation
+                        self.value.overflowing_add(rhs.value)
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. u7).
+                        // That means the addition can never overflow the underlying type
+                        let sum = self.value.wrapping_add(rhs.value);
+                        let masked = sum & Self::MASK;
+                        (masked, masked != sum)
+                    };
+                    (Self { value }, overflow)
+                }
+
+                pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
+                    // For unsigned numbers, the only difference is when we reach 0 - which is the same
+                    // no matter the data size. In the case of overflow we do have the mask the result though
+                    let (value, overflow) = self.value.overflowing_sub(rhs.value);
+                    (Self { value: value & Self::MASK }, overflow)
+                }
+
+                pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
+                    let (wrapping_product, overflow) = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                        // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
+                        // wrapping_mul likely provides the best performance on all cpus
+                        self.value.overflowing_mul(rhs.value)
+                    } else {
+                        // We have more than half the bits (e.g. u6 * u6)
+                        self.value.overflowing_mul(rhs.value)
+                    };
+
+                    let masked = wrapping_product & Self::MASK;
+                    let overflow2 = masked != wrapping_product;
+                    (Self { value: masked }, overflow || overflow2 )
+                }
+
+                pub const fn overflowing_div(self, rhs: Self) -> (Self, bool) {
+                    let value = self.value.wrapping_div(rhs.value);
+                    (Self { value }, false )
+                }
+
+                pub const fn overflowing_shl(self, rhs: u32) -> (Self, bool) {
+                    if rhs >= (BITS as u32) {
+                        (Self { value: self.value << (rhs % (BITS as u32)) }, true)
+                    } else {
+                        (Self { value: self.value << rhs }, false)
+                    }
+                }
+
+                pub const fn overflowing_shr(self, rhs: u32) -> (Self, bool) {
+                    if rhs >= (BITS as u32) {
+                        (Self { value: self.value >> (rhs % (BITS as u32)) }, true)
+                    } else {
+                        (Self { value: self.value >> rhs }, false)
+                    }
+                }
+
                 /// Reverses the order of bits in the integer. The least significant bit becomes the most significant bit, second least-significant bit becomes second most-significant bit, etc.
                 pub const fn reverse_bits(self) -> Self {
                     let shift_right = (core::mem::size_of::<$type>() << 3) - BITS;
@@ -419,8 +667,6 @@ where
         + Not<Output = T>
         + Add<T, Output = T>
         + Sub<T, Output = T>
-        + Shr<usize, Output = T>
-        + Shl<usize, Output = T>
         + From<u8>,
 {
     type Output = UInt<T, BITS>;
@@ -447,9 +693,6 @@ where
         + AddAssign<T>
         + BitAnd<T, Output = T>
         + BitAndAssign<T>
-        + Sub<T, Output = T>
-        + Shr<usize, Output = T>
-        + Shl<usize, Output = T>
         + From<u8>,
 {
     fn add_assign(&mut self, rhs: Self) {
@@ -465,12 +708,7 @@ where
 impl<T, const BITS: usize> Sub for UInt<T, BITS>
 where
     Self: Number,
-    T: Copy
-        + BitAnd<T, Output = T>
-        + Sub<T, Output = T>
-        + Shl<usize, Output = T>
-        + Shr<usize, Output = T>
-        + From<u8>,
+    T: Copy + BitAnd<T, Output = T> + Sub<T, Output = T>,
 {
     type Output = UInt<T, BITS>;
 
@@ -485,19 +723,82 @@ where
 impl<T, const BITS: usize> SubAssign for UInt<T, BITS>
 where
     Self: Number,
-    T: Copy
-        + SubAssign<T>
-        + BitAnd<T, Output = T>
-        + BitAndAssign<T>
-        + Sub<T, Output = T>
-        + Shl<usize, Output = T>
-        + Shr<usize, Output = T>
-        + From<u8>,
+    T: Copy + SubAssign<T> + BitAnd<T, Output = T> + BitAndAssign<T> + Sub<T, Output = T>,
 {
     fn sub_assign(&mut self, rhs: Self) {
         // No need for extra overflow checking as the regular minus operator already handles it for us
         self.value -= rhs.value;
         self.value &= Self::MASK;
+    }
+}
+
+impl<T, const BITS: usize> Mul for UInt<T, BITS>
+where
+    Self: Number,
+    T: PartialEq + Copy + BitAnd<T, Output = T> + Not<Output = T> + Mul<T, Output = T> + From<u8>,
+{
+    type Output = UInt<T, BITS>;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        // In debug builds, this will perform two bounds checks: Initial multiplication, followed by
+        // our bounds check. As wrapping_mul isn't available as a trait bound (in regular Rust), this
+        // is unavoidable
+        let product = self.value * rhs.value;
+        #[cfg(debug_assertions)]
+        if (product & !Self::MASK) != T::from(0) {
+            panic!("attempt to multiply with overflow");
+        }
+        Self {
+            value: product & Self::MASK,
+        }
+    }
+}
+
+impl<T, const BITS: usize> MulAssign for UInt<T, BITS>
+where
+    Self: Number,
+    T: PartialEq
+        + Eq
+        + Not<Output = T>
+        + Copy
+        + MulAssign<T>
+        + BitAnd<T, Output = T>
+        + BitAndAssign<T>
+        + From<u8>,
+{
+    fn mul_assign(&mut self, rhs: Self) {
+        self.value *= rhs.value;
+        #[cfg(debug_assertions)]
+        if (self.value & !Self::MASK) != T::from(0) {
+            panic!("attempt to multiply with overflow");
+        }
+        self.value &= Self::MASK;
+    }
+}
+
+impl<T, const BITS: usize> Div for UInt<T, BITS>
+where
+    Self: Number,
+    T: PartialEq + Div<T, Output = T>,
+{
+    type Output = UInt<T, BITS>;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        // Integer division can only make the value smaller. And as the result is same type as
+        // Self, there's no need to range-check or mask
+        Self {
+            value: self.value / rhs.value,
+        }
+    }
+}
+
+impl<T, const BITS: usize> DivAssign for UInt<T, BITS>
+where
+    Self: Number,
+    T: PartialEq + DivAssign<T>,
+{
+    fn div_assign(&mut self, rhs: Self) {
+        self.value /= rhs.value;
     }
 }
 
@@ -603,10 +904,18 @@ where
         + Shl<usize, Output = T>
         + Shr<usize, Output = T>
         + From<u8>,
+    TSHIFTBITS: TryInto<usize> + Copy,
 {
     type Output = UInt<T, BITS>;
 
     fn shl(self, rhs: TSHIFTBITS) -> Self::Output {
+        // With debug assertions, the << and >> operators throw an exception if the shift amount
+        // is larger than the number of bits (in which case the result would always be 0)
+        #[cfg(debug_assertions)]
+        if rhs.try_into().unwrap_or(usize::MAX) >= BITS {
+            panic!("attempt to shift left with overflow")
+        }
+
         Self {
             value: (self.value << rhs) & Self::MASK,
         }
@@ -624,8 +933,15 @@ where
         + Shr<usize, Output = T>
         + Shl<usize, Output = T>
         + From<u8>,
+    TSHIFTBITS: TryInto<usize> + Copy,
 {
     fn shl_assign(&mut self, rhs: TSHIFTBITS) {
+        // With debug assertions, the << and >> operators throw an exception if the shift amount
+        // is larger than the number of bits (in which case the result would always be 0)
+        #[cfg(debug_assertions)]
+        if rhs.try_into().unwrap_or(usize::MAX) >= BITS {
+            panic!("attempt to shift left with overflow")
+        }
         self.value <<= rhs;
         self.value &= Self::MASK;
     }
@@ -634,10 +950,17 @@ where
 impl<T, TSHIFTBITS, const BITS: usize> Shr<TSHIFTBITS> for UInt<T, BITS>
 where
     T: Copy + Shr<TSHIFTBITS, Output = T> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
+    TSHIFTBITS: TryInto<usize> + Copy,
 {
     type Output = UInt<T, BITS>;
 
     fn shr(self, rhs: TSHIFTBITS) -> Self::Output {
+        // With debug assertions, the << and >> operators throw an exception if the shift amount
+        // is larger than the number of bits (in which case the result would always be 0)
+        #[cfg(debug_assertions)]
+        if rhs.try_into().unwrap_or(usize::MAX) >= BITS {
+            panic!("attempt to shift left with overflow")
+        }
         Self {
             value: self.value >> rhs,
         }
@@ -647,8 +970,15 @@ where
 impl<T, TSHIFTBITS, const BITS: usize> ShrAssign<TSHIFTBITS> for UInt<T, BITS>
 where
     T: Copy + ShrAssign<TSHIFTBITS> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
+    TSHIFTBITS: TryInto<usize> + Copy,
 {
     fn shr_assign(&mut self, rhs: TSHIFTBITS) {
+        // With debug assertions, the << and >> operators throw an exception if the shift amount
+        // is larger than the number of bits (in which case the result would always be 0)
+        #[cfg(debug_assertions)]
+        if rhs.try_into().unwrap_or(usize::MAX) >= BITS {
+            panic!("attempt to shift left with overflow")
+        }
         self.value >>= rhs;
     }
 }
