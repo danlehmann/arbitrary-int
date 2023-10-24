@@ -1402,6 +1402,12 @@ fn wrapping_div() {
     assert_eq!(u7::new(120).wrapping_div(u7::new(121)), u7::new(0));
 }
 
+#[should_panic]
+#[test]
+fn wrapping_div_by_zero() {
+    let _ = u7::new(120).wrapping_div(u7::new(0));
+}
+
 #[test]
 fn wrapping_shl() {
     assert_eq!(u7::new(0b010_1101).wrapping_shl(0), u7::new(0b010_1101));
@@ -1462,7 +1468,7 @@ fn saturating_mul() {
     assert_eq!(u5::new(5).saturating_mul(u5::new(6)), u5::new(30));
     assert_eq!(u5::new(5).saturating_mul(u5::new(7)), u5::new(31));
     assert_eq!(u5::new(30).saturating_mul(u5::new(1)), u5::new(30));
-    assert_eq!(u5::new(30).saturating_mul(u5::new(1)), u5::new(30));
+    assert_eq!(u5::new(30).saturating_mul(u5::new(2)), u5::new(31));
     assert_eq!(u5::new(30).saturating_mul(u5::new(10)), u5::new(31));
 }
 
@@ -1478,7 +1484,8 @@ fn saturating_div() {
 #[test]
 #[should_panic]
 fn saturating_divby0() {
-    assert_eq!(u4::new(5).saturating_div(u4::new(0)), u4::MAX);
+    // saturating_div throws an exception on zero
+    let _ = u4::new(5).saturating_div(u4::new(0));
 }
 
 #[test]
@@ -1489,6 +1496,256 @@ fn saturating_pow() {
     assert_eq!(u7::new(5).saturating_pow(3), u7::new(125));
     assert_eq!(u7::new(5).saturating_pow(4), u7::new(127));
     assert_eq!(u7::new(5).saturating_pow(255), u7::new(127));
+}
+
+#[test]
+fn checked_add() {
+    assert_eq!(u7::new(120).checked_add(u7::new(1)), Some(u7::new(121)));
+    assert_eq!(u7::new(120).checked_add(u7::new(7)), Some(u7::new(127)));
+    assert_eq!(u7::new(120).checked_add(u7::new(10)), None);
+    assert_eq!(u7::new(127).checked_add(u7::new(127)), None);
+    assert_eq!(
+        UInt::<u8, 8>::new(250).checked_add(UInt::<u8, 8>::new(10)),
+        None
+    );
+}
+
+#[test]
+fn checked_sub() {
+    assert_eq!(u7::new(120).checked_sub(u7::new(30)), Some(u7::new(90)));
+    assert_eq!(u7::new(120).checked_sub(u7::new(119)), Some(u7::new(1)));
+    assert_eq!(u7::new(120).checked_sub(u7::new(120)), Some(u7::new(0)));
+    assert_eq!(u7::new(120).checked_sub(u7::new(121)), None);
+    assert_eq!(u7::new(0).checked_sub(u7::new(127)), None);
+}
+
+#[test]
+fn checked_mul() {
+    // Fast-path: Only the arbitrary int is bounds checked
+    assert_eq!(u4::new(5).checked_mul(u4::new(2)), Some(u4::new(10)));
+    assert_eq!(u4::new(5).checked_mul(u4::new(3)), Some(u4::new(15)));
+    assert_eq!(u4::new(5).checked_mul(u4::new(4)), None);
+    assert_eq!(u4::new(5).checked_mul(u4::new(5)), None);
+    assert_eq!(u4::new(5).checked_mul(u4::new(6)), None);
+    assert_eq!(u4::new(5).checked_mul(u4::new(7)), None);
+
+    // Slow-path (well, one more comparison)
+    assert_eq!(u5::new(5).checked_mul(u5::new(2)), Some(u5::new(10)));
+    assert_eq!(u5::new(5).checked_mul(u5::new(3)), Some(u5::new(15)));
+    assert_eq!(u5::new(5).checked_mul(u5::new(4)), Some(u5::new(20)));
+    assert_eq!(u5::new(5).checked_mul(u5::new(5)), Some(u5::new(25)));
+    assert_eq!(u5::new(5).checked_mul(u5::new(6)), Some(u5::new(30)));
+    assert_eq!(u5::new(5).checked_mul(u5::new(7)), None);
+    assert_eq!(u5::new(30).checked_mul(u5::new(1)), Some(u5::new(30)));
+    assert_eq!(u5::new(30).checked_mul(u5::new(2)), None);
+    assert_eq!(u5::new(30).checked_mul(u5::new(10)), None);
+}
+
+#[test]
+fn checked_div() {
+    // checked_div handles division by zero without exception, unlike saturating_div
+    assert_eq!(u4::new(5).checked_div(u4::new(0)), None);
+    assert_eq!(u4::new(5).checked_div(u4::new(1)), Some(u4::new(5)));
+    assert_eq!(u4::new(5).checked_div(u4::new(2)), Some(u4::new(2)));
+    assert_eq!(u4::new(5).checked_div(u4::new(3)), Some(u4::new(1)));
+    assert_eq!(u4::new(5).checked_div(u4::new(4)), Some(u4::new(1)));
+    assert_eq!(u4::new(5).checked_div(u4::new(5)), Some(u4::new(1)));
+}
+
+#[test]
+fn checked_shl() {
+    assert_eq!(
+        u7::new(0b010_1101).checked_shl(0),
+        Some(u7::new(0b010_1101))
+    );
+    assert_eq!(
+        u7::new(0b010_1101).checked_shl(1),
+        Some(u7::new(0b101_1010))
+    );
+    assert_eq!(
+        u7::new(0b010_1101).checked_shl(6),
+        Some(u7::new(0b100_0000))
+    );
+    assert_eq!(u7::new(0b010_1101).checked_shl(7), None);
+    assert_eq!(u7::new(0b010_1101).checked_shl(8), None);
+    assert_eq!(u7::new(0b010_1101).checked_shl(14), None);
+    assert_eq!(u7::new(0b010_1101).checked_shl(15), None);
+}
+
+#[test]
+fn checked_shr() {
+    assert_eq!(
+        u7::new(0b010_1101).checked_shr(0),
+        Some(u7::new(0b010_1101))
+    );
+    assert_eq!(
+        u7::new(0b010_1101).checked_shr(1),
+        Some(u7::new(0b001_0110))
+    );
+    assert_eq!(
+        u7::new(0b010_1101).checked_shr(5),
+        Some(u7::new(0b000_0001))
+    );
+    assert_eq!(u7::new(0b010_1101).checked_shr(7), None);
+    assert_eq!(u7::new(0b010_1101).checked_shr(8), None);
+    assert_eq!(u7::new(0b010_1101).checked_shr(14), None);
+    assert_eq!(u7::new(0b010_1101).checked_shr(15), None);
+}
+
+#[test]
+fn overflowing_add() {
+    assert_eq!(
+        u7::new(120).overflowing_add(u7::new(1)),
+        (u7::new(121), false)
+    );
+    assert_eq!(
+        u7::new(120).overflowing_add(u7::new(7)),
+        (u7::new(127), false)
+    );
+    assert_eq!(
+        u7::new(120).overflowing_add(u7::new(10)),
+        (u7::new(2), true)
+    );
+    assert_eq!(
+        u7::new(127).overflowing_add(u7::new(127)),
+        (u7::new(126), true)
+    );
+    assert_eq!(
+        UInt::<u8, 8>::new(250).overflowing_add(UInt::<u8, 8>::new(5)),
+        (UInt::<u8, 8>::new(255), false)
+    );
+    assert_eq!(
+        UInt::<u8, 8>::new(250).overflowing_add(UInt::<u8, 8>::new(10)),
+        (UInt::<u8, 8>::new(4), true)
+    );
+}
+
+#[test]
+fn overflowing_sub() {
+    assert_eq!(
+        u7::new(120).overflowing_sub(u7::new(30)),
+        (u7::new(90), false)
+    );
+    assert_eq!(
+        u7::new(120).overflowing_sub(u7::new(119)),
+        (u7::new(1), false)
+    );
+    assert_eq!(
+        u7::new(120).overflowing_sub(u7::new(120)),
+        (u7::new(0), false)
+    );
+    assert_eq!(
+        u7::new(120).overflowing_sub(u7::new(121)),
+        (u7::new(127), true)
+    );
+    assert_eq!(u7::new(0).overflowing_sub(u7::new(127)), (u7::new(1), true));
+}
+
+#[test]
+fn overflowing_mul() {
+    // Fast-path: Only the arbitrary int is bounds checked
+    assert_eq!(u4::new(5).overflowing_mul(u4::new(2)), (u4::new(10), false));
+    assert_eq!(u4::new(5).overflowing_mul(u4::new(3)), (u4::new(15), false));
+    assert_eq!(u4::new(5).overflowing_mul(u4::new(4)), (u4::new(4), true));
+    assert_eq!(u4::new(5).overflowing_mul(u4::new(5)), (u4::new(9), true));
+    assert_eq!(u4::new(5).overflowing_mul(u4::new(6)), (u4::new(14), true));
+    assert_eq!(u4::new(5).overflowing_mul(u4::new(7)), (u4::new(3), true));
+
+    // Slow-path (well, one more comparison)
+    assert_eq!(u5::new(5).overflowing_mul(u5::new(2)), (u5::new(10), false));
+    assert_eq!(u5::new(5).overflowing_mul(u5::new(3)), (u5::new(15), false));
+    assert_eq!(u5::new(5).overflowing_mul(u5::new(4)), (u5::new(20), false));
+    assert_eq!(u5::new(5).overflowing_mul(u5::new(5)), (u5::new(25), false));
+    assert_eq!(u5::new(5).overflowing_mul(u5::new(6)), (u5::new(30), false));
+    assert_eq!(u5::new(5).overflowing_mul(u5::new(7)), (u5::new(3), true));
+    assert_eq!(
+        u5::new(30).overflowing_mul(u5::new(1)),
+        (u5::new(30), false)
+    );
+    assert_eq!(u5::new(30).overflowing_mul(u5::new(2)), (u5::new(28), true));
+    assert_eq!(
+        u5::new(30).overflowing_mul(u5::new(10)),
+        (u5::new(12), true)
+    );
+}
+
+#[test]
+fn overflowing_div() {
+    assert_eq!(u4::new(5).overflowing_div(u4::new(1)), (u4::new(5), false));
+    assert_eq!(u4::new(5).overflowing_div(u4::new(2)), (u4::new(2), false));
+    assert_eq!(u4::new(5).overflowing_div(u4::new(3)), (u4::new(1), false));
+    assert_eq!(u4::new(5).overflowing_div(u4::new(4)), (u4::new(1), false));
+    assert_eq!(u4::new(5).overflowing_div(u4::new(5)), (u4::new(1), false));
+}
+
+#[should_panic]
+#[test]
+fn overflowing_div_by_zero() {
+    let _ = u4::new(5).overflowing_div(u4::new(0));
+}
+
+#[test]
+fn overflowing_shl() {
+    assert_eq!(
+        u7::new(0b010_1101).overflowing_shl(0),
+        (u7::new(0b010_1101), false)
+    );
+    assert_eq!(
+        u7::new(0b010_1101).overflowing_shl(1),
+        (u7::new(0b101_1010), false)
+    );
+    assert_eq!(
+        u7::new(0b010_1101).overflowing_shl(6),
+        (u7::new(0b100_0000), false)
+    );
+    assert_eq!(
+        u7::new(0b010_1101).overflowing_shl(7),
+        (u7::new(0b010_1101), true)
+    );
+    assert_eq!(
+        u7::new(0b010_1101).overflowing_shl(8),
+        (u7::new(0b101_1010), true)
+    );
+    assert_eq!(
+        u7::new(0b010_1101).overflowing_shl(14),
+        (u7::new(0b010_1101), true)
+    );
+    assert_eq!(
+        u7::new(0b010_1101).overflowing_shl(15),
+        (u7::new(0b101_1010), true)
+    );
+}
+
+#[test]
+fn overflowing_shr() {
+    assert_eq!(
+        u7::new(0b010_1101).overflowing_shr(0),
+        (u7::new(0b010_1101), false)
+    );
+    assert_eq!(
+        u7::new(0b010_1101).overflowing_shr(1),
+        (u7::new(0b001_0110), false)
+    );
+    assert_eq!(
+        u7::new(0b010_1101).overflowing_shr(5),
+        (u7::new(0b000_0001), false)
+    );
+    assert_eq!(
+        u7::new(0b010_1101).overflowing_shr(7),
+        (u7::new(0b010_1101), true)
+    );
+    assert_eq!(
+        u7::new(0b010_1101).overflowing_shr(8),
+        (u7::new(0b001_0110), true)
+    );
+    assert_eq!(
+        u7::new(0b010_1101).overflowing_shr(14),
+        (u7::new(0b010_1101), true)
+    );
+    assert_eq!(
+        u7::new(0b010_1101).overflowing_shr(15),
+        (u7::new(0b001_0110), true)
+    );
 }
 
 #[test]

@@ -395,7 +395,7 @@ macro_rules! uint_impl {
                     };
 
                     Self {
-                        value: (self.value >> shift_amount) & Self::MASK,
+                        value: (self.value >> shift_amount),
                     }
                 }
 
@@ -457,6 +457,134 @@ macro_rules! uint_impl {
                     let saturated = if powed > max { max } else { powed };
                     Self {
                         value: saturated,
+                    }
+                }
+
+                pub const fn checked_add(self, rhs: Self) -> Option<Self> {
+                    if core::mem::size_of::<$type>() << 3 == BITS {
+                        // We are something like a UInt::<u8; 8>. We can fallback to the base implementation
+                        match self.value.checked_add(rhs.value) {
+                            Some(value) => Some(Self { value }),
+                            None => None
+                        }
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. u7).
+                        // That means the addition can never overflow the underlying type
+                        let sum = self.value.wrapping_add(rhs.value);
+                        if sum > Self::MAX.value() { None } else { Some(Self { value: sum })}
+                    }
+                }
+
+                pub const fn checked_sub(self, rhs: Self) -> Option<Self> {
+                    match self.value.checked_sub(rhs.value) {
+                        Some(value) => Some(Self { value }),
+                        None => None
+                    }
+                }
+
+                pub const fn checked_mul(self, rhs: Self) -> Option<Self> {
+                    let product = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                        // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
+                        // wrapping_mul likely provides the best performance on all cpus
+                        Some(self.value.wrapping_mul(rhs.value))
+                    } else {
+                        // We have more than half the bits (e.g. u6 * u6)
+                        self.value.checked_mul(rhs.value)
+                    };
+
+                    match product {
+                        Some(value) => {
+                            if value > Self::MAX.value() {
+                                None
+                            } else {
+                                Some(Self {value})
+                            }
+                        }
+                        None => None
+                    }
+                }
+
+                pub const fn checked_div(self, rhs: Self) -> Option<Self> {
+                    match self.value.checked_div(rhs.value) {
+                        Some(value) => Some(Self { value }),
+                        None => None
+                    }
+                }
+
+                pub const fn checked_shl(self, rhs: u32) -> Option<Self> {
+                    if rhs >= (BITS as u32) {
+                        None
+                    } else {
+                        Some(Self {
+                            value: (self.value << rhs) & Self::MASK,
+                        })
+                    }
+                }
+
+                pub const fn checked_shr(self, rhs: u32) -> Option<Self> {
+                    if rhs >= (BITS as u32) {
+                        None
+                    } else {
+                        Some(Self {
+                            value: (self.value >> rhs),
+                        })
+                    }
+                }
+
+                pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
+                    let (value, overflow) = if core::mem::size_of::<$type>() << 3 == BITS {
+                        // We are something like a UInt::<u8; 8>. We can fallback to the base implementation
+                        self.value.overflowing_add(rhs.value)
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. u7).
+                        // That means the addition can never overflow the underlying type
+                        let sum = self.value.wrapping_add(rhs.value);
+                        let masked = sum & Self::MASK;
+                        (masked, masked != sum)
+                    };
+                    (Self { value }, overflow)
+                }
+
+                pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
+                    // For unsigned numbers, the only difference is when we reach 0 - which is the same
+                    // no matter the data size. In the case of overflow we do have the mask the result though
+                    let (value, overflow) = self.value.overflowing_sub(rhs.value);
+                    (Self { value: value & Self::MASK }, overflow)
+                }
+
+                pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
+                    let (wrapping_product, overflow) = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                        // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
+                        // wrapping_mul likely provides the best performance on all cpus
+                        self.value.overflowing_mul(rhs.value)
+                    } else {
+                        // We have more than half the bits (e.g. u6 * u6)
+                        self.value.overflowing_mul(rhs.value)
+                    };
+
+                    let masked = wrapping_product & Self::MASK;
+                    let overflow2 = masked != wrapping_product;
+                    (Self { value: masked }, overflow || overflow2 )
+                }
+
+                pub const fn overflowing_div(self, rhs: Self) -> (Self, bool) {
+                    let value = self.value.wrapping_div(rhs.value);
+                    (Self { value }, false )
+                }
+
+                pub const fn overflowing_shl(self, rhs: u32) -> (Self, bool) {
+                    if rhs >= (BITS as u32) {
+                        (Self { value: self.value << (rhs % (BITS as u32)) }, true)
+                    } else {
+                        (Self { value: self.value << rhs }, false)
+                    }
+                }
+
+                pub const fn overflowing_shr(self, rhs: u32) -> (Self, bool) {
+                    if rhs >= (BITS as u32) {
+                        (Self { value: self.value >> (rhs % (BITS as u32)) }, true)
+                    } else {
+                        (Self { value: self.value >> rhs }, false)
                     }
                 }
 
