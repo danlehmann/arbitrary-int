@@ -538,7 +538,8 @@ where
         + BitAnd<T, Output = T>
         + Not<Output = T>
         + Add<T, Output = T>
-        + Sub<T, Output = T>,
+        + Sub<T, Output = T>
+        + From<u8>,
 {
     type Output = UInt<T, BITS>;
 
@@ -606,7 +607,7 @@ where
 impl<T, const BITS: usize> Mul for UInt<T, BITS>
 where
     Self: Number,
-    T: PartialEq + Copy + BitAnd<T, Output = T> + Not<Output = T> + Mul<T, Output = T>,
+    T: PartialEq + Copy + BitAnd<T, Output = T> + Not<Output = T> + Mul<T, Output = T> + From<u8>,
 {
     type Output = UInt<T, BITS>;
 
@@ -634,7 +635,8 @@ where
         + Copy
         + MulAssign<T>
         + BitAnd<T, Output = T>
-        + BitAndAssign<T>,
+        + BitAndAssign<T>
+        + From<u8>,
 {
     fn mul_assign(&mut self, rhs: Self) {
         self.value *= rhs.value;
