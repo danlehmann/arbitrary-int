@@ -378,6 +378,10 @@ macro_rules! uint_impl {
                     };
 
                     Self {
+                        // We could use wrapping_shl here to make Debug builds slightly smaller;
+                        // the downside would be that on weird CPUs that don't do wrapping_shl by
+                        // default release builds would get slightly worse. Using << should give
+                        // good release performance everywere
                         value: (self.value << shift_amount) & Self::MASK,
                     }
                 }
@@ -422,7 +426,8 @@ macro_rules! uint_impl {
                 pub const fn saturating_mul(self, rhs: Self) -> Self {
                     let product = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
                         // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
-                        self.value * rhs.value
+                        // wrapping_mul likely provides the best performance on all cpus
+                        self.value.wrapping_mul(rhs.value)
                     } else {
                         // We have more than half the bits (e.g. u6 * u6)
                         self.value.saturating_mul(rhs.value)
@@ -533,10 +538,7 @@ where
         + BitAnd<T, Output = T>
         + Not<Output = T>
         + Add<T, Output = T>
-        + Sub<T, Output = T>
-        + Shr<usize, Output = T>
-        + Shl<usize, Output = T>
-        + From<u8>,
+        + Sub<T, Output = T>,
 {
     type Output = UInt<T, BITS>;
 
@@ -562,9 +564,6 @@ where
         + AddAssign<T>
         + BitAnd<T, Output = T>
         + BitAndAssign<T>
-        + Sub<T, Output = T>
-        + Shr<usize, Output = T>
-        + Shl<usize, Output = T>
         + From<u8>,
 {
     fn add_assign(&mut self, rhs: Self) {
@@ -580,12 +579,7 @@ where
 impl<T, const BITS: usize> Sub for UInt<T, BITS>
 where
     Self: Number,
-    T: Copy
-        + BitAnd<T, Output = T>
-        + Sub<T, Output = T>
-        + Shl<usize, Output = T>
-        + Shr<usize, Output = T>
-        + From<u8>,
+    T: Copy + BitAnd<T, Output = T> + Sub<T, Output = T>,
 {
     type Output = UInt<T, BITS>;
 
@@ -600,14 +594,7 @@ where
 impl<T, const BITS: usize> SubAssign for UInt<T, BITS>
 where
     Self: Number,
-    T: Copy
-        + SubAssign<T>
-        + BitAnd<T, Output = T>
-        + BitAndAssign<T>
-        + Sub<T, Output = T>
-        + Shl<usize, Output = T>
-        + Shr<usize, Output = T>
-        + From<u8>,
+    T: Copy + SubAssign<T> + BitAnd<T, Output = T> + BitAndAssign<T> + Sub<T, Output = T>,
 {
     fn sub_assign(&mut self, rhs: Self) {
         // No need for extra overflow checking as the regular minus operator already handles it for us
@@ -619,19 +606,14 @@ where
 impl<T, const BITS: usize> Mul for UInt<T, BITS>
 where
     Self: Number,
-    T: PartialEq
-        + Copy
-        + BitAnd<T, Output = T>
-        + Not<Output = T>
-        + Mul<T, Output = T>
-        + Sub<T, Output = T>
-        + Shr<usize, Output = T>
-        + Shl<usize, Output = T>
-        + From<u8>,
+    T: PartialEq + Copy + BitAnd<T, Output = T> + Not<Output = T> + Mul<T, Output = T>,
 {
     type Output = UInt<T, BITS>;
 
     fn mul(self, rhs: Self) -> Self::Output {
+        // In debug builds, this will perform two bounds checks: Initial multiplication, followed by
+        // our bounds check. As wrapping_mul isn't available as a trait bound (in regular Rust), this
+        // is unavoidable
         let product = self.value * rhs.value;
         #[cfg(debug_assertions)]
         if (product & !Self::MASK) != T::from(0) {
@@ -652,11 +634,7 @@ where
         + Copy
         + MulAssign<T>
         + BitAnd<T, Output = T>
-        + BitAndAssign<T>
-        + Sub<T, Output = T>
-        + Shr<usize, Output = T>
-        + Shl<usize, Output = T>
-        + From<u8>,
+        + BitAndAssign<T>,
 {
     fn mul_assign(&mut self, rhs: Self) {
         self.value *= rhs.value;
@@ -671,15 +649,7 @@ where
 impl<T, const BITS: usize> Div for UInt<T, BITS>
 where
     Self: Number,
-    T: PartialEq
-        + Copy
-        + BitAnd<T, Output = T>
-        + Not<Output = T>
-        + Div<T, Output = T>
-        + Sub<T, Output = T>
-        + Shr<usize, Output = T>
-        + Shl<usize, Output = T>
-        + From<u8>,
+    T: PartialEq + Div<T, Output = T>,
 {
     type Output = UInt<T, BITS>;
 
@@ -695,17 +665,7 @@ where
 impl<T, const BITS: usize> DivAssign for UInt<T, BITS>
 where
     Self: Number,
-    T: PartialEq
-        + Eq
-        + Not<Output = T>
-        + Copy
-        + DivAssign<T>
-        + BitAnd<T, Output = T>
-        + BitAndAssign<T>
-        + Sub<T, Output = T>
-        + Shr<usize, Output = T>
-        + Shl<usize, Output = T>
-        + From<u8>,
+    T: PartialEq + DivAssign<T>,
 {
     fn div_assign(&mut self, rhs: Self) {
         self.value /= rhs.value;
