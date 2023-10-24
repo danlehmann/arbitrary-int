@@ -7,9 +7,12 @@
 - Support `Step` so that arbitrary-int can be used in a range expression, e.g. `for n in u3::MIN..=u3::MAX { println!("{n}") }`. Note this trait is currently unstable, and so is only usable in nightly. Enable this feature with `step_trait`.
 - Support formatting via [defmt](https://crates.io/crates/defmt). Enable the option `defmt` feature
 - Support serializing and deserializing via [serde](https://crates.io/crates/serde). Enable the option `serde` feature
-- Implement `Mul`, `MulAssign`, `Div`, `DivAssign`
-- Implement `wrapping_add`, `wrapping_sub`, `wrapping_mul`, `wrapping_div`, `wrapping_shl`, `wrapping_shr`
-- Implement `saturating_add`, `saturating_sub`, `saturating_mul`, `saturating_div`, `saturating_pow`
+- Support `Mul`, `MulAssign`, `Div`, `DivAssign`
+- The following new methods were implemented to make arbitrary ints feel more like built-in types:
+     * `wrapping_add`, `wrapping_sub`, `wrapping_mul`, `wrapping_div`, `wrapping_shl`, `wrapping_shr`
+     * `saturating_add`, `saturating_sub`, `saturating_mul`, `saturating_div`, `saturating_pow`
+     * `checked_add`, `checked_sub`, `checked_mul`, `checked_div`, `checked_shl`, `checked_shr`
+     * `overflowing_add`, `overflowing_sub`, `overflowing_mul`, `overflowing_div`, `overflowing_shl`, `overflowing_shr`
 
 ### Changed
 - In debug builds, `<<` (`Shl`, `ShlAssign`) and `>>` (`Shr`, `ShrAssign`) now bounds-check the shift amount using the same semantics as built-in shifts. For example, shifting a u5 by 5 or more bits will now panic as expected.
