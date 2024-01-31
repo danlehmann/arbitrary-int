@@ -1,6 +1,6 @@
 [package]
 name = "arbitrary-int"
-version = "1.2.6"
+version = "1.2.7"
 edition = "2021"
 authors = ["Daniel Lehmann <danlehmannmuc@gmail.com>"]
 description = "Modern and lightweight implementation of u2, u3, u4, ..., u127."
@@ -28,7 +28,7 @@ defmt = ["dep:defmt"]
 serde = ["dep:serde"]
 
 [dependencies]
-num-traits = { version = "0.2.15", default-features = false, optional = true }
+num-traits = { version = "0.2.17", default-features = false, optional = true }
 defmt = { version = "0.3.5", optional = true }
 serde = { version = "1.0", optional = true, default-features = false}
 
