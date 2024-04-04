@@ -13,7 +13,7 @@ use core::iter::Step;
 use core::num::Wrapping;
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
-    Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    Mul, MulAssign, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -50,6 +50,28 @@ pub trait Number: Sized {
     fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError>;
 
     fn value(self) -> Self::UnderlyingType;
+}
+
+#[cfg(feature = "num-traits")]
+/// Subtrait of [`Number`] that adds a [`num_traits::PrimInt`] bound to both the trait itself and
+/// it's associated type.
+pub trait PrimNumber: Number + num_traits::PrimInt {
+    type UnderlyingType: Debug
+        + From<u8>
+        + TryFrom<u16>
+        + TryFrom<u32>
+        + TryFrom<u64>
+        + TryFrom<u128>
+        + num_traits::PrimInt;
+}
+
+#[cfg(feature = "num-traits")]
+impl<T> PrimNumber for T
+where
+    T: Number + num_traits::PrimInt,
+    <T as Number>::UnderlyingType: num_traits::PrimInt,
+{
+    type UnderlyingType = <Self as Number>::UnderlyingType;
 }
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
@@ -657,6 +679,291 @@ macro_rules! uint_impl {
 
 uint_impl!(u8, u16, u32, u64, u128);
 
+// duplicate of std's api
+#[cfg(feature = "num-traits")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseUIntError {
+    kind: UIntErrorKind,
+}
+
+#[cfg(feature = "num-traits")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum UIntErrorKind {
+    /// Value being parsed is empty.
+    ///
+    /// This variant will be constructed when parsing an empty string.
+    Empty,
+    /// Contains an invalid digit in its context.
+    ///
+    /// Among other causes, this variant will be constructed when parsing a string that
+    /// contains a non-ASCII char.
+    ///
+    /// This variant is also constructed when a `+` or `-` is misplaced within a string
+    /// either on its own or in the middle of a number.
+    InvalidDigit,
+    /// Integer is too large to store in target integer type.
+    Overflow,
+}
+
+#[cfg(feature = "num-traits")]
+impl ParseUIntError {
+    #[must_use]
+    pub fn kind(&self) -> &UIntErrorKind {
+        &self.kind
+    }
+}
+
+#[cfg(feature = "num-traits")]
+impl core::fmt::Display for ParseUIntError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Display::fmt(
+            &match self.kind {
+                UIntErrorKind::Empty => "cannot parse integer from empty string",
+                UIntErrorKind::InvalidDigit => "invalid digit found in string",
+                UIntErrorKind::Overflow => "number too large to fit in target type",
+            },
+            f,
+        )
+    }
+}
+
+#[cfg(all(feature = "num-traits", std))]
+impl std::error::Error for ParseUIntError {}
+
+#[cfg(feature = "num-traits")]
+macro_rules! num_impl {
+    ($($type:ident),+) => {
+        $(
+            impl<const BITS: usize> num_traits::Zero for UInt<$type, BITS>
+            {
+                #[inline]
+                fn zero() -> Self {
+                    Self::new(0)
+                }
+
+                #[inline]
+                fn is_zero(&self) -> bool {
+                    *self == Self::zero()
+                }
+            }
+
+            impl<const BITS: usize> num_traits::One for UInt<$type, BITS>
+            {
+                #[inline]
+                fn one() -> Self {
+                    Self::new(1)
+                }
+            }
+
+            impl<const BITS: usize> num_traits::Num for UInt<$type, BITS>
+            {
+                type FromStrRadixErr = ParseUIntError;
+
+                #[inline]
+                fn from_str_radix(
+                    str: &str,
+                    radix: u32
+                ) -> Result<Self, Self::FromStrRadixErr> {
+                    let inner = match $type::from_str_radix(str, radix) {
+                        Ok(inner) => inner,
+                        Err(e) => return Err(ParseUIntError {
+                            kind: match e.kind() {
+                                core::num::IntErrorKind::Empty => UIntErrorKind::Empty,
+                                core::num::IntErrorKind::InvalidDigit => UIntErrorKind::InvalidDigit,
+                                core::num::IntErrorKind::PosOverflow => UIntErrorKind::Overflow,
+                                _ => unreachable!(),
+                            }
+                        }),
+                    };
+
+                    Self::try_new(inner).map_err(|_| ParseUIntError { kind: UIntErrorKind::Overflow })
+                }
+            }
+
+            impl<const BITS: usize> num_traits::Unsigned for UInt<$type, BITS> {}
+
+            impl<const BITS: usize> num_traits::ToPrimitive for UInt<$type, BITS> {
+                #[inline]
+                fn to_i64(&self) -> Option<i64> {
+                    self.value().try_into().ok()
+                }
+
+                #[inline]
+                fn to_u64(&self) -> Option<u64> {
+                    self.value().try_into().ok()
+                }
+
+                #[inline]
+                fn to_i128(&self) -> Option<i128> {
+                    self.value().try_into().ok()
+                }
+
+                #[inline]
+                fn to_u128(&self) -> Option<u128> {
+                    self.value().try_into().ok()
+                }
+            }
+
+            impl<const BITS: usize> num_traits::NumCast for UInt<$type, BITS> {
+                #[inline]
+                fn from<T>(n: T) -> Option<Self>
+                where
+                    T: num_traits::ToPrimitive
+                {
+                    // hacky but works i guess... pls compiler optimize this well, thank you
+                    const INNER_SIZE: usize = core::mem::size_of::<$type>();
+                    match INNER_SIZE {
+                        1 => Self::try_new(n.to_u8()?.into()).ok(),
+                        2 => Self::try_new(n.to_u16()?.try_into().unwrap()).ok(),
+                        4 => Self::try_new(n.to_u32()?.try_into().unwrap()).ok(),
+                        8 => Self::try_new(n.to_u64()?.try_into().unwrap()).ok(),
+                        16 => Self::try_new(n.to_u128()?.try_into().unwrap()).ok(),
+                        _ => unreachable!(),
+                    }
+                }
+            }
+
+
+            impl<const BITS: usize> num_traits::CheckedAdd for UInt<$type, BITS> {
+                #[inline]
+                fn checked_add(&self, v: &Self) -> Option<Self> {
+                    (*self).checked_add(*v)
+                }
+            }
+
+            impl<const BITS: usize> num_traits::CheckedSub for UInt<$type, BITS> {
+                #[inline]
+                fn checked_sub(&self, v: &Self) -> Option<Self> {
+                    (*self).checked_sub(*v)
+                }
+            }
+
+            impl<const BITS: usize> num_traits::CheckedMul for UInt<$type, BITS> {
+                #[inline]
+                fn checked_mul(&self, v: &Self) -> Option<Self> {
+                    (*self).checked_mul(*v)
+                }
+            }
+
+            impl<const BITS: usize> num_traits::CheckedDiv for UInt<$type, BITS> {
+                #[inline]
+                fn checked_div(&self, v: &Self) -> Option<Self> {
+                    (*self).checked_div(*v)
+                }
+            }
+
+            impl<const BITS: usize> num_traits::Saturating for UInt<$type, BITS> {
+                #[inline]
+                fn saturating_add(self, v: Self) -> Self {
+                    self.saturating_add(v)
+                }
+
+                #[inline]
+                fn saturating_sub(self, v: Self) -> Self {
+                    self.saturating_sub(v)
+                }
+            }
+
+            impl<const BITS: usize> num_traits::PrimInt for UInt<$type, BITS> {
+                #[inline]
+                fn count_ones(self) -> u32 {
+                    self.count_ones()
+                }
+
+                #[inline]
+                fn count_zeros(self) -> u32 {
+                    self.count_zeros()
+                }
+
+                #[inline]
+                fn leading_zeros(self) -> u32 {
+                    self.leading_zeros()
+                }
+
+                #[inline]
+                fn trailing_zeros(self) -> u32 {
+                    self.trailing_zeros()
+                }
+
+                #[inline]
+                fn rotate_left(self, n: u32) -> Self {
+                    self.rotate_left(n)
+                }
+
+                #[inline]
+                fn rotate_right(self, n: u32) -> Self {
+                    self.rotate_right(n)
+                }
+
+                #[inline]
+                fn signed_shl(self, n: u32) -> Self {
+                    self.shl(n)
+                }
+
+                #[inline]
+                fn signed_shr(self, n: u32) -> Self {
+                    self.shr(n)
+                }
+
+                #[inline]
+                fn unsigned_shl(self, n: u32) -> Self {
+                    self.shl(n)
+                }
+
+                #[inline]
+                fn unsigned_shr(self, n: u32) -> Self {
+                    self.shr(n)
+                }
+
+                #[inline]
+                fn swap_bytes(self) -> Self {
+                    Self {
+                        value: self.value.swap_bytes(),
+                    }
+                }
+
+                #[inline]
+                fn from_be(x: Self) -> Self {
+                    Self {
+                        value: $type::from_be(x.value),
+                    }
+                }
+
+                #[inline]
+                fn from_le(x: Self) -> Self {
+                    Self {
+                        value: $type::from_le(x.value),
+                    }
+                }
+
+                #[inline]
+                fn to_be(self) -> Self {
+                    Self {
+                        value: self.value.to_be(),
+                    }
+                }
+
+                #[inline]
+                fn to_le(self) -> Self {
+                    Self {
+                        value: self.value.to_le(),
+                    }
+                }
+
+                #[inline]
+                fn pow(self, exp: u32) -> Self {
+                    // TODO: saturating doesn't seem like the correct behaviour
+                    self.saturating_pow(exp)
+                }
+            }
+        )+
+    }
+}
+
+#[cfg(feature = "num-traits")]
+num_impl!(u8, u16, u32, u64, u128);
+
 // Arithmetic implementations
 impl<T, const BITS: usize> Add for UInt<T, BITS>
 where
@@ -779,7 +1086,7 @@ where
 impl<T, const BITS: usize> Div for UInt<T, BITS>
 where
     Self: Number,
-    T: PartialEq + Div<T, Output = T>,
+    T: Div<T, Output = T>,
 {
     type Output = UInt<T, BITS>;
 
@@ -795,10 +1102,34 @@ where
 impl<T, const BITS: usize> DivAssign for UInt<T, BITS>
 where
     Self: Number,
-    T: PartialEq + DivAssign<T>,
+    T: DivAssign<T>,
 {
     fn div_assign(&mut self, rhs: Self) {
         self.value /= rhs.value;
+    }
+}
+
+impl<T, const BITS: usize> Rem for UInt<T, BITS>
+where
+    Self: Number,
+    T: Rem<T, Output = T>,
+{
+    type Output = UInt<T, BITS>;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        Self {
+            value: self.value % rhs.value,
+        }
+    }
+}
+
+impl<T, const BITS: usize> RemAssign for UInt<T, BITS>
+where
+    Self: Number,
+    T: RemAssign<T>,
+{
+    fn rem_assign(&mut self, rhs: Self) {
+        self.value %= rhs.value;
     }
 }
 
