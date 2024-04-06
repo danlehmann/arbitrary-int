@@ -52,28 +52,6 @@ pub trait Number: Sized {
     fn value(self) -> Self::UnderlyingType;
 }
 
-#[cfg(feature = "num-traits")]
-/// Subtrait of [`Number`] that adds a [`num_traits::PrimInt`] bound to both the trait itself and
-/// it's associated type.
-pub trait PrimNumber: Number + num_traits::PrimInt {
-    type UnderlyingType: Debug
-        + From<u8>
-        + TryFrom<u16>
-        + TryFrom<u32>
-        + TryFrom<u64>
-        + TryFrom<u128>
-        + num_traits::PrimInt;
-}
-
-#[cfg(feature = "num-traits")]
-impl<T> PrimNumber for T
-where
-    T: Number + num_traits::PrimInt,
-    <T as Number>::UnderlyingType: num_traits::PrimInt,
-{
-    type UnderlyingType = <Self as Number>::UnderlyingType;
-}
-
 #[cfg(feature = "const_convert_and_const_trait_impl")]
 macro_rules! impl_number_native {
     ($( $type:ty ),+) => {
