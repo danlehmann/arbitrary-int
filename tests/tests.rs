@@ -1911,3 +1911,22 @@ fn serde() {
         "invalid value: integer `-1`, expected u128",
     );
 }
+
+
+#[cfg(feature = "borsh")]
+#[test]
+fn test_borsh() {
+    use borsh::{BorshDeserialize, BorshSerialize};
+    
+    let mut buf = borsh::__private::maybestd::vec::Vec::new();
+    let input = u9::new(42);
+    input.serialize(&mut buf).unwrap();
+    let output = u9::deserialize(&mut buf.as_ref()).unwrap();
+    assert_eq!(input, output);
+    
+    let input = u63::MAX;
+    let mut buf = Vec::new();
+    input.serialize(&mut buf).unwrap();
+    let output : u63 = u63::deserialize(&mut buf.as_ref()).unwrap();
+    assert_eq!(input, output);
+}

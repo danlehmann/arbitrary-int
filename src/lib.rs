@@ -39,6 +39,9 @@ pub trait Number: Sized {
     /// Number of bits that can fit in this type
     const BITS: usize;
 
+    // /// Number of whole bytes minimum required to fit this type
+    // const BYTES: usize;
+
     /// Minimum value that can be represented by this type
     const MIN: Self;
 
@@ -50,6 +53,8 @@ pub trait Number: Sized {
     fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError>;
 
     fn value(self) -> Self::UnderlyingType;
+
+    // fn to_le_bytes(self) -> [u8; Self::BYTES];
 }
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
@@ -1053,6 +1058,65 @@ where
         self.value.format(f)
     }
 }
+
+// borsh is byte-size little-endian de-needs-external-schema no-bit-compression serde
+// current ser/de for it is not optimal impl because it alloc for le arch nor use const until const stable (no stack alloc)
+
+#[cfg(feature = "borsh")]
+impl<T : num_traits::ToBytes + Copy + Number, const BITS: usize> borsh::BorshSerialize for UInt<T, BITS> 
+where
+    Self: Number,
+    {
+    fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
+        let buf  = self.value().to_le_bytes(); 
+        writer.write(&buf.as_ref()[..(BITS + 7) >> 3])?;
+        Ok(())
+    }
+}
+
+trait TryFromLeBytes where Self : Sized{
+    fn try_from_le_bytes(bytes: &[u8]) -> Result<Self, ()>;
+}
+
+impl TryFromLeBytes for u16 {
+    fn try_from_le_bytes(bytes: &[u8]) -> Result<Self, ()> {
+        if bytes.len() != (Self::BITS >> 3) as usize {
+            return Err(());
+        }
+        Ok(Self::from_le_bytes(bytes.try_into().unwrap()))
+    }
+}
+
+
+
+impl TryFromLeBytes for u64 {
+    fn try_from_le_bytes(bytes: &[u8]) -> Result<Self, ()> {
+        if bytes.len() != (Self::BITS >> 3)  as usize {
+            return Err(());
+        }
+        Ok(Self::from_le_bytes(bytes.try_into().unwrap()))
+    }
+}
+
+
+
+// #[cfg(feature = "borsh")]
+impl<T:TryFromLeBytes + core::cmp::PartialOrd<<UInt<T, BITS> as Number>::UnderlyingType>, const BITS: usize> borsh::BorshDeserialize for UInt<T, BITS>
+where
+    Self: Number,
+    {
+    fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> borsh::io::Result<Self> {        
+        let mut buf = borsh::__private::maybestd::vec![0u8; (Self::BITS + 7) >> 3];
+        reader.read_exact(&mut buf[0..(Self::BITS + 7) >> 3])?;
+        let value: T = T::try_from_le_bytes(buf.as_ref()).map_err(|_| borsh::io::Error::new(borsh::io::ErrorKind::Other, "Value out of range"))?;
+        if value >= Self::MIN.value() && value <=  Self::MAX.value() {
+            Ok(Self { value })
+        } else {
+            Err(borsh::io::Error::new(borsh::io::ErrorKind::Other, "Value out of range"))
+        }
+    }
+}
+
 
 #[cfg(feature = "serde")]
 impl<T, const BITS: usize> Serialize for UInt<T, BITS>
