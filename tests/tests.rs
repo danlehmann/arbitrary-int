@@ -1913,7 +1913,7 @@ fn serde() {
 }
 
 
-#[cfg(feature = "borsh")]
+#[cfg(all(feature = "borsh", feature = "std"))]
 #[test]
 fn test_borsh() {
     use borsh::{BorshDeserialize, BorshSerialize};
