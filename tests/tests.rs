@@ -1915,7 +1915,7 @@ fn serde() {
 
 #[cfg(all(feature = "borsh", feature = "std"))]
 #[test]
-fn test_borsh() {
+fn borsh() {
     use borsh::{BorshDeserialize, BorshSerialize};
     
     let mut buf = borsh::__private::maybestd::vec::Vec::new();
