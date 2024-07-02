@@ -25,10 +25,10 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
 
 #[cfg(all(feature = "borsh", not(feature = "std")))]
-use alloc::{format, string::ToString};
+use alloc::{collections::BTreeMap, format, string::ToString};
 
 #[cfg(all(feature = "borsh", feature = "std"))]
-use std::{format, string::ToString};
+use std::{collections::BTreeMap, string::ToString};
 
 #[cfg(feature = "schema")]
 use schemars::JsonSchema;
@@ -124,7 +124,6 @@ impl<const A: usize, const B: usize> CompileTimeAssert<A, B> {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd)]
-#[cfg_attr(feature = "borsh", derive(BorshSchema))]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct UInt<T, const BITS: usize> {
     value: T,
@@ -1101,6 +1100,22 @@ where
                 "Value out of range",
             ))
         }
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl<T, const BITS: usize> BorshSchema for UInt<T, BITS> {
+    fn add_definitions_recursively(
+        definitions: &mut BTreeMap<borsh::schema::Declaration, borsh::schema::Definition>,
+    ) {
+        definitions.insert(
+            ["u", &BITS.to_string()].concat().into(),
+            borsh::schema::Definition::Primitive(((BITS + 7) / 8) as u8),
+        );
+    }
+
+    fn declaration() -> borsh::schema::Declaration {
+        ["u", &BITS.to_string()].concat().into()
     }
 }
 

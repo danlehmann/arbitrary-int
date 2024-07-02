@@ -1912,21 +1912,26 @@ fn serde() {
     );
 }
 
-
 #[cfg(all(feature = "borsh", feature = "std"))]
 #[test]
 fn borsh() {
+    use borsh::schema::BorshSchemaContainer;
     use borsh::{BorshDeserialize, BorshSerialize};
-    
     let mut buf = borsh::__private::maybestd::vec::Vec::new();
     let input = u9::new(42);
     input.serialize(&mut buf).unwrap();
     let output = u9::deserialize(&mut buf.as_ref()).unwrap();
     assert_eq!(input, output);
-    
+
     let input = u63::MAX;
     let mut buf = Vec::new();
     input.serialize(&mut buf).unwrap();
-    let output : u63 = u63::deserialize(&mut buf.as_ref()).unwrap();
+    let output: u63 = u63::deserialize(&mut buf.as_ref()).unwrap();
     assert_eq!(input, output);
+
+    let schema = BorshSchemaContainer::for_type::<u9>();
+    match schema.get_definition("u9").expect("exists") {
+        borsh::schema::Definition::Primitive(2) => {}
+        _ => panic!("unexpected schema"),
+    }
 }
