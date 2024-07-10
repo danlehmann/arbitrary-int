@@ -25,12 +25,12 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
 
 #[cfg(all(feature = "borsh", not(feature = "std")))]
-use alloc::{collections::BTreeMap, format, string::ToString};
+use alloc::{collections::BTreeMap, string::ToString};
 
 #[cfg(all(feature = "borsh", feature = "std"))]
 use std::{collections::BTreeMap, string::ToString};
 
-#[cfg(feature = "schema")]
+#[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -124,7 +124,6 @@ impl<const A: usize, const B: usize> CompileTimeAssert<A, B> {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct UInt<T, const BITS: usize> {
     value: T,
 }
@@ -1070,15 +1069,37 @@ where
     }
 }
 
-// borsh is byte-size little-endian de-needs-external-schema no-bit-compression serde
-// current ser/de for it is not optimal impl because const math is not stable nor primitives has bits traits
+// Borsh is byte-size little-endian de-needs-external-schema no-bit-compression serde.
+// Current ser/de for it is not optimal impl because const math is not stable nor primitives has bits traits.
+// Uses minimal amount of bytes to fit needed amount of bits without compression (borsh does not have it anyway).
 #[cfg(feature = "borsh")]
-impl<T: BorshSerialize, const BITS: usize> BorshSerialize for UInt<T, BITS>
+impl<T, const BITS: usize> BorshSerialize for UInt<T, BITS>
 where
     Self: Number,
+    T: BorshSerialize
+        + From<u8>
+        + BitAnd<T, Output = T>
+        + TryInto<u8>
+        + Copy
+        + Shr<usize, Output = T>,
+    <UInt<T, BITS> as Number>::UnderlyingType:
+        Shr<usize, Output = T> + TryInto<u8> + From<u8> + BitAnd<T>,
 {
     fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
-        self.value.serialize(writer)
+        let mut value = self.value();
+        // [ $( (v >> ($indices << 3)) as u8, )+ ]
+        let length = (BITS + 7) / 8;
+        let mut bytes = 0;
+        let mask: T = u8::MAX.into();
+        while bytes < length {
+            let le_byte: u8 = ((value >> (bytes << 3)) & mask)
+                .try_into()
+                .ok()
+                .expect("we cut to u8 via mask");
+            writer.write(&[le_byte])?;
+            bytes += 1;
+        }
+        Ok(())
     }
 }
 
@@ -1168,6 +1189,32 @@ where
                 max: Self::MAX.value,
             }))
         }
+    }
+}
+
+#[cfg(feature = "schemars")]
+impl<T, const BITS: usize> JsonSchema for UInt<T, BITS>
+where
+    Self: Number,
+{
+    fn schema_name() -> String {
+        ["uint", &BITS.to_string()].concat()
+    }
+
+    fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        use schemars::schema::{NumberValidation, Schema, SchemaObject};
+        let schema_object = SchemaObject {
+            instance_type: Some(schemars::schema::InstanceType::Integer.into()),
+            format: Some(Self::schema_name()),
+            number: Some(Box::new(NumberValidation {
+                // can be done with https://github.com/rust-lang/rfcs/pull/2484
+                // minimum: Some(Self::MIN.value().try_into().ok().unwrap()),
+                // maximum: Some(Self::MAX.value().try_into().ok().unwrap()),
+                ..Default::default()
+            })),
+            ..Default::default()
+        };
+        Schema::Object(schema_object)
     }
 }
 

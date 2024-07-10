@@ -1917,16 +1917,18 @@ fn serde() {
 fn borsh() {
     use borsh::schema::BorshSchemaContainer;
     use borsh::{BorshDeserialize, BorshSerialize};
-    let mut buf = borsh::__private::maybestd::vec::Vec::new();
+    let mut buf = Vec::new();
     let input = u9::new(42);
     input.serialize(&mut buf).unwrap();
     let output = u9::deserialize(&mut buf.as_ref()).unwrap();
+    assert_eq!(buf.len(), (u9::BITS + 7) / 8);
     assert_eq!(input, output);
 
     let input = u63::MAX;
     let mut buf = Vec::new();
     input.serialize(&mut buf).unwrap();
     let output: u63 = u63::deserialize(&mut buf.as_ref()).unwrap();
+    assert_eq!(buf.len(), (u63::BITS + 7) / 8);
     assert_eq!(input, output);
 
     let schema = BorshSchemaContainer::for_type::<u9>();
@@ -1934,4 +1936,30 @@ fn borsh() {
         borsh::schema::Definition::Primitive(2) => {}
         _ => panic!("unexpected schema"),
     }
+}
+
+#[cfg(feature = "schemars")]
+#[test]
+fn schemars() {
+    use schemars::schema_for;
+    let mut u8 = schema_for!(u8);
+    let u9 = schema_for!(u9);
+    assert_eq!(
+        u8.schema.format.clone().unwrap().replace("8", "9"),
+        u9.schema.format.clone().unwrap()
+    );
+    u8.schema.format = u9.schema.format.clone();
+    assert_eq!(
+        u8.schema
+            .metadata
+            .clone()
+            .unwrap()
+            .title
+            .unwrap()
+            .replace("8", "9"),
+        u9.schema.metadata.clone().unwrap().title.unwrap()
+    );
+    u8.schema.metadata = u9.schema.metadata.clone();
+    u8.schema.number = u9.schema.number.clone();
+    assert_eq!(u8, u9);
 }

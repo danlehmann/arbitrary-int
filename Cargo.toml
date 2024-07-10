@@ -11,6 +11,7 @@ keywords = ["integer", "unaligned", "misaligned"]
 categories = ["embedded", "no-std", "data-structures"]
 
 [features]
+default = ["schemars", "borsh"]
 std = []
 
 # Supports const trait implementation through const_convert and const_trait_impl. Support for those was removed
@@ -29,14 +30,14 @@ serde = ["dep:serde"]
 
 borsh = ["dep:borsh"]
 
-schema = ["dep:schemars", "std"]
+schemars = ["dep:schemars", "std"]
 
 [dependencies]
 num-traits = { version = "0.2.17", default-features = false, optional = true }
 defmt = { version = "0.3.5", optional = true }
 serde = { version = "1.0", optional = true, default-features = false}
-borsh = { version = "1.5.1", optional = true, features = ["unstable__schema"], default-features = false}
-schemars ={ version = "0.8.1", optional = true, features = ["derive"], default-features = false}
+borsh = { version = "1.5.1", optional = true, features = ["unstable__schema"], default-features = false }
+schemars = { version = "0.8.1", optional = true, features = ["derive"], default-features = false }
 
 [dev-dependencies]
 serde_test = "1.0"
