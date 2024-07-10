@@ -1086,8 +1086,7 @@ where
         Shr<usize, Output = T> + TryInto<u8> + From<u8> + BitAnd<T>,
 {
     fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
-        let mut value = self.value();
-        // [ $( (v >> ($indices << 3)) as u8, )+ ]
+        let value = self.value();
         let length = (BITS + 7) / 8;
         let mut bytes = 0;
         let mask: T = u8::MAX.into();
@@ -1130,13 +1129,13 @@ impl<T, const BITS: usize> BorshSchema for UInt<T, BITS> {
         definitions: &mut BTreeMap<borsh::schema::Declaration, borsh::schema::Definition>,
     ) {
         definitions.insert(
-            ["u", &BITS.to_string()].concat().into(),
+            ["u", &BITS.to_string()].concat(),
             borsh::schema::Definition::Primitive(((BITS + 7) / 8) as u8),
         );
     }
 
     fn declaration() -> borsh::schema::Declaration {
-        ["u", &BITS.to_string()].concat().into()
+        ["u", &BITS.to_string()].concat()
     }
 }
 
