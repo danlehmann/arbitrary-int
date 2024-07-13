@@ -12,6 +12,7 @@ use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
 use core::hash::{Hash, Hasher};
 #[cfg(feature = "step_trait")]
 use core::iter::Step;
+use core::mem::size_of;
 #[cfg(feature = "num-traits")]
 use core::num::Wrapping;
 use core::ops::{
@@ -1111,7 +1112,9 @@ where
     Self: Number,
 {
     fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> borsh::io::Result<Self> {
-        let value = T::deserialize_reader(reader)?;
+        let mut buf = vec![0u8; size_of::<T>()];
+        reader.read(&mut buf)?;
+        let value = T::deserialize(&mut &buf[..])?;
         if value >= Self::MIN.value() && value <= Self::MAX.value() {
             Ok(Self { value })
         } else {

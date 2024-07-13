@@ -1918,17 +1918,20 @@ fn borsh() {
     use borsh::schema::BorshSchemaContainer;
     use borsh::{BorshDeserialize, BorshSerialize};
     let mut buf = Vec::new();
-    let input = u9::new(42);
+    let base_input: u8 = 42;
+    let input = u9::new(base_input.into());
     input.serialize(&mut buf).unwrap();
     let output = u9::deserialize(&mut buf.as_ref()).unwrap();
-    assert_eq!(buf.len(), (u9::BITS + 7) / 8);
+    let fits = u16::new(base_input.into());
+    assert_eq!(buf, fits.to_le_bytes());
     assert_eq!(input, output);
 
     let input = u63::MAX;
+    let fits = u64::new(input.value());
     let mut buf = Vec::new();
     input.serialize(&mut buf).unwrap();
     let output: u63 = u63::deserialize(&mut buf.as_ref()).unwrap();
-    assert_eq!(buf.len(), (u63::BITS + 7) / 8);
+    assert_eq!(buf, fits.to_le_bytes());
     assert_eq!(input, output);
 
     let schema = BorshSchemaContainer::for_type::<u9>();
@@ -1936,6 +1939,15 @@ fn borsh() {
         borsh::schema::Definition::Primitive(2) => {}
         _ => panic!("unexpected schema"),
     }
+
+    let input = u50::MAX;
+    let fits = u64::new(input.value());
+    let mut buf = Vec::new();
+    input.serialize(&mut buf).unwrap();
+    assert!(buf.len() < fits.to_le_bytes().len());
+    assert_eq!(buf, fits.to_le_bytes()[0..((u50::BITS + 7) / 8)]);
+    let output: u50 = u50::deserialize(&mut buf.as_ref()).unwrap();
+    assert_eq!(input, output);
 }
 
 #[cfg(feature = "schemars")]
