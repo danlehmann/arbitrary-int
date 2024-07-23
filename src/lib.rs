@@ -1070,14 +1070,7 @@ where
 impl<T, const BITS: usize> borsh::BorshSerialize for UInt<T, BITS>
 where
     Self: Number,
-    T: borsh::BorshSerialize
-        + From<u8>
-        + BitAnd<T, Output = T>
-        + TryInto<u8>
-        + Copy
-        + Shr<usize, Output = T>,
-    <UInt<T, BITS> as Number>::UnderlyingType:
-        Shr<usize, Output = T> + TryInto<u8> + From<u8> + BitAnd<T>,
+    T: borsh::BorshSerialize,
 {
     fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
         let serialized_byte_count = (BITS + 7) / 8;
