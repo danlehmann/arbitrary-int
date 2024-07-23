@@ -1066,9 +1066,6 @@ where
     }
 }
 
-// Borsh is byte-size little-endian de-needs-external-schema no-bit-compression serde.
-// Current ser/de for it is not optimal impl because const math is not stable nor primitives has bits traits.
-// Uses minimal amount of bytes to fit needed amount of bits without compression (borsh does not have it anyway).
 #[cfg(feature = "borsh")]
 impl<T, const BITS: usize> borsh::BorshSerialize for UInt<T, BITS>
 where
@@ -1084,16 +1081,16 @@ where
 {
     fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
         let value = self.value();
-        let length = (BITS + 7) / 8;
-        let mut bytes = 0;
-        let mask: T = u8::MAX.into();
-        while bytes < length {
-            let le_byte: u8 = ((value >> (bytes << 3)) & mask)
+        let total_bytes = (BITS + 7) / 8;
+        let mut byte_count_written = 0;
+        let byte_mask: T = u8::MAX.into();
+        while byte_count_written < total_bytes {
+            let le_byte: u8 = ((value >> (byte_count_written << 3)) & byte_mask)
                 .try_into()
                 .ok()
                 .expect("we cut to u8 via mask");
             writer.write(&[le_byte])?;
-            bytes += 1;
+            byte_count_written += 1;
         }
         Ok(())
     }
