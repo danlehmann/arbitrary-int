@@ -22,10 +22,10 @@ use core::ops::{
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[cfg(all(feature = "borsh", not(feature = "std")))]
-use alloc::{collections::BTreeMap, string::ToString, vec};
+use alloc::{collections::BTreeMap, string::ToString};
 
 #[cfg(all(feature = "borsh", feature = "std"))]
-use std::{collections::BTreeMap, string::ToString, vec};
+use std::{collections::BTreeMap, string::ToString};
 
 #[cfg(feature = "schemars")]
 use schemars::JsonSchema;
@@ -1105,7 +1105,11 @@ where
     Self: Number,
 {
     fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> borsh::io::Result<Self> {
-        let mut buf = vec![0u8; core::mem::size_of::<T>()];
+        // Ideally, we'd want a buffer of size `BITS >> 3` or `size_of::<T>`, but that's not possible
+        // with arrays.
+        // So instead we'll do a 16 byte buffer which handles the largest arbitrary-ints possible -
+        // not ideal, but still pretty small and better than going through an allocator.
+        let mut buf = [0u8; 16];
         reader.read(&mut buf)?;
         let value = T::deserialize(&mut &buf[..])?;
         if value >= Self::MIN.value() && value <= Self::MAX.value() {

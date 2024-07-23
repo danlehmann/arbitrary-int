@@ -1914,9 +1914,7 @@ fn serde() {
 
 #[cfg(feature = "borsh")]
 mod borsh_tests {
-    use arbitrary_int::{
-        u1, u14, u15, u50, u6, u63, u65, u7, u72, u79, u80, u81, u9, Number, UInt,
-    };
+    use arbitrary_int::{u1, u14, u15, u6, u63, u65, u7, u72, u79, u80, u81, u9, Number, UInt};
     use borsh::schema::BorshSchemaContainer;
     use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
     use std::fmt::Debug;
