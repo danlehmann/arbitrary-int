@@ -21,14 +21,11 @@ use core::ops::{
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[cfg(feature = "borsh")]
-use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
-
 #[cfg(all(feature = "borsh", not(feature = "std")))]
-use alloc::{collections::BTreeMap, string::ToString};
+use alloc::{collections::BTreeMap, string::ToString, vec};
 
 #[cfg(all(feature = "borsh", feature = "std"))]
-use std::{collections::BTreeMap, string::ToString};
+use std::{collections::BTreeMap, string::ToString, vec};
 
 #[cfg(feature = "schemars")]
 use schemars::JsonSchema;
@@ -1073,10 +1070,10 @@ where
 // Current ser/de for it is not optimal impl because const math is not stable nor primitives has bits traits.
 // Uses minimal amount of bytes to fit needed amount of bits without compression (borsh does not have it anyway).
 #[cfg(feature = "borsh")]
-impl<T, const BITS: usize> BorshSerialize for UInt<T, BITS>
+impl<T, const BITS: usize> borsh::BorshSerialize for UInt<T, BITS>
 where
     Self: Number,
-    T: BorshSerialize
+    T: borsh::BorshSerialize
         + From<u8>
         + BitAnd<T, Output = T>
         + TryInto<u8>
@@ -1104,9 +1101,9 @@ where
 
 #[cfg(feature = "borsh")]
 impl<
-        T: BorshDeserialize + core::cmp::PartialOrd<<UInt<T, BITS> as Number>::UnderlyingType>,
+        T: borsh::BorshDeserialize + PartialOrd<<UInt<T, BITS> as Number>::UnderlyingType>,
         const BITS: usize,
-    > BorshDeserialize for UInt<T, BITS>
+    > borsh::BorshDeserialize for UInt<T, BITS>
 where
     Self: Number,
 {
@@ -1126,7 +1123,7 @@ where
 }
 
 #[cfg(feature = "borsh")]
-impl<T, const BITS: usize> BorshSchema for UInt<T, BITS> {
+impl<T, const BITS: usize> borsh::BorshSchema for UInt<T, BITS> {
     fn add_definitions_recursively(
         definitions: &mut BTreeMap<borsh::schema::Declaration, borsh::schema::Definition>,
     ) {
