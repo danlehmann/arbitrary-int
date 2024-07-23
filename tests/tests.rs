@@ -1929,9 +1929,15 @@ mod borsh_tests {
         input.serialize(&mut buf).unwrap();
         assert_eq!(buf, expected_buffer);
 
+        // Add to the buffer a second time - this is a better test for the deserialization
+        // as it ensures we request the correct number of bytes
+        input.serialize(&mut buf).unwrap();
+
         // Deserialize back and compare against input
         let output = T::deserialize(&mut buf.as_ref()).unwrap();
+        let output2 = T::deserialize(&mut &buf[buf.len() / 2..]).unwrap();
         assert_eq!(input, output);
+        assert_eq!(input, output2);
     }
 
     #[test]
