@@ -1,4 +1,4 @@
-name: test serde
+name: test borsh
 run-name: ${{ github.actor }}'s patch
 on: [push]
 jobs:
@@ -11,6 +11,5 @@ jobs:
           cache: true
           toolchain: nightly
       - run: |
-          cargo test --no-default-features --features=serde
-          cargo test --no-default-features --features=serde,std
-          cargo test --no-default-features --features=schemars
+          cargo test --no-default-features --features=borsh
+          cargo test --no-default-features --features=borsh,std

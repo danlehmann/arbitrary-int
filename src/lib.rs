@@ -5,6 +5,9 @@
 )]
 #![cfg_attr(feature = "step_trait", feature(step_trait))]
 
+#[cfg(all(feature = "borsh", not(feature = "std")))]
+extern crate alloc;
+
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
 use core::hash::{Hash, Hasher};
 #[cfg(feature = "step_trait")]
@@ -17,6 +20,18 @@ use core::ops::{
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+#[cfg(feature = "borsh")]
+use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
+
+#[cfg(all(feature = "borsh", not(feature = "std")))]
+use alloc::{collections::BTreeMap, string::ToString};
+
+#[cfg(all(feature = "borsh", feature = "std"))]
+use std::{collections::BTreeMap, string::ToString};
+
+#[cfg(feature = "schemars")]
+use schemars::JsonSchema;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TryNewError;
@@ -1054,6 +1069,78 @@ where
     }
 }
 
+// Borsh is byte-size little-endian de-needs-external-schema no-bit-compression serde.
+// Current ser/de for it is not optimal impl because const math is not stable nor primitives has bits traits.
+// Uses minimal amount of bytes to fit needed amount of bits without compression (borsh does not have it anyway).
+#[cfg(feature = "borsh")]
+impl<T, const BITS: usize> BorshSerialize for UInt<T, BITS>
+where
+    Self: Number,
+    T: BorshSerialize
+        + From<u8>
+        + BitAnd<T, Output = T>
+        + TryInto<u8>
+        + Copy
+        + Shr<usize, Output = T>,
+    <UInt<T, BITS> as Number>::UnderlyingType:
+        Shr<usize, Output = T> + TryInto<u8> + From<u8> + BitAnd<T>,
+{
+    fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
+        let value = self.value();
+        let length = (BITS + 7) / 8;
+        let mut bytes = 0;
+        let mask: T = u8::MAX.into();
+        while bytes < length {
+            let le_byte: u8 = ((value >> (bytes << 3)) & mask)
+                .try_into()
+                .ok()
+                .expect("we cut to u8 via mask");
+            writer.write(&[le_byte])?;
+            bytes += 1;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl<
+        T: BorshDeserialize + core::cmp::PartialOrd<<UInt<T, BITS> as Number>::UnderlyingType>,
+        const BITS: usize,
+    > BorshDeserialize for UInt<T, BITS>
+where
+    Self: Number,
+{
+    fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> borsh::io::Result<Self> {
+        let mut buf = vec![0u8; core::mem::size_of::<T>()];
+        reader.read(&mut buf)?;
+        let value = T::deserialize(&mut &buf[..])?;
+        if value >= Self::MIN.value() && value <= Self::MAX.value() {
+            Ok(Self { value })
+        } else {
+            Err(borsh::io::Error::new(
+                borsh::io::ErrorKind::InvalidData,
+                "Value out of range",
+            ))
+        }
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl<T, const BITS: usize> BorshSchema for UInt<T, BITS> {
+    fn add_definitions_recursively(
+        definitions: &mut BTreeMap<borsh::schema::Declaration, borsh::schema::Definition>,
+    ) {
+        definitions.insert(
+            ["u", &BITS.to_string()].concat(),
+            borsh::schema::Definition::Primitive(((BITS + 7) / 8) as u8),
+        );
+    }
+
+    fn declaration() -> borsh::schema::Declaration {
+        ["u", &BITS.to_string()].concat()
+    }
+}
+
 #[cfg(feature = "serde")]
 impl<T, const BITS: usize> Serialize for UInt<T, BITS>
 where
@@ -1103,6 +1190,32 @@ where
                 max: Self::MAX.value,
             }))
         }
+    }
+}
+
+#[cfg(feature = "schemars")]
+impl<T, const BITS: usize> JsonSchema for UInt<T, BITS>
+where
+    Self: Number,
+{
+    fn schema_name() -> String {
+        ["uint", &BITS.to_string()].concat()
+    }
+
+    fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        use schemars::schema::{NumberValidation, Schema, SchemaObject};
+        let schema_object = SchemaObject {
+            instance_type: Some(schemars::schema::InstanceType::Integer.into()),
+            format: Some(Self::schema_name()),
+            number: Some(Box::new(NumberValidation {
+                // can be done with https://github.com/rust-lang/rfcs/pull/2484
+                // minimum: Some(Self::MIN.value().try_into().ok().unwrap()),
+                // maximum: Some(Self::MAX.value().try_into().ok().unwrap()),
+                ..Default::default()
+            })),
+            ..Default::default()
+        };
+        Schema::Object(schema_object)
     }
 }
 

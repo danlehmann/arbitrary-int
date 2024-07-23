@@ -1911,3 +1911,67 @@ fn serde() {
         "invalid value: integer `-1`, expected u128",
     );
 }
+
+#[cfg(all(feature = "borsh", feature = "std"))]
+#[test]
+fn borsh() {
+    use borsh::schema::BorshSchemaContainer;
+    use borsh::{BorshDeserialize, BorshSerialize};
+    let mut buf = Vec::new();
+    let base_input: u8 = 42;
+    let input = u9::new(base_input.into());
+    input.serialize(&mut buf).unwrap();
+    let output = u9::deserialize(&mut buf.as_ref()).unwrap();
+    let fits = u16::new(base_input.into());
+    assert_eq!(buf, fits.to_le_bytes());
+    assert_eq!(input, output);
+
+    let input = u63::MAX;
+    let fits = u64::new(input.value());
+    let mut buf = Vec::new();
+    input.serialize(&mut buf).unwrap();
+    let output: u63 = u63::deserialize(&mut buf.as_ref()).unwrap();
+    assert_eq!(buf, fits.to_le_bytes());
+    assert_eq!(input, output);
+
+    let schema = BorshSchemaContainer::for_type::<u9>();
+    match schema.get_definition("u9").expect("exists") {
+        borsh::schema::Definition::Primitive(2) => {}
+        _ => panic!("unexpected schema"),
+    }
+
+    let input = u50::MAX;
+    let fits = u64::new(input.value());
+    let mut buf = Vec::new();
+    input.serialize(&mut buf).unwrap();
+    assert!(buf.len() < fits.to_le_bytes().len());
+    assert_eq!(buf, fits.to_le_bytes()[0..((u50::BITS + 7) / 8)]);
+    let output: u50 = u50::deserialize(&mut buf.as_ref()).unwrap();
+    assert_eq!(input, output);
+}
+
+#[cfg(feature = "schemars")]
+#[test]
+fn schemars() {
+    use schemars::schema_for;
+    let mut u8 = schema_for!(u8);
+    let u9 = schema_for!(u9);
+    assert_eq!(
+        u8.schema.format.clone().unwrap().replace("8", "9"),
+        u9.schema.format.clone().unwrap()
+    );
+    u8.schema.format = u9.schema.format.clone();
+    assert_eq!(
+        u8.schema
+            .metadata
+            .clone()
+            .unwrap()
+            .title
+            .unwrap()
+            .replace("8", "9"),
+        u9.schema.metadata.clone().unwrap().title.unwrap()
+    );
+    u8.schema.metadata = u9.schema.metadata.clone();
+    u8.schema.number = u9.schema.number.clone();
+    assert_eq!(u8, u9);
+}
