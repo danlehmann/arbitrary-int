@@ -21,9 +21,6 @@ use core::ops::{
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[cfg(feature = "borsh")]
-use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
-
 #[cfg(all(feature = "borsh", not(feature = "std")))]
 use alloc::{collections::BTreeMap, string::ToString};
 
@@ -1069,51 +1066,46 @@ where
     }
 }
 
-// Borsh is byte-size little-endian de-needs-external-schema no-bit-compression serde.
-// Current ser/de for it is not optimal impl because const math is not stable nor primitives has bits traits.
-// Uses minimal amount of bytes to fit needed amount of bits without compression (borsh does not have it anyway).
 #[cfg(feature = "borsh")]
-impl<T, const BITS: usize> BorshSerialize for UInt<T, BITS>
+impl<T, const BITS: usize> borsh::BorshSerialize for UInt<T, BITS>
 where
     Self: Number,
-    T: BorshSerialize
-        + From<u8>
-        + BitAnd<T, Output = T>
-        + TryInto<u8>
-        + Copy
-        + Shr<usize, Output = T>,
-    <UInt<T, BITS> as Number>::UnderlyingType:
-        Shr<usize, Output = T> + TryInto<u8> + From<u8> + BitAnd<T>,
+    T: borsh::BorshSerialize,
 {
     fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
-        let value = self.value();
-        let length = (BITS + 7) / 8;
-        let mut bytes = 0;
-        let mask: T = u8::MAX.into();
-        while bytes < length {
-            let le_byte: u8 = ((value >> (bytes << 3)) & mask)
-                .try_into()
-                .ok()
-                .expect("we cut to u8 via mask");
-            writer.write(&[le_byte])?;
-            bytes += 1;
-        }
+        let serialized_byte_count = (BITS + 7) / 8;
+        let mut buffer = [0u8; 16];
+        self.value.serialize(&mut &mut buffer[..])?;
+        writer.write(&buffer[0..serialized_byte_count])?;
+
         Ok(())
     }
 }
 
 #[cfg(feature = "borsh")]
 impl<
-        T: BorshDeserialize + core::cmp::PartialOrd<<UInt<T, BITS> as Number>::UnderlyingType>,
+        T: borsh::BorshDeserialize + PartialOrd<<UInt<T, BITS> as Number>::UnderlyingType>,
         const BITS: usize,
-    > BorshDeserialize for UInt<T, BITS>
+    > borsh::BorshDeserialize for UInt<T, BITS>
 where
     Self: Number,
 {
     fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> borsh::io::Result<Self> {
-        let mut buf = vec![0u8; core::mem::size_of::<T>()];
-        reader.read(&mut buf)?;
-        let value = T::deserialize(&mut &buf[..])?;
+        // Ideally, we'd want a buffer of size `BITS >> 3` or `size_of::<T>`, but that's not possible
+        // with arrays at present (feature(generic_const_exprs), once stable, will allow this).
+        // vec! would be an option, but an allocation is not expected at this level.
+        // Therefore, allocate a 16 byte buffer and take a slice out of it.
+        let serialized_byte_count = (BITS + 7) / 8;
+        let underlying_byte_count = core::mem::size_of::<T>();
+        let mut buf = [0u8; 16];
+
+        // Read from the source, advancing cursor by the exact right number of bytes
+        reader.read(&mut buf[..serialized_byte_count])?;
+
+        // Deserialize the underlying type. We have to pass in the correct number of bytes of the
+        // underlying type (or more, but let's be precise). The unused bytes are all still zero
+        let value = T::deserialize(&mut &buf[..underlying_byte_count])?;
+
         if value >= Self::MIN.value() && value <= Self::MAX.value() {
             Ok(Self { value })
         } else {
@@ -1126,7 +1118,7 @@ where
 }
 
 #[cfg(feature = "borsh")]
-impl<T, const BITS: usize> BorshSchema for UInt<T, BITS> {
+impl<T, const BITS: usize> borsh::BorshSchema for UInt<T, BITS> {
     fn add_definitions_recursively(
         definitions: &mut BTreeMap<borsh::schema::Declaration, borsh::schema::Definition>,
     ) {
