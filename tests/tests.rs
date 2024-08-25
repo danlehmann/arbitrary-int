@@ -2107,16 +2107,69 @@ fn new_flexible() {
 #[test]
 #[should_panic]
 fn new_flexible_catches_out_of_bounds() {
-    let a = u10::new(1000);
+    let a = u28::new(0x8000000);
     let _b = u9::new_(a);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
+#[should_panic]
+fn new_flexible_catches_out_of_bounds_2() {
+    let a = u28::new(0x0000200);
+    let _b = u9::new_(a);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+#[should_panic]
+fn new_flexible_catches_out_of_bounds_primitive_type() {
+    let a = u28::new(0x8000000);
+    let _b = u8::new_(a);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+#[should_panic]
+fn new_constructors_catch_out_bounds_0() {
+    u7::new_u8(0x80u8);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+#[should_panic]
+fn new_constructors_catch_out_bounds_1() {
+    u7::new_u32(0x80000060u32);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+#[should_panic]
+fn new_constructors_catch_out_bounds_2() {
+    u7::new_u16(0x8060u16);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+#[should_panic]
+fn new_constructors_catch_out_bounds_3() {
+    u7::new_u64(0x80000000_00000060u64);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+#[should_panic]
+fn new_constructors_catch_out_bounds_4() {
+    u7::new_u128(0x80000000_00000000_00000000_00000060u128);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
 fn new_masked() {
-    let a = u16::new(1000);
+    let a = u10::new(0b11_01010111);
     let b = u9::masked_new(a);
-    assert_eq!(b.as_u32(), 488);
+    assert_eq!(b.as_u32(), 0b1_01010111);
+    let c = u7::masked_new(a);
+    assert_eq!(c.as_u32(), 0b1010111);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
