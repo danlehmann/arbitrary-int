@@ -40,7 +40,7 @@ impl Display for TryNewError {
 }
 
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
-pub trait Number: Sized + Copy + Clone {
+pub trait Number: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
     type UnderlyingType: Number
         + Debug
         + From<u8>
@@ -150,6 +150,15 @@ macro_rules! impl_number_native {
 
                 #[inline]
                 fn new_<T: Number>(value: T) -> Self {
+                    if T::BITS > Self::BITS as usize {
+                        assert!(value <= T::masked_new(Self::MAX));
+                    }
+                    Self::masked_new(value)
+                }
+
+                #[inline]
+                fn masked_new<T: Number>(value: T) -> Self {
+                    // Primitive types don't need masking
                     match Self::BITS {
                         8 => value.as_u8() as Self,
                         16 => value.as_u16() as Self,
@@ -158,12 +167,6 @@ macro_rules! impl_number_native {
                         128 => value.as_u128() as Self,
                         _ => panic!("Unhandled Number type")
                     }
-                }
-
-                #[inline]
-                fn masked_new<T: Number>(value: T) -> Self {
-                    // Primitive types don't need masking
-                    Self::new_(value)
                 }
 
                 #[inline]
@@ -336,7 +339,10 @@ macro_rules! uint_impl_num {
 
                 #[inline]
                 fn new_<T: Number>(value: T) -> Self {
-                    Self::new(Self::UnderlyingType::new_(value))
+                    if Self::BITS < T::BITS {
+                        assert!(value <= Self::MAX.value.as_());
+                    }
+                    Self { value: Self::UnderlyingType::masked_new(value) }
                 }
 
                 fn masked_new<T: Number>(value: T) -> Self {
@@ -398,51 +404,46 @@ macro_rules! uint_impl {
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
                 pub const fn new_u8(value: u8) -> Self {
-                    let value = value as $type;
                     if Self::BITS < 8 {
-                        assert!(value <= Self::MAX.value);
+                        assert!(value <= Self::MAX.value as u8);
                     }
-                    Self { value }
+                    Self { value: value as $type }
                 }
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
                 pub const fn new_u16(value: u16) -> Self {
-                    let value = value as $type;
                     if Self::BITS < 16 {
-                        assert!(value <= Self::MAX.value);
+                        assert!(value <= Self::MAX.value as u16);
                     }
-                    Self { value }
+                    Self { value: value as $type }
                 }
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
                 pub const fn new_u32(value: u32) -> Self {
-                    let value = value as $type;
                     if Self::BITS < 32 {
-                        assert!(value <= Self::MAX.value);
+                        assert!(value <= Self::MAX.value as u32);
                     }
-                    Self { value }
+                    Self { value: value as $type }
                 }
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
                 pub const fn new_u64(value: u64) -> Self {
-                    let value = value as $type;
                     if Self::BITS < 64 {
-                        assert!(value <= Self::MAX.value);
+                        assert!(value <= Self::MAX.value as u64);
                     }
-                    Self { value }
+                    Self { value: value as $type }
                 }
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
                 pub const fn new_u128(value: u128) -> Self {
-                    let value = value as $type;
                     if Self::BITS < 128 {
-                        assert!(value <= Self::MAX.value);
+                        assert!(value <= Self::MAX.value as u128);
                     }
-                    Self { value }
+                    Self { value: value as $type }
                 }
 
                 /// Creates an instance or an error if the given value is outside of the valid range
