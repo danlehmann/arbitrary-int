@@ -40,10 +40,8 @@ impl Display for TryNewError {
 }
 
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
-pub trait Number: Sized {
-    type UnderlyingType: Copy
-        + Clone
-        + Number
+pub trait Number: Sized + Copy + Clone {
+    type UnderlyingType: Number
         + Debug
         + From<u8>
         + TryFrom<u16>
@@ -68,8 +66,12 @@ pub trait Number: Sized {
 
     fn value(self) -> Self::UnderlyingType;
 
+    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
     fn new_<T: Number>(value: T) -> Self;
 
+    /// Creates an instance from the given `value`. Unlike the various `new...` functions, this
+    /// will never fail as the value is masked to the result size.
+    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
     fn masked_new<T: Number>(value: T) -> Self;
 
     fn as_u8(&self) -> u8;
@@ -82,6 +84,7 @@ pub trait Number: Sized {
 
     fn as_u128(&self) -> u128;
 
+    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
     #[inline]
     fn as_<T: Number>(self) -> T {
         T::masked_new(self)
@@ -106,24 +109,6 @@ macro_rules! impl_number_native {
 
                 #[inline]
                 fn value(self) -> Self::UnderlyingType { self }
-
-                #[inline]
-                fn new_<T: Number>(value: T) -> Self {
-                    match Self::BITS {
-                        8 => value.as_u8() as Self,
-                        16 => value.as_u16() as Self,
-                        32 => value.as_u32() as Self,
-                        64 => value.as_u64() as Self,
-                        128 => value.as_u128() as Self,
-                        _ => panic!("Unhandled Number type")
-                    }
-                }
-
-                #[inline]
-                fn masked_new<T: Number>(value: T) -> Self {
-                    // Primitive types don't need masking
-                    Self::new_(value)
-                }
 
                 #[inline]
                 fn as_u8(&self) -> u8 { *self as u8 }

@@ -2069,6 +2069,7 @@ fn new_and_as_specific_types() {
     assert_eq!(f.as_u128(), 42);
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn new_flexible() {
     let a = u10::new(1000);
@@ -2078,6 +2079,7 @@ fn new_flexible() {
     assert_eq!(b.as_u32(), 1000);
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn new_flexible_catches_out_of_bounds() {
@@ -2085,6 +2087,7 @@ fn new_flexible_catches_out_of_bounds() {
     let _b = u9::new_(a);
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn new_masked() {
     let a = u16::new(1000);
@@ -2092,6 +2095,7 @@ fn new_masked() {
     assert_eq!(b.as_u32(), 488);
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn as_flexible() {
     let a: u32 = u14::new(123).as_();
