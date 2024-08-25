@@ -2071,3 +2071,53 @@ fn schemars() {
     u8.schema.number = u9.schema.number.clone();
     assert_eq!(u8, u9);
 }
+
+#[test]
+fn new_and_as_specific_types() {
+    let a = u6::new(42);
+    let b = u6::new_u8(42);
+    let c = u6::new_u16(42);
+    let d = u6::new_u32(42);
+    let e = u6::new_u64(42);
+    let f = u6::new_u128(42);
+
+    assert_eq!(a.as_u8(), 42);
+    assert_eq!(a.as_u16(), 42);
+    assert_eq!(a.as_u32(), 42);
+    assert_eq!(a.as_u64(), 42);
+    assert_eq!(a.as_u128(), 42);
+    assert_eq!(b.as_u128(), 42);
+    assert_eq!(c.as_u128(), 42);
+    assert_eq!(d.as_u128(), 42);
+    assert_eq!(e.as_u128(), 42);
+    assert_eq!(f.as_u128(), 42);
+}
+
+#[test]
+fn new_flexible() {
+    let a = u10::new(1000);
+    let b = u11::new_(a);
+
+    assert_eq!(a.as_u32(), 1000);
+    assert_eq!(b.as_u32(), 1000);
+}
+
+#[test]
+#[should_panic]
+fn new_flexible_catches_out_of_bounds() {
+    let a = u10::new(1000);
+    let _b = u9::new_(a);
+}
+
+#[test]
+fn new_masked() {
+    let a = u16::new(1000);
+    let b = u9::masked_new(a);
+    assert_eq!(b.as_u32(), 488);
+}
+
+#[test]
+fn as_flexible() {
+    let a: u32 = u14::new(123).as_();
+    assert_eq!(a, 123u32);
+}

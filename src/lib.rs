@@ -41,7 +41,10 @@ impl Display for TryNewError {
 
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
 pub trait Number: Sized {
-    type UnderlyingType: Debug
+    type UnderlyingType: Copy
+        + Clone
+        + Number
+        + Debug
         + From<u8>
         + TryFrom<u16>
         + TryFrom<u32>
@@ -57,11 +60,32 @@ pub trait Number: Sized {
     /// Maximum value that can be represented by this type
     const MAX: Self;
 
+    /// Creates a number from the given value, throwing an error if the value is too large
     fn new(value: Self::UnderlyingType) -> Self;
 
+    /// Creates a number from the given value, return None if the value is too large
     fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError>;
 
     fn value(self) -> Self::UnderlyingType;
+
+    fn new_<T: Number>(value: T) -> Self;
+
+    fn masked_new<T: Number>(value: T) -> Self;
+
+    fn as_u8(&self) -> u8;
+
+    fn as_u16(&self) -> u16;
+
+    fn as_u32(&self) -> u32;
+
+    fn as_u64(&self) -> u64;
+
+    fn as_u128(&self) -> u128;
+
+    #[inline]
+    fn as_<T: Number>(self) -> T {
+        T::masked_new(self)
+    }
 }
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
@@ -82,6 +106,39 @@ macro_rules! impl_number_native {
 
                 #[inline]
                 fn value(self) -> Self::UnderlyingType { self }
+
+                #[inline]
+                fn new_<T: Number>(value: T) -> Self {
+                    match Self::BITS {
+                        8 => value.as_u8() as Self,
+                        16 => value.as_u16() as Self,
+                        32 => value.as_u32() as Self,
+                        64 => value.as_u64() as Self,
+                        128 => value.as_u128() as Self,
+                        _ => panic!("Unhandled Number type")
+                    }
+                }
+
+                #[inline]
+                fn masked_new<T: Number>(value: T) -> Self {
+                    // Primitive types don't need masking
+                    Self::new_(value)
+                }
+
+                #[inline]
+                fn as_u8(&self) -> u8 { *self as u8 }
+
+                #[inline]
+                fn as_u16(&self) -> u16 { *self as u16 }
+
+                #[inline]
+                fn as_u32(&self) -> u32 { *self as u32 }
+
+                #[inline]
+                fn as_u64(&self) -> u64 { *self as u64 }
+
+                #[inline]
+                fn as_u128(&self) -> u128 { *self as u128 }
             }
         )+
     };
@@ -105,6 +162,39 @@ macro_rules! impl_number_native {
 
                 #[inline]
                 fn value(self) -> Self::UnderlyingType { self }
+
+                #[inline]
+                fn new_<T: Number>(value: T) -> Self {
+                    match Self::BITS {
+                        8 => value.as_u8() as Self,
+                        16 => value.as_u16() as Self,
+                        32 => value.as_u32() as Self,
+                        64 => value.as_u64() as Self,
+                        128 => value.as_u128() as Self,
+                        _ => panic!("Unhandled Number type")
+                    }
+                }
+
+                #[inline]
+                fn masked_new<T: Number>(value: T) -> Self {
+                    // Primitive types don't need masking
+                    Self::new_(value)
+                }
+
+                #[inline]
+                fn as_u8(&self) -> u8 { *self as u8 }
+
+                #[inline]
+                fn as_u16(&self) -> u16 { *self as u16 }
+
+                #[inline]
+                fn as_u32(&self) -> u32 { *self as u32 }
+
+                #[inline]
+                fn as_u64(&self) -> u64 { *self as u64 }
+
+                #[inline]
+                fn as_u128(&self) -> u128 { *self as u128 }
             }
         )+
     };
@@ -198,6 +288,31 @@ macro_rules! uint_impl_num {
 
                     self.value
                 }
+
+                #[inline]
+                fn as_u8(&self) -> u8 {
+                    self.value as u8
+                }
+
+                #[inline]
+                fn as_u16(&self) -> u16 {
+                    self.value as u16
+                }
+
+                #[inline]
+                fn as_u32(&self) -> u32 {
+                    self.value as u32
+                }
+
+                #[inline]
+                fn as_u64(&self) -> u64 {
+                    self.value as u64
+                }
+
+                #[inline]
+                fn as_u128(&self) -> u128 {
+                    self.value as u128
+                }
             }
         )+
     };
@@ -235,6 +350,39 @@ macro_rules! uint_impl_num {
                 }
 
                 #[inline]
+                fn new_<T: Number>(value: T) -> Self {
+                    Self::new(Self::UnderlyingType::new_(value))
+                }
+
+                fn masked_new<T: Number>(value: T) -> Self {
+                    if Self::BITS < T::BITS {
+                        Self { value: Self::UnderlyingType::masked_new(value.as_::<Self::UnderlyingType>() & Self::MASK) }
+                    } else {
+                        Self { value: Self::UnderlyingType::masked_new(value) }
+                    }
+                }
+
+                fn as_u8(&self) -> u8 {
+                    self.value as _
+                }
+
+                fn as_u16(&self) -> u16 {
+                    self.value as _
+                }
+
+                fn as_u32(&self) -> u32 {
+                    self.value as _
+                }
+
+                fn as_u64(&self) -> u64 {
+                    self.value as _
+                }
+
+                fn as_u128(&self) -> u128 {
+                    self.value as _
+                }
+
+                #[inline]
                 fn value(self) -> $type {
                     #[cfg(feature = "hint")]
                     unsafe {
@@ -259,6 +407,56 @@ macro_rules! uint_impl {
                 pub const fn new(value: $type) -> Self {
                     assert!(value <= Self::MAX.value);
 
+                    Self { value }
+                }
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn new_u8(value: u8) -> Self {
+                    let value = value as $type;
+                    if Self::BITS < 8 {
+                        assert!(value <= Self::MAX.value);
+                    }
+                    Self { value }
+                }
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn new_u16(value: u16) -> Self {
+                    let value = value as $type;
+                    if Self::BITS < 16 {
+                        assert!(value <= Self::MAX.value);
+                    }
+                    Self { value }
+                }
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn new_u32(value: u32) -> Self {
+                    let value = value as $type;
+                    if Self::BITS < 32 {
+                        assert!(value <= Self::MAX.value);
+                    }
+                    Self { value }
+                }
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn new_u64(value: u64) -> Self {
+                    let value = value as $type;
+                    if Self::BITS < 64 {
+                        assert!(value <= Self::MAX.value);
+                    }
+                    Self { value }
+                }
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn new_u128(value: u128) -> Self {
+                    let value = value as $type;
+                    if Self::BITS < 128 {
+                        assert!(value <= Self::MAX.value);
+                    }
                     Self { value }
                 }
 
