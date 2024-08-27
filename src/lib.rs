@@ -190,14 +190,6 @@ macro_rules! impl_number_native {
 
 impl_number_native!(u8, u16, u32, u64, u128);
 
-struct CompileTimeAssert<const A: usize, const B: usize> {}
-
-impl<const A: usize, const B: usize> CompileTimeAssert<A, B> {
-    pub const SMALLER_OR_EQUAL: () = {
-        assert!(A <= B);
-    };
-}
-
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd)]
 pub struct UInt<T, const BITS: usize> {
     value: T,
@@ -556,7 +548,10 @@ macro_rules! uint_impl {
                 pub const fn widen<const BITS_RESULT: usize>(
                     self,
                 ) -> UInt<$type, BITS_RESULT> {
-                    let _ = CompileTimeAssert::<BITS, BITS_RESULT>::SMALLER_OR_EQUAL;
+                    const { if BITS >= BITS_RESULT {
+                        panic!("Can not call widen() with the given bit widths");
+                    } };
+
                     // Query MAX of the result to ensure we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
                     let _ = UInt::<$type, BITS_RESULT>::MAX;
                     UInt::<$type, BITS_RESULT> { value: self.value }
@@ -1652,7 +1647,10 @@ macro_rules! from_arbitrary_int_impl {
             {
                 #[inline]
                 fn from(item: UInt<$from, BITS_FROM>) -> Self {
-                    let _ = CompileTimeAssert::<BITS_FROM, BITS>::SMALLER_OR_EQUAL;
+                    const { if BITS_FROM > BITS {
+                        panic!("Can not call from() to convert between the given bit widths.");
+                    } };
+
                     Self { value: item.value as $into }
                 }
             }
@@ -1669,7 +1667,10 @@ macro_rules! from_arbitrary_int_impl {
             {
                 #[inline]
                 fn from(item: UInt<$from, BITS_FROM>) -> Self {
-                    let _ = CompileTimeAssert::<BITS_FROM, BITS>::SMALLER_OR_EQUAL;
+                    const { if BITS_FROM > BITS {
+                        panic!("Can not call from() to convert between the given bit widths.");
+                    } };
+
                     Self { value: item.value as $into }
                 }
             }
@@ -1684,7 +1685,9 @@ macro_rules! from_native_impl {
             impl<const BITS: usize> const From<$from> for UInt<$into, BITS> {
                 #[inline]
                 fn from(from: $from) -> Self {
-                    let _ = CompileTimeAssert::<{ <$from>::BITS as usize }, BITS>::SMALLER_OR_EQUAL;
+                    const { if <$from>::BITS as usize > BITS {
+                        panic!("Can not call from() to convert between the given bit widths.");
+                    } };
                     Self { value: from as $into }
                 }
             }
@@ -1692,7 +1695,9 @@ macro_rules! from_native_impl {
             impl<const BITS: usize> const From<UInt<$from, BITS>> for $into {
                 #[inline]
                 fn from(from: UInt<$from, BITS>) -> Self {
-                    let _ = CompileTimeAssert::<BITS, { <$into>::BITS as usize }>::SMALLER_OR_EQUAL;
+                    const { if BITS > <$from>::BITS as usize {
+                        panic!("Can not call from() to convert between the given bit widths.");
+                    } };
                     from.value as $into
                 }
             }
@@ -1707,7 +1712,9 @@ macro_rules! from_native_impl {
             impl<const BITS: usize> From<$from> for UInt<$into, BITS> {
                 #[inline]
                 fn from(from: $from) -> Self {
-                    let _ = CompileTimeAssert::<{ <$from>::BITS as usize }, BITS>::SMALLER_OR_EQUAL;
+                    const { if <$from>::BITS as usize > BITS {
+                        panic!("Can not call from() to convert between the given bit widths.");
+                    } };
                     Self { value: from as $into }
                 }
             }
@@ -1715,7 +1722,9 @@ macro_rules! from_native_impl {
             impl<const BITS: usize> From<UInt<$from, BITS>> for $into {
                 #[inline]
                 fn from(from: UInt<$from, BITS>) -> Self {
-                    let _ = CompileTimeAssert::<BITS, { <$into>::BITS as usize }>::SMALLER_OR_EQUAL;
+                    const { if BITS > <$from>::BITS as usize {
+                        panic!("Can not call from() to convert between the given bit widths.");
+                    } };
                     from.value as $into
                 }
             }
@@ -1794,7 +1803,7 @@ macro_rules! boolu1 {
                 match value.value() {
                     0 => false,
                     1 => true,
-                    _ => panic!("arbitrary_int_type already validates that this is unreachable"), //TODO: unreachable!() is not const yet
+                    _ => unreachable!(),
                 }
             }
         }
