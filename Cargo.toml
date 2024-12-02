@@ -1,6 +1,6 @@
 [package]
 name = "arbitrary-int"
-version = "1.2.7"
+version = "1.3.0"
 edition = "2021"
 authors = ["Daniel Lehmann <danlehmannmuc@gmail.com>"]
 description = "Modern and lightweight implementation of u2, u3, u4, ..., u127."
@@ -15,7 +15,9 @@ std = []
 
 # Supports const trait implementation through const_convert and const_trait_impl. Support for those was removed
 # from more recent Rust nightlies, so this feature requires an older Rust compiler
-# (2023-04-20 is broken, 2022-11-23 works. The exact day is somewhere inbetween)
+# (2023-04-20 is broken, 2022-11-23 works. The exact day is somewhere inbetween).
+# As of 12/2/2024, this also uses inline_const. This has been stabilized but is required for current code to work
+# on the old compiler.
 const_convert_and_const_trait_impl = []
 
 # core::fmt::Step is currently unstable and is available on nightly behind a feature gate
