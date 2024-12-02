@@ -1821,21 +1821,39 @@ fn rotate_right() {
 #[cfg(feature = "step_trait")]
 #[test]
 fn range_agrees_with_underlying() {
-    compare_range(u19::MIN, u19::MAX);
-    compare_range(u37::new(95_993), u37::new(1_994_910));
-    compare_range(u68::new(58_858_348), u68::new(58_860_000));
-    compare_range(u122::new(111_222_333_444), u122::new(111_222_444_555));
-    compare_range(u5::MIN, u5::MAX);
-    compare_range(u23::MIN, u23::MAX);
-    compare_range(u48::new(999_444), u48::new(1_005_000));
-    compare_range(u99::new(12345), u99::new(54321));
+    compare_range_32(u19::MIN, u19::MAX);
+    compare_range_64(u37::new(95_993), u37::new(1_994_910));
+    compare_range_128(u68::new(58_858_348), u68::new(58_860_000));
+    compare_range_128(u122::new(111_222_333_444), u122::new(111_222_444_555));
+    compare_range_32(u23::MIN, u23::MAX);
+    compare_range_64(u48::new(999_444), u48::new(1_005_000));
+    compare_range_128(u99::new(12345), u99::new(54321));
 
-    fn compare_range<T, const BITS: usize>(arb_start: UInt<T, BITS>, arb_end: UInt<T, BITS>)
+    // with the `hint` feature enabled, ::value only exist with primitive types, not on all
+    // implementations. This makes some copy & paste necessary here.
+    fn compare_range_32<const BITS: usize>(arb_start: UInt<u32, BITS>, arb_end: UInt<u32, BITS>)
     where
-        T: Copy + Step,
-        UInt<T, BITS>: Step,
+        UInt<u32, BITS>: Step,
     {
-        let arbint_range = (arb_start..=arb_end).map(UInt::value);
+        let arbint_range = (arb_start..=arb_end).map(UInt::<u32, BITS>::value);
+        let underlying_range = arb_start.value()..=arb_end.value();
+
+        assert!(arbint_range.eq(underlying_range));
+    }
+    fn compare_range_64<const BITS: usize>(arb_start: UInt<u64, BITS>, arb_end: UInt<u64, BITS>)
+    where
+        UInt<u64, BITS>: Step,
+    {
+        let arbint_range = (arb_start..=arb_end).map(UInt::<u64, BITS>::value);
+        let underlying_range = arb_start.value()..=arb_end.value();
+
+        assert!(arbint_range.eq(underlying_range));
+    }
+    fn compare_range_128<const BITS: usize>(arb_start: UInt<u128, BITS>, arb_end: UInt<u128, BITS>)
+    where
+        UInt<u128, BITS>: Step,
+    {
+        let arbint_range = (arb_start..=arb_end).map(UInt::<u128, BITS>::value);
         let underlying_range = arb_start.value()..=arb_end.value();
 
         assert!(arbint_range.eq(underlying_range));
@@ -1870,18 +1888,24 @@ fn backward_checked() {
 #[cfg(feature = "step_trait")]
 #[test]
 fn steps_between() {
-    assert_eq!(Some(0), Step::steps_between(&u50::new(50), &u50::new(50)));
+    assert_eq!(
+        (0, Some(0)),
+        Step::steps_between(&u50::new(50), &u50::new(50))
+    );
 
-    assert_eq!(Some(4), Step::steps_between(&u24::new(5), &u24::new(9)));
-    assert_eq!(None, Step::steps_between(&u24::new(9), &u24::new(5)));
+    assert_eq!(
+        (4, Some(4)),
+        Step::steps_between(&u24::new(5), &u24::new(9))
+    );
+    assert_eq!((0, None), Step::steps_between(&u24::new(9), &u24::new(5)));
 
     // this assumes usize is <= 64 bits. a test like this one exists in `core::iter::step`.
     assert_eq!(
-        Some(usize::MAX),
+        (usize::MAX, Some(usize::MAX)),
         Step::steps_between(&u125::new(0x7), &u125::new(0x1_0000_0000_0000_0006))
     );
     assert_eq!(
-        None,
+        (usize::MAX, None),
         Step::steps_between(&u125::new(0x7), &u125::new(0x1_0000_0000_0000_0007))
     );
 }
