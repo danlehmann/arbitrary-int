@@ -58,7 +58,8 @@ pub trait Number: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
     /// Maximum value that can be represented by this type
     const MAX: Self;
 
-    /// Creates a number from the given value, throwing an error if the value is too large
+    /// Creates a number from the given value, throwing an error if the value is too large.
+    /// This constructor is useful when creating a value from a literal.
     fn new(value: Self::UnderlyingType) -> Self;
 
     /// Creates a number from the given value, return None if the value is too large
@@ -66,6 +67,8 @@ pub trait Number: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
 
     fn value(self) -> Self::UnderlyingType;
 
+    /// Creates a number from the given value, throwing an error if the value is too large.
+    /// This constructor is useful when the value is convertable to T. Use [`Self::new`] for literals.
     #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
     fn new_<T: Number>(value: T) -> Self;
 
@@ -271,27 +274,27 @@ macro_rules! uint_impl_num {
 
                 #[inline]
                 fn as_u8(&self) -> u8 {
-                    self.value as u8
+                    self.value() as u8
                 }
 
                 #[inline]
                 fn as_u16(&self) -> u16 {
-                    self.value as u16
+                    self.value() as u16
                 }
 
                 #[inline]
                 fn as_u32(&self) -> u32 {
-                    self.value as u32
+                    self.value() as u32
                 }
 
                 #[inline]
                 fn as_u64(&self) -> u64 {
-                    self.value as u64
+                    self.value() as u64
                 }
 
                 #[inline]
                 fn as_u128(&self) -> u128 {
-                    self.value as u128
+                    self.value() as u128
                 }
             }
         )+
@@ -346,23 +349,23 @@ macro_rules! uint_impl_num {
                 }
 
                 fn as_u8(&self) -> u8 {
-                    self.value as _
+                    self.value() as _
                 }
 
                 fn as_u16(&self) -> u16 {
-                    self.value as _
+                    self.value() as _
                 }
 
                 fn as_u32(&self) -> u32 {
-                    self.value as _
+                    self.value() as _
                 }
 
                 fn as_u64(&self) -> u64 {
-                    self.value as _
+                    self.value() as _
                 }
 
                 fn as_u128(&self) -> u128 {
-                    self.value as _
+                    self.value() as _
                 }
 
                 #[inline]
