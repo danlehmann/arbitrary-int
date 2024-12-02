@@ -31,6 +31,10 @@ borsh = ["dep:borsh"]
 
 schemars = ["dep:schemars", "std"]
 
+# Provide a soundness promixe to the compiler that the unerlying value is always within range
+# This optimizes e.g. indexing range checks when passed in an API
+hint = []
+
 [dependencies]
 num-traits = { version = "0.2.19", default-features = false, optional = true }
 defmt = { version = "0.3.8", optional = true }
