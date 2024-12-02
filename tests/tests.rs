@@ -2091,6 +2091,7 @@ fn new_and_as_specific_types() {
     assert_eq!(d.as_u128(), 42);
     assert_eq!(e.as_u128(), 42);
     assert_eq!(f.as_u128(), 42);
+    assert_eq!(f.as_usize(), 42);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]

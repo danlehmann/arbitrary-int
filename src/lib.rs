@@ -87,6 +87,8 @@ pub trait Number: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
 
     fn as_u128(&self) -> u128;
 
+    fn as_usize(&self) -> usize;
+
     #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
     #[inline]
     fn as_<T: Number>(self) -> T {
@@ -127,6 +129,9 @@ macro_rules! impl_number_native {
 
                 #[inline]
                 fn as_u128(&self) -> u128 { *self as u128 }
+
+                #[inline]
+                fn as_usize(&self) -> usize { *self as usize }
             }
         )+
     };
@@ -186,6 +191,9 @@ macro_rules! impl_number_native {
 
                 #[inline]
                 fn as_u128(&self) -> u128 { *self as u128 }
+
+                #[inline]
+                fn as_usize(&self) -> usize { *self as usize }
             }
         )+
     };
@@ -296,6 +304,11 @@ macro_rules! uint_impl_num {
                 fn as_u128(&self) -> u128 {
                     self.value() as u128
                 }
+
+                #[inline]
+                fn as_usize(&self) -> usize {
+                    self.value() as usize
+                }
             }
         )+
     };
@@ -365,6 +378,10 @@ macro_rules! uint_impl_num {
                 }
 
                 fn as_u128(&self) -> u128 {
+                    self.value() as _
+                }
+
+                fn as_usize(&self) -> usize {
                     self.value() as _
                 }
 
