@@ -129,6 +129,7 @@ impl<T: Copy, const BITS: usize> UInt<T, BITS> {
     pub const BITS: usize = BITS;
 
     /// Returns the type as a fundamental data type
+    #[cfg(not(feature = "hint"))]
     #[inline]
     pub const fn value(self) -> T {
         self.value
@@ -269,6 +270,21 @@ macro_rules! uint_impl {
                     } else {
                         Err(TryNewError {})
                     }
+                }
+
+                /// Returns the type as a fundamental data type
+                #[cfg(feature = "hint")]
+                #[inline]
+                pub const fn value(self) -> $type {
+                    // The hint feature requires the type to be const-comparable,
+                    // which isn't possible in the generic version above. So we have
+                    // an entirely different function if this feature is enabled.
+                    // It only works for primitive types, which should be ok in practice
+                    // (but is technically an API change)
+                    unsafe {
+                        core::hint::assert_unchecked(self.value <= Self::MAX.value);
+                    }
+                    self.value
                 }
 
                 #[deprecated(note = "Use one of the specific functions like extract_u32")]
