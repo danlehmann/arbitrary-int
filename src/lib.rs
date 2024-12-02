@@ -190,6 +190,11 @@ macro_rules! uint_impl_num {
 
                 #[inline]
                 fn value(self) -> $type {
+                    #[cfg(feature = "hint")]
+                    unsafe {
+                        core::hint::assert_unchecked(self.value <= Self::MAX.value);
+                    }
+
                     self.value
                 }
             }
@@ -230,6 +235,11 @@ macro_rules! uint_impl_num {
 
                 #[inline]
                 fn value(self) -> $type {
+                    #[cfg(feature = "hint")]
+                    unsafe {
+                        core::hint::assert_unchecked(self.value <= Self::MAX.value);
+                    }
+
                     self.value
                 }
             }
