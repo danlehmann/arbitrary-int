@@ -1254,7 +1254,7 @@ where
     T: Copy + Step,
 {
     #[inline]
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
+    fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
         Step::steps_between(&start.value(), &end.value())
     }
 
