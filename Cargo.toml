@@ -32,7 +32,7 @@ borsh = ["dep:borsh"]
 schemars = ["dep:schemars", "std"]
 
 # Provide a soundness promixe to the compiler that the unerlying value is always within range
-# This optimizes e.g. indexing range checks when passed in an API
+# This optimizes e.g. indexing range checks when passed in an API.
 hint = []
 
 [dependencies]
