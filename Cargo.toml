@@ -33,6 +33,7 @@ schemars = ["dep:schemars", "std"]
 
 # Provide a soundness promixe to the compiler that the unerlying value is always within range
 # This optimizes e.g. indexing range checks when passed in an API.
+# The downside of this feature is that it involves an unsafe call to `core::hint::assert_unchecked` during `value()`.
 hint = []
 
 [dependencies]
