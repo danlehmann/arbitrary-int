@@ -2075,11 +2075,11 @@ fn schemars() {
 #[test]
 fn new_and_as_specific_types() {
     let a = u6::new(42);
-    let b = u6::new_u8(42);
-    let c = u6::new_u16(42);
-    let d = u6::new_u32(42);
-    let e = u6::new_u64(42);
-    let f = u6::new_u128(42);
+    let b = u6::from_u8(42);
+    let c = u6::from_u16(42);
+    let d = u6::from_u32(42);
+    let e = u6::from_u64(42);
+    let f = u6::from_u128(42);
 
     assert_eq!(a.as_u8(), 42);
     assert_eq!(a.as_u16(), 42);
@@ -2098,7 +2098,7 @@ fn new_and_as_specific_types() {
 #[test]
 fn new_flexible() {
     let a = u10::new(1000);
-    let b = u11::new_(a);
+    let b = u11::from_(a);
 
     assert_eq!(a.as_u32(), 1000);
     assert_eq!(b.as_u32(), 1000);
@@ -2109,7 +2109,7 @@ fn new_flexible() {
 #[should_panic]
 fn new_flexible_catches_out_of_bounds() {
     let a = u28::new(0x8000000);
-    let _b = u9::new_(a);
+    let _b = u9::from_(a);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
@@ -2117,7 +2117,7 @@ fn new_flexible_catches_out_of_bounds() {
 #[should_panic]
 fn new_flexible_catches_out_of_bounds_2() {
     let a = u28::new(0x0000200);
-    let _b = u9::new_(a);
+    let _b = u9::from_(a);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
@@ -2125,42 +2125,42 @@ fn new_flexible_catches_out_of_bounds_2() {
 #[should_panic]
 fn new_flexible_catches_out_of_bounds_primitive_type() {
     let a = u28::new(0x8000000);
-    let _b = u8::new_(a);
+    let _b = u8::from_(a);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn new_constructors_catch_out_bounds_0() {
-    u7::new_u8(0x80u8);
+    u7::from_u8(0x80u8);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn new_constructors_catch_out_bounds_1() {
-    u7::new_u32(0x80000060u32);
+    u7::from_u32(0x80000060u32);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn new_constructors_catch_out_bounds_2() {
-    u7::new_u16(0x8060u16);
+    u7::from_u16(0x8060u16);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn new_constructors_catch_out_bounds_3() {
-    u7::new_u64(0x80000000_00000060u64);
+    u7::from_u64(0x80000000_00000060u64);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn new_constructors_catch_out_bounds_4() {
-    u7::new_u128(0x80000000_00000000_00000000_00000060u128);
+    u7::from_u128(0x80000000_00000000_00000000_00000060u128);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]

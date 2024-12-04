@@ -70,7 +70,7 @@ pub trait Number: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
     /// Creates a number from the given value, throwing an error if the value is too large.
     /// This constructor is useful when the value is convertable to T. Use [`Self::new`] for literals.
     #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-    fn new_<T: Number>(value: T) -> Self;
+    fn from_<T: Number>(value: T) -> Self;
 
     /// Creates an instance from the given `value`. Unlike the various `new...` functions, this
     /// will never fail as the value is masked to the result size.
@@ -157,7 +157,7 @@ macro_rules! impl_number_native {
                 fn value(self) -> Self::UnderlyingType { self }
 
                 #[inline]
-                fn new_<T: Number>(value: T) -> Self {
+                fn from_<T: Number>(value: T) -> Self {
                     if T::BITS > Self::BITS as usize {
                         assert!(value <= T::masked_new(Self::MAX));
                     }
@@ -346,7 +346,7 @@ macro_rules! uint_impl_num {
                 }
 
                 #[inline]
-                fn new_<T: Number>(value: T) -> Self {
+                fn from_<T: Number>(value: T) -> Self {
                     if Self::BITS < T::BITS {
                         assert!(value <= Self::MAX.value.as_());
                     }
@@ -415,7 +415,7 @@ macro_rules! uint_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
-                pub const fn new_u8(value: u8) -> Self {
+                pub const fn from_u8(value: u8) -> Self {
                     if Self::BITS < 8 {
                         assert!(value <= Self::MAX.value as u8);
                     }
@@ -424,7 +424,7 @@ macro_rules! uint_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
-                pub const fn new_u16(value: u16) -> Self {
+                pub const fn from_u16(value: u16) -> Self {
                     if Self::BITS < 16 {
                         assert!(value <= Self::MAX.value as u16);
                     }
@@ -433,7 +433,7 @@ macro_rules! uint_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
-                pub const fn new_u32(value: u32) -> Self {
+                pub const fn from_u32(value: u32) -> Self {
                     if Self::BITS < 32 {
                         assert!(value <= Self::MAX.value as u32);
                     }
@@ -442,7 +442,7 @@ macro_rules! uint_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
-                pub const fn new_u64(value: u64) -> Self {
+                pub const fn from_u64(value: u64) -> Self {
                     if Self::BITS < 64 {
                         assert!(value <= Self::MAX.value as u64);
                     }
@@ -451,7 +451,7 @@ macro_rules! uint_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
-                pub const fn new_u128(value: u128) -> Self {
+                pub const fn from_u128(value: u128) -> Self {
                     if Self::BITS < 128 {
                         assert!(value <= Self::MAX.value as u128);
                     }
