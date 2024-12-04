@@ -2096,7 +2096,7 @@ fn new_and_as_specific_types() {
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
-fn new_flexible() {
+fn from_flexible() {
     let a = u10::new(1000);
     let b = u11::from_(a);
 
@@ -2107,7 +2107,7 @@ fn new_flexible() {
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
-fn new_flexible_catches_out_of_bounds() {
+fn from_flexible_catches_out_of_bounds() {
     let a = u28::new(0x8000000);
     let _b = u9::from_(a);
 }
@@ -2115,7 +2115,7 @@ fn new_flexible_catches_out_of_bounds() {
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
-fn new_flexible_catches_out_of_bounds_2() {
+fn from_flexible_catches_out_of_bounds_2() {
     let a = u28::new(0x0000200);
     let _b = u9::from_(a);
 }
@@ -2123,7 +2123,7 @@ fn new_flexible_catches_out_of_bounds_2() {
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
-fn new_flexible_catches_out_of_bounds_primitive_type() {
+fn from_flexible_catches_out_of_bounds_primitive_type() {
     let a = u28::new(0x8000000);
     let _b = u8::from_(a);
 }
