@@ -753,7 +753,7 @@ where
     fn sub(self, rhs: Self) -> Self::Output {
         // No need for extra overflow checking as the regular minus operator already handles it for us
         Self {
-            value: (self.value - rhs.value) & Self::MASK,
+            value: (wrapping_sub(self.value, rhs.value)) & Self::MASK,
         }
     }
 }
@@ -765,7 +765,7 @@ where
 {
     fn sub_assign(&mut self, rhs: Self) {
         // No need for extra overflow checking as the regular minus operator already handles it for us
-        self.value -= rhs.value;
+        self.value = wrapping_sub(self.value, rhs.value);
         self.value &= Self::MASK;
     }
 }
