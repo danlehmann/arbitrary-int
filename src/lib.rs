@@ -21,6 +21,8 @@ use core::ops::{
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use std::intrinsics::wrapping_sub;
+
 #[cfg(all(feature = "borsh", not(feature = "std")))]
 use alloc::{collections::BTreeMap, string::ToString};
 
@@ -751,7 +753,6 @@ where
     type Output = UInt<T, BITS>;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        // No need for extra overflow checking as the regular minus operator already handles it for us
         Self {
             value: (wrapping_sub(self.value, rhs.value)) & Self::MASK,
         }
@@ -764,7 +765,6 @@ where
     T: Copy + SubAssign<T> + BitAnd<T, Output = T> + BitAndAssign<T> + Sub<T, Output = T>,
 {
     fn sub_assign(&mut self, rhs: Self) {
-        // No need for extra overflow checking as the regular minus operator already handles it for us
         self.value = wrapping_sub(self.value, rhs.value);
         self.value &= Self::MASK;
     }
