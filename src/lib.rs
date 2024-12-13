@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(
     feature = "const_convert_and_const_trait_impl",
-    feature(const_convert, const_trait_impl)
+    feature(const_convert, const_trait_impl, inline_const)
 )]
 #![cfg_attr(feature = "step_trait", feature(step_trait))]
 
@@ -40,8 +40,9 @@ impl Display for TryNewError {
 }
 
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
-pub trait Number: Sized {
-    type UnderlyingType: Debug
+pub trait Number: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
+    type UnderlyingType: Number
+        + Debug
         + From<u8>
         + TryFrom<u16>
         + TryFrom<u32>
@@ -57,11 +58,42 @@ pub trait Number: Sized {
     /// Maximum value that can be represented by this type
     const MAX: Self;
 
+    /// Creates a number from the given value, throwing an error if the value is too large.
+    /// This constructor is useful when creating a value from a literal.
     fn new(value: Self::UnderlyingType) -> Self;
 
+    /// Creates a number from the given value, return None if the value is too large
     fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError>;
 
     fn value(self) -> Self::UnderlyingType;
+
+    /// Creates a number from the given value, throwing an error if the value is too large.
+    /// This constructor is useful when the value is convertable to T. Use [`Self::new`] for literals.
+    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+    fn from_<T: Number>(value: T) -> Self;
+
+    /// Creates an instance from the given `value`. Unlike the various `new...` functions, this
+    /// will never fail as the value is masked to the result size.
+    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+    fn masked_new<T: Number>(value: T) -> Self;
+
+    fn as_u8(&self) -> u8;
+
+    fn as_u16(&self) -> u16;
+
+    fn as_u32(&self) -> u32;
+
+    fn as_u64(&self) -> u64;
+
+    fn as_u128(&self) -> u128;
+
+    fn as_usize(&self) -> usize;
+
+    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+    #[inline]
+    fn as_<T: Number>(self) -> T {
+        T::masked_new(self)
+    }
 }
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
@@ -82,6 +114,24 @@ macro_rules! impl_number_native {
 
                 #[inline]
                 fn value(self) -> Self::UnderlyingType { self }
+
+                #[inline]
+                fn as_u8(&self) -> u8 { *self as u8 }
+
+                #[inline]
+                fn as_u16(&self) -> u16 { *self as u16 }
+
+                #[inline]
+                fn as_u32(&self) -> u32 { *self as u32 }
+
+                #[inline]
+                fn as_u64(&self) -> u64 { *self as u64 }
+
+                #[inline]
+                fn as_u128(&self) -> u128 { *self as u128 }
+
+                #[inline]
+                fn as_usize(&self) -> usize { *self as usize }
             }
         )+
     };
@@ -105,20 +155,51 @@ macro_rules! impl_number_native {
 
                 #[inline]
                 fn value(self) -> Self::UnderlyingType { self }
+
+                #[inline]
+                fn from_<T: Number>(value: T) -> Self {
+                    if T::BITS > Self::BITS as usize {
+                        assert!(value <= T::masked_new(Self::MAX));
+                    }
+                    Self::masked_new(value)
+                }
+
+                #[inline]
+                fn masked_new<T: Number>(value: T) -> Self {
+                    // Primitive types don't need masking
+                    match Self::BITS {
+                        8 => value.as_u8() as Self,
+                        16 => value.as_u16() as Self,
+                        32 => value.as_u32() as Self,
+                        64 => value.as_u64() as Self,
+                        128 => value.as_u128() as Self,
+                        _ => panic!("Unhandled Number type")
+                    }
+                }
+
+                #[inline]
+                fn as_u8(&self) -> u8 { *self as u8 }
+
+                #[inline]
+                fn as_u16(&self) -> u16 { *self as u16 }
+
+                #[inline]
+                fn as_u32(&self) -> u32 { *self as u32 }
+
+                #[inline]
+                fn as_u64(&self) -> u64 { *self as u64 }
+
+                #[inline]
+                fn as_u128(&self) -> u128 { *self as u128 }
+
+                #[inline]
+                fn as_usize(&self) -> usize { *self as usize }
             }
         )+
     };
 }
 
 impl_number_native!(u8, u16, u32, u64, u128);
-
-struct CompileTimeAssert<const A: usize, const B: usize> {}
-
-impl<const A: usize, const B: usize> CompileTimeAssert<A, B> {
-    pub const SMALLER_OR_EQUAL: () = {
-        assert!(A <= B);
-    };
-}
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd)]
 pub struct UInt<T, const BITS: usize> {
@@ -198,6 +279,36 @@ macro_rules! uint_impl_num {
 
                     self.value
                 }
+
+                #[inline]
+                fn as_u8(&self) -> u8 {
+                    self.value() as u8
+                }
+
+                #[inline]
+                fn as_u16(&self) -> u16 {
+                    self.value() as u16
+                }
+
+                #[inline]
+                fn as_u32(&self) -> u32 {
+                    self.value() as u32
+                }
+
+                #[inline]
+                fn as_u64(&self) -> u64 {
+                    self.value() as u64
+                }
+
+                #[inline]
+                fn as_u128(&self) -> u128 {
+                    self.value() as u128
+                }
+
+                #[inline]
+                fn as_usize(&self) -> usize {
+                    self.value() as usize
+                }
             }
         )+
     };
@@ -235,6 +346,46 @@ macro_rules! uint_impl_num {
                 }
 
                 #[inline]
+                fn from_<T: Number>(value: T) -> Self {
+                    if Self::BITS < T::BITS {
+                        assert!(value <= Self::MAX.value.as_());
+                    }
+                    Self { value: Self::UnderlyingType::masked_new(value) }
+                }
+
+                fn masked_new<T: Number>(value: T) -> Self {
+                    if Self::BITS < T::BITS {
+                        Self { value: Self::UnderlyingType::masked_new(value.as_::<Self::UnderlyingType>() & Self::MASK) }
+                    } else {
+                        Self { value: Self::UnderlyingType::masked_new(value) }
+                    }
+                }
+
+                fn as_u8(&self) -> u8 {
+                    self.value() as _
+                }
+
+                fn as_u16(&self) -> u16 {
+                    self.value() as _
+                }
+
+                fn as_u32(&self) -> u32 {
+                    self.value() as _
+                }
+
+                fn as_u64(&self) -> u64 {
+                    self.value() as _
+                }
+
+                fn as_u128(&self) -> u128 {
+                    self.value() as _
+                }
+
+                fn as_usize(&self) -> usize {
+                    self.value() as _
+                }
+
+                #[inline]
                 fn value(self) -> $type {
                     #[cfg(feature = "hint")]
                     unsafe {
@@ -260,6 +411,51 @@ macro_rules! uint_impl {
                     assert!(value <= Self::MAX.value);
 
                     Self { value }
+                }
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn from_u8(value: u8) -> Self {
+                    if Self::BITS < 8 {
+                        assert!(value <= Self::MAX.value as u8);
+                    }
+                    Self { value: value as $type }
+                }
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn from_u16(value: u16) -> Self {
+                    if Self::BITS < 16 {
+                        assert!(value <= Self::MAX.value as u16);
+                    }
+                    Self { value: value as $type }
+                }
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn from_u32(value: u32) -> Self {
+                    if Self::BITS < 32 {
+                        assert!(value <= Self::MAX.value as u32);
+                    }
+                    Self { value: value as $type }
+                }
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn from_u64(value: u64) -> Self {
+                    if Self::BITS < 64 {
+                        assert!(value <= Self::MAX.value as u64);
+                    }
+                    Self { value: value as $type }
+                }
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn from_u128(value: u128) -> Self {
+                    if Self::BITS < 128 {
+                        assert!(value <= Self::MAX.value as u128);
+                    }
+                    Self { value: value as $type }
                 }
 
                 /// Creates an instance or an error if the given value is outside of the valid range
@@ -372,7 +568,10 @@ macro_rules! uint_impl {
                 pub const fn widen<const BITS_RESULT: usize>(
                     self,
                 ) -> UInt<$type, BITS_RESULT> {
-                    let _ = CompileTimeAssert::<BITS, BITS_RESULT>::SMALLER_OR_EQUAL;
+                    const { if BITS >= BITS_RESULT {
+                        panic!("Can not call widen() with the given bit widths");
+                    } };
+
                     // Query MAX of the result to ensure we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
                     let _ = UInt::<$type, BITS_RESULT>::MAX;
                     UInt::<$type, BITS_RESULT> { value: self.value }
@@ -1468,7 +1667,10 @@ macro_rules! from_arbitrary_int_impl {
             {
                 #[inline]
                 fn from(item: UInt<$from, BITS_FROM>) -> Self {
-                    let _ = CompileTimeAssert::<BITS_FROM, BITS>::SMALLER_OR_EQUAL;
+                    const { if BITS_FROM > BITS {
+                        panic!("Can not call from() to convert between the given bit widths.");
+                    } };
+
                     Self { value: item.value as $into }
                 }
             }
@@ -1485,7 +1687,10 @@ macro_rules! from_arbitrary_int_impl {
             {
                 #[inline]
                 fn from(item: UInt<$from, BITS_FROM>) -> Self {
-                    let _ = CompileTimeAssert::<BITS_FROM, BITS>::SMALLER_OR_EQUAL;
+                    const { if BITS_FROM > BITS {
+                        panic!("Can not call from() to convert between the given bit widths.");
+                    } };
+
                     Self { value: item.value as $into }
                 }
             }
@@ -1500,7 +1705,9 @@ macro_rules! from_native_impl {
             impl<const BITS: usize> const From<$from> for UInt<$into, BITS> {
                 #[inline]
                 fn from(from: $from) -> Self {
-                    let _ = CompileTimeAssert::<{ <$from>::BITS as usize }, BITS>::SMALLER_OR_EQUAL;
+                    const { if <$from>::BITS as usize > BITS {
+                        panic!("Can not call from() to convert between the given bit widths.");
+                    } };
                     Self { value: from as $into }
                 }
             }
@@ -1508,7 +1715,9 @@ macro_rules! from_native_impl {
             impl<const BITS: usize> const From<UInt<$from, BITS>> for $into {
                 #[inline]
                 fn from(from: UInt<$from, BITS>) -> Self {
-                    let _ = CompileTimeAssert::<BITS, { <$into>::BITS as usize }>::SMALLER_OR_EQUAL;
+                    const { if BITS > <$from>::BITS as usize {
+                        panic!("Can not call from() to convert between the given bit widths.");
+                    } };
                     from.value as $into
                 }
             }
@@ -1523,7 +1732,9 @@ macro_rules! from_native_impl {
             impl<const BITS: usize> From<$from> for UInt<$into, BITS> {
                 #[inline]
                 fn from(from: $from) -> Self {
-                    let _ = CompileTimeAssert::<{ <$from>::BITS as usize }, BITS>::SMALLER_OR_EQUAL;
+                    const { if <$from>::BITS as usize > BITS {
+                        panic!("Can not call from() to convert between the given bit widths.");
+                    } };
                     Self { value: from as $into }
                 }
             }
@@ -1531,7 +1742,9 @@ macro_rules! from_native_impl {
             impl<const BITS: usize> From<UInt<$from, BITS>> for $into {
                 #[inline]
                 fn from(from: UInt<$from, BITS>) -> Self {
-                    let _ = CompileTimeAssert::<BITS, { <$into>::BITS as usize }>::SMALLER_OR_EQUAL;
+                    const { if BITS > <$from>::BITS as usize {
+                        panic!("Can not call from() to convert between the given bit widths.");
+                    } };
                     from.value as $into
                 }
             }
@@ -1610,7 +1823,7 @@ macro_rules! boolu1 {
                 match value.value() {
                     0 => false,
                     1 => true,
-                    _ => panic!("arbitrary_int_type already validates that this is unreachable"), //TODO: unreachable!() is not const yet
+                    _ => unreachable!(),
                 }
             }
         }

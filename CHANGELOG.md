@@ -1,11 +1,19 @@
 # Changelog
 
-## arbitrary-int 1.2.8
+## arbitrary-int 1.3.0
 
 ### Added
 
 - New optional feature `hint`, which tells the compiler that the returned `value()` can't exceed a maximum value. This
   allows the compiler to optimize faster code at the expense of unsafe code within arbitrary-int itself.
+- Various new const constructors: `new_u8`, `new_u16`, ..., `new_u128` which allow creating an arbitrary int without
+  type conversion, e.g. `u5::new_u32(i)` (where i is e.g. u32). This is shorter than writing
+  `u5::new(i.try_into().unwrap())`,
+  and combines two possible panic paths into one. Also, unlike `try_into().unwrap()`, the new constructors are usable in
+  const contexts.
+- For non-const contexts, `new_()` allows any Number argument to be passed through generics.
+- `as_()` easily converts any Number to another. `as_u8()`, `as_u16()` for more control (and to implement the others).
+- New optional feature `borsh` to support binary serialization using the borsh crate.
 
 ## arbitrary-int 1.2.7
 

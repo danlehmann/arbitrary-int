@@ -2071,3 +2071,111 @@ fn schemars() {
     u8.schema.number = u9.schema.number.clone();
     assert_eq!(u8, u9);
 }
+
+#[test]
+fn new_and_as_specific_types() {
+    let a = u6::new(42);
+    let b = u6::from_u8(42);
+    let c = u6::from_u16(42);
+    let d = u6::from_u32(42);
+    let e = u6::from_u64(42);
+    let f = u6::from_u128(42);
+
+    assert_eq!(a.as_u8(), 42);
+    assert_eq!(a.as_u16(), 42);
+    assert_eq!(a.as_u32(), 42);
+    assert_eq!(a.as_u64(), 42);
+    assert_eq!(a.as_u128(), 42);
+    assert_eq!(b.as_u128(), 42);
+    assert_eq!(c.as_u128(), 42);
+    assert_eq!(d.as_u128(), 42);
+    assert_eq!(e.as_u128(), 42);
+    assert_eq!(f.as_u128(), 42);
+    assert_eq!(f.as_usize(), 42);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+fn from_flexible() {
+    let a = u10::new(1000);
+    let b = u11::from_(a);
+
+    assert_eq!(a.as_u32(), 1000);
+    assert_eq!(b.as_u32(), 1000);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+#[should_panic]
+fn from_flexible_catches_out_of_bounds() {
+    let a = u28::new(0x8000000);
+    let _b = u9::from_(a);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+#[should_panic]
+fn from_flexible_catches_out_of_bounds_2() {
+    let a = u28::new(0x0000200);
+    let _b = u9::from_(a);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+#[should_panic]
+fn from_flexible_catches_out_of_bounds_primitive_type() {
+    let a = u28::new(0x8000000);
+    let _b = u8::from_(a);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+#[should_panic]
+fn new_constructors_catch_out_bounds_0() {
+    u7::from_u8(0x80u8);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+#[should_panic]
+fn new_constructors_catch_out_bounds_1() {
+    u7::from_u32(0x80000060u32);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+#[should_panic]
+fn new_constructors_catch_out_bounds_2() {
+    u7::from_u16(0x8060u16);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+#[should_panic]
+fn new_constructors_catch_out_bounds_3() {
+    u7::from_u64(0x80000000_00000060u64);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+#[should_panic]
+fn new_constructors_catch_out_bounds_4() {
+    u7::from_u128(0x80000000_00000000_00000000_00000060u128);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+fn new_masked() {
+    let a = u10::new(0b11_01010111);
+    let b = u9::masked_new(a);
+    assert_eq!(b.as_u32(), 0b1_01010111);
+    let c = u7::masked_new(a);
+    assert_eq!(c.as_u32(), 0b1010111);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+fn as_flexible() {
+    let a: u32 = u14::new(123).as_();
+    assert_eq!(a, 123u32);
+}
