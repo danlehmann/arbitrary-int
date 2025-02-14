@@ -1,0 +1,871 @@
+use crate::{
+    common::{from_arbitrary_int_impl, from_native_impl},
+    TryNewError,
+};
+use core::{
+    fmt::{self, Debug},
+    hash::{Hash, Hasher},
+    ops::{
+        Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
+        DivAssign, Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    },
+};
+
+pub trait SignedNumber: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
+    type UnderlyingType: SignedNumber
+        + Debug
+        + From<i8>
+        + TryFrom<i16>
+        + TryFrom<i32>
+        + TryFrom<i64>
+        + TryFrom<i128>;
+
+    /// Number of bits that can fit in this type
+    const BITS: usize;
+
+    /// Minimum value that can be represented by this type
+    const MIN: Self;
+
+    /// Maximum value that can be represented by this type
+    const MAX: Self;
+
+    /// Creates a number from the given value, throwing an error if the value is too large.
+    /// This constructor is useful when creating a value from a literal.
+    fn new(value: Self::UnderlyingType) -> Self;
+
+    /// Creates a number from the given value, return None if the value is too large
+    fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError>;
+
+    /// Returns the type as a fundamental data type
+    ///
+    /// Note that if negative, the returned value may span more bits than [`Self::BITS`],
+    /// as it preserves the numeric value instead of the bitwise value:
+    /// ```
+    /// # use arbitrary_int::i3;
+    /// let value: i8 = i3::new(-1).value();
+    /// assert_eq!(value, -1);
+    /// assert_eq!(value.count_ones(), 8);
+    /// ```
+    /// If you need a value within the specified bit range, use [`Int::to_bits`].
+    fn value(self) -> Self::UnderlyingType;
+
+    /// Creates a number from the given value, throwing an error if the value is too large.
+    /// This constructor is useful when the value is convertible to T. Use [`Self::new`] for literals.
+    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+    fn from_<T: SignedNumber>(value: T) -> Self;
+
+    /// Creates an instance from the given `value`. Unlike the various `new...` functions, this
+    /// will never fail as the value is masked to the result size.
+    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+    fn masked_new<T: SignedNumber>(value: T) -> Self;
+
+    fn as_i8(&self) -> i8;
+
+    fn as_i16(&self) -> i16;
+
+    fn as_i32(&self) -> i32;
+
+    fn as_i64(&self) -> i64;
+
+    fn as_i128(&self) -> i128;
+
+    fn as_isize(&self) -> isize;
+
+    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+    #[inline]
+    fn as_<T: SignedNumber>(self) -> T {
+        T::masked_new(self)
+    }
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+macro_rules! impl_signed_number_native {
+    ($( $type:ty ),+) => {
+        $(
+            impl SignedNumber for $type {
+                type UnderlyingType = $type;
+                const BITS: usize = Self::BITS as usize;
+                const MIN: Self = Self::MIN;
+                const MAX: Self = Self::MAX;
+
+                #[inline]
+                fn new(value: Self::UnderlyingType) -> Self { value }
+
+                #[inline]
+                fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> { Ok(value) }
+
+                #[inline]
+                fn value(self) -> Self::UnderlyingType { self }
+
+                #[inline]
+                fn from_<T: SignedNumber>(value: T) -> Self {
+                    if T::BITS > Self::BITS as usize {
+                        assert!(value >= T::masked_new(Self::MIN) && value <= T::masked_new(Self::MAX));
+                    }
+                    Self::masked_new(value)
+                }
+
+                #[inline]
+                fn masked_new<T: SignedNumber>(value: T) -> Self {
+                    // Primitive types don't need masking
+                    match Self::BITS {
+                        8 => value.as_i8() as Self,
+                        16 => value.as_i16() as Self,
+                        32 => value.as_i32() as Self,
+                        64 => value.as_i64() as Self,
+                        128 => value.as_i128() as Self,
+                        _ => panic!("Unhandled Number type")
+                    }
+                }
+
+                #[inline]
+                fn as_i8(&self) -> i8 { *self as i8 }
+
+                #[inline]
+                fn as_i16(&self) -> i16 { *self as i16 }
+
+                #[inline]
+                fn as_i32(&self) -> i32 { *self as i32 }
+
+                #[inline]
+                fn as_i64(&self) -> i64 { *self as i64 }
+
+                #[inline]
+                fn as_i128(&self) -> i128 { *self as i128 }
+
+                #[inline]
+                fn as_isize(&self) -> isize { *self as isize }
+            }
+        )+
+    };
+}
+
+impl_signed_number_native!(i8, i16, i32, i64, i128);
+
+#[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd)]
+pub struct Int<T, const BITS: usize> {
+    value: T,
+}
+
+impl<T: Copy, const BITS: usize> Int<T, BITS> {
+    pub const BITS: usize = BITS;
+    const UNUSED_BITS: usize = ((core::mem::size_of::<T>() << 3) - Self::BITS);
+
+    /// Returns the type as a fundamental data type
+    ///
+    /// Note that if negative, the returned value may span more bits than [`Self::BITS`],
+    /// as it preserves the numeric value instead of the bitwise value:
+    /// ```
+    /// # use arbitrary_int::i3;
+    /// let value: i8 = i3::new(-1).value();
+    /// assert_eq!(value, -1);
+    /// assert_eq!(value.count_ones(), 8);
+    /// ```
+    /// If you need a value within the specified bit range, use [`Self::to_bits`].
+    #[cfg(not(feature = "hint"))]
+    #[inline]
+    pub const fn value(self) -> T {
+        self.value
+    }
+
+    /// Initializes a new value without checking the bounds
+    ///
+    /// # Safety
+    /// Must only be called with a value bigger or equal to [`Self::MIN`] and less than or equal to [`Self::MAX`].
+    #[inline]
+    pub const unsafe fn new_unchecked(value: T) -> Self {
+        Self { value }
+    }
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+macro_rules! int_impl_num {
+    ($($type:ident),+) => {
+        $(
+            impl<const BITS: usize> SignedNumber for Int<$type, BITS> {
+                type UnderlyingType = $type;
+
+                const BITS: usize = BITS;
+
+                const MIN: Self = Self { value: -Self::MAX.value - 1 };
+
+                // The existence of MAX also serves as a bounds check: If NUM_BITS is > available bits,
+                // we will get a compiler error right here
+                const MAX: Self = Self {
+                    // MAX is always positive so we don't have to worry about the sign
+                    value: (<$type as SignedNumber>::MAX >> (<$type as SignedNumber>::BITS - Self::BITS)),
+                };
+
+                #[inline]
+                fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> {
+                    if value >= Self::MIN.value && value <= Self::MAX.value {
+                        Ok(Self { value })
+                    } else {
+                        Err(TryNewError{})
+                    }
+                }
+
+                #[inline]
+                fn new(value: $type) -> Self {
+                    assert!(value >= Self::MIN.value && value <= Self::MAX.value);
+
+                    Self { value }
+                }
+
+                #[inline]
+                fn from_<T: SignedNumber>(value: T) -> Self {
+                    if Self::BITS < T::BITS {
+                        assert!(value >= Self::MIN.value.as_() && value <= Self::MAX.value.as_());
+                    }
+                    Self { value: Self::UnderlyingType::masked_new(value) }
+                }
+
+                fn masked_new<T: SignedNumber>(value: T) -> Self {
+                    if Self::BITS < T::BITS {
+                        let value = (value.as_::<Self::UnderlyingType>() << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+                        Self { value: Self::UnderlyingType::masked_new(value) }
+                    } else {
+                        Self { value: Self::UnderlyingType::masked_new(value) }
+                    }
+                }
+
+                fn as_i8(&self) -> i8 {
+                    self.value() as _
+                }
+
+                fn as_i16(&self) -> i16 {
+                    self.value() as _
+                }
+
+                fn as_i32(&self) -> i32 {
+                    self.value() as _
+                }
+
+                fn as_i64(&self) -> i64 {
+                    self.value() as _
+                }
+
+                fn as_i128(&self) -> i128 {
+                    self.value() as _
+                }
+
+                fn as_isize(&self) -> isize {
+                    self.value() as _
+                }
+
+                #[inline]
+                fn value(self) -> $type {
+                    #[cfg(feature = "hint")]
+                    unsafe {
+                        core::hint::assert_unchecked(self.value >= Self::MIN.value);
+                        core::hint::assert_unchecked(self.value <= Self::MAX.value);
+                    }
+
+                    self.value
+                }
+            }
+        )+
+    };
+}
+
+int_impl_num!(i8, i16, i32, i64, i128);
+
+macro_rules! int_impl {
+    ($(($type:ident, $unsigned_type:ident)),+) => {
+        $(
+            impl<const BITS: usize> Int<$type, BITS> {
+                pub const MASK: $type = (Self::MAX.value << 1) | 1;
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn new(value: $type) -> Self {
+                    assert!(value >= Self::MIN.value && value <= Self::MAX.value);
+
+                    Self { value }
+                }
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn from_i8(value: i8) -> Self {
+                    if Self::BITS < 8 {
+                        assert!(value >= Self::MIN.value as i8 && value <= Self::MAX.value as i8);
+                    }
+                    Self { value: value as $type }
+                }
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn from_i16(value: i16) -> Self {
+                    if Self::BITS < 16 {
+                        assert!(value >= Self::MIN.value as i16 && value <= Self::MAX.value as i16);
+                    }
+                    Self { value: value as $type }
+                }
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn from_i32(value: i32) -> Self {
+                    if Self::BITS < 32 {
+                        assert!(value >= Self::MIN.value as i32 && value <= Self::MAX.value as i32);
+                    }
+                    Self { value: value as $type }
+                }
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn from_i64(value: i64) -> Self {
+                    if Self::BITS < 64 {
+                        assert!(value >= Self::MIN.value as i64 && value <= Self::MAX.value as i64);
+                    }
+                    Self { value: value as $type }
+                }
+
+                /// Creates an instance. Panics if the given value is outside of the valid range
+                #[inline]
+                pub const fn from_i128(value: i128) -> Self {
+                    if Self::BITS < 128 {
+                        assert!(value >= Self::MIN.value as i128 && value <= Self::MAX.value as i128);
+                    }
+                    Self { value: value as $type }
+                }
+
+                /// Creates an instance or an error if the given value is outside of the valid range
+                #[inline]
+                pub const fn try_new(value: $type) -> Result<Self, TryNewError> {
+                    if value >= Self::MIN.value && value <= Self::MAX.value {
+                        Ok(Self { value })
+                    } else {
+                        Err(TryNewError {})
+                    }
+                }
+
+                /// Returns the bitwise representation of the value
+                ///
+                /// As the bit width is limited to [`Self::BITS`] the numeric value may differ from [`Self::value`]:
+                /// ```
+                /// # use arbitrary_int::i3;
+                /// let value = i3::new(-1);
+                /// assert_eq!(value.to_bits(), 0b111); // 7
+                /// assert_eq!(value.value(), -1);
+                /// ```
+                /// To convert from the bitwise representation back to an instance, use [`Self::from_bits`].
+                #[inline]
+                pub const fn to_bits(self) -> $unsigned_type {
+                    (self.value() & Self::MASK) as $unsigned_type
+                }
+
+                /// Convert the bitwise representation from [`Self::to_bits`] to an instance
+                ///
+                /// ```
+                /// # use arbitrary_int::i3;
+                /// let value = i3::from_bits(0b111);
+                /// assert_eq!(value.value(), -1);
+                /// assert_eq!(value.to_bits(), 0b111);
+                /// ```
+                /// If you want to convert a numeric value to an instance instead, use [`Self::new`].
+                ///
+                /// # Panics
+                /// Panics if the given value exceeds the bit width specified by [`Self::BITS`].
+                #[inline]
+                pub const fn from_bits(value: $unsigned_type) -> Self {
+                    assert!(value & (!Self::MASK as $unsigned_type) == 0);
+
+                    // First do a logical left shift to put the sign bit at the underlying type's MSB (copying the sign),
+                    // then an arithmetic right shift to sign-extend the value into its original position.
+                    Self { value: ((value << Self::UNUSED_BITS) as $type) >> Self::UNUSED_BITS }
+                }
+
+                /// Tries to convert the bitwise representation from [`Self::to_bits`] to an instance
+                ///
+                /// ```
+                /// # use arbitrary_int::i3;
+                /// i3::try_from_bits(0b1111).expect_err("value is > 3 bits");
+                /// let value = i3::try_from_bits(0b111).expect("value is <= 3 bits");
+                /// assert_eq!(value.value(), -1);
+                /// assert_eq!(value.to_bits(), 0b111);
+                /// ```
+                /// If you want to convert a numeric value to an instance instead, use [`Self::try_new`].
+                ///
+                /// # Errors
+                /// Returns an error if the given value exceeds the bit width specified by [`Self::BITS`].
+                #[inline]
+                pub const fn try_from_bits(value: $unsigned_type) -> Result<Self, TryNewError> {
+                    if value & (!Self::MASK as $unsigned_type) == 0 {
+                        // First do a logical left shift to put the sign bit at the underlying type's MSB (copying the sign),
+                        // then an arithmetic right shift to sign-extend the value into its original position.
+                        Ok(Self { value: ((value << Self::UNUSED_BITS) as $type) >> Self::UNUSED_BITS })
+                    } else {
+                        Err(TryNewError {})
+                    }
+                }
+
+                /// Converts the bitwise representation from [`Self::to_bits`] to an instance, without checking the bounds
+                ///
+                /// # Safety
+                /// The given value must not exceed the bit width specified by [`Self::BITS`].
+                #[inline]
+                pub const unsafe fn from_bits_unchecked(value: $unsigned_type) -> Self {
+                    // First do a logical left shift to put the sign bit at the underlying type's MSB (copying the sign),
+                    // then an arithmetic right shift to sign-extend the value into its original position.
+                    Self { value: ((value << Self::UNUSED_BITS) as $type) >> Self::UNUSED_BITS }
+                }
+
+                /// Returns the type as a fundamental data type
+                ///
+                /// Note that if negative, the returned value may span more bits than [`Self::BITS`],
+                /// as it preserves the numeric value instead of the bitwise value:
+                /// ```
+                /// # use arbitrary_int::i3;
+                /// let value: i8 = i3::new(-1).value();
+                /// assert_eq!(value, -1);
+                /// assert_eq!(value.count_ones(), 8);
+                /// ```
+                /// If you need a value within the specified bit range, use [`Self::to_bits`].
+                #[cfg(feature = "hint")]
+                #[inline]
+                pub const fn value(self) -> $type {
+                    // The hint feature requires the type to be const-comparable,
+                    // which isn't possible in the generic version above. So we have
+                    // an entirely different function if this feature is enabled.
+                    // It only works for primitive types, which should be ok in practice
+                    // (but is technically an API change)
+                    unsafe {
+                        core::hint::assert_unchecked(self.value >= Self::MIN.value);
+                        core::hint::assert_unchecked(self.value <= Self::MAX.value);
+                    }
+                    self.value
+                }
+
+                /// Returns an [`Int`] with a wider bit depth but with the same base data type
+                pub const fn widen<const BITS_RESULT: usize>(self) -> Int<$type, BITS_RESULT> {
+                    const { assert!(BITS < BITS_RESULT, "Can not call widen() with the given bit widths") };
+
+                    // Query MAX of the result to ensure we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
+                    let _ = Int::<$type, BITS_RESULT>::MAX;
+                    Int::<$type, BITS_RESULT> { value: self.value }
+                }
+
+                pub const fn wrapping_add(self, rhs: Self) -> Self {
+                    let sum = self.value.wrapping_add(rhs.value);
+                    Self {
+                        value: (sum << Self::UNUSED_BITS) >> Self::UNUSED_BITS,
+                    }
+                }
+
+                pub const fn wrapping_sub(self, rhs: Self) -> Self {
+                    let sum = self.value.wrapping_sub(rhs.value);
+                    Self {
+                        value: (sum << Self::UNUSED_BITS) >> Self::UNUSED_BITS,
+                    }
+                }
+
+                pub const fn wrapping_mul(self, rhs: Self) -> Self {
+                    let sum = self.value.wrapping_mul(rhs.value);
+                    Self {
+                        value: (sum << Self::UNUSED_BITS) >> Self::UNUSED_BITS,
+                    }
+                }
+
+                pub const fn wrapping_div(self, rhs: Self) -> Self {
+                    let sum = self.value.wrapping_div(rhs.value);
+                    Self {
+                        // Unlike the unsigned implementation we do need to account for overflow here,
+                        // `Self::MIN / -1` is equal to `Self::MAX + 1`.
+                        value: (sum << Self::UNUSED_BITS) >> Self::UNUSED_BITS,
+                    }
+                }
+
+                pub const fn wrapping_shl(self, rhs: u32) -> Self {
+                    // modulo is expensive on some platforms, so only do it when necessary
+                    let shift_amount = Self::UNUSED_BITS as u32 + (if rhs >= BITS as u32 {
+                        rhs % (BITS as u32)
+                    } else {
+                        rhs
+                    });
+
+                    Self {
+                        // We could use wrapping_shl here to make Debug builds slightly smaller;
+                        // the downside would be that on weird CPUs that don't do wrapping_shl by
+                        // default release builds would get slightly worse. Using << should give
+                        // good release performance everywere
+                        value: (self.value << shift_amount) >> Self::UNUSED_BITS,
+                    }
+                }
+
+                pub const fn wrapping_shr(self, rhs: u32) -> Self {
+                    // modulo is expensive on some platforms, so only do it when necessary
+                    let shift_amount = if rhs >= (BITS as u32) {
+                        rhs % (BITS as u32)
+                    } else {
+                        rhs
+                    };
+
+                    Self {
+                        value: (self.value >> shift_amount),
+                    }
+                }
+            }
+        )+
+    };
+}
+
+int_impl!((i8, u8), (i16, u16), (i32, u32), (i64, u64), (i128, u128));
+
+// Arithmetic operator implementations
+impl<T, const BITS: usize> Add for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: PartialEq + Copy + Add<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+{
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let sum = self.value + rhs.value;
+        let value = (sum << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+        debug_assert!(sum == value, "attempted to add with overflow");
+        Self { value }
+    }
+}
+
+impl<T, const BITS: usize> AddAssign for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: PartialEq + Copy + Add<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+{
+    fn add_assign(&mut self, rhs: Self) {
+        // Delegate to the Add implementation above.
+        *self = *self + rhs;
+    }
+}
+
+impl<T, const BITS: usize> Sub for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: PartialEq + Copy + Sub<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+{
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let difference = self.value - rhs.value;
+        let value = (difference << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+        debug_assert!(difference == value, "attempted to subtract with overflow");
+        Self { value }
+    }
+}
+
+impl<T, const BITS: usize> SubAssign for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: PartialEq + Copy + Sub<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+{
+    fn sub_assign(&mut self, rhs: Self) {
+        // Delegate to the Sub implementation above.
+        *self = *self - rhs;
+    }
+}
+
+impl<T, const BITS: usize> Mul for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: PartialEq + Copy + Mul<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+{
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        let product = self.value * rhs.value;
+        let value = (product << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+        debug_assert!(product == value, "attempted to multiply with overflow");
+        Self { value }
+    }
+}
+
+impl<T, const BITS: usize> MulAssign for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: PartialEq + Copy + Mul<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+{
+    fn mul_assign(&mut self, rhs: Self) {
+        // Delegate to the Mul implementation above.
+        *self = *self * rhs;
+    }
+}
+
+impl<T, const BITS: usize> Div for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: PartialEq + Copy + Div<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+{
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        // Unlike the unsigned implementation we do need to account for overflow here,
+        // `Self::MIN / -1` is equal to `Self::MAX + 1` and should therefore panic.
+        let quotient = self.value / rhs.value;
+        let value = (quotient << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+        debug_assert!(quotient == value, "attempted to divide with overflow");
+        Self { value }
+    }
+}
+
+impl<T, const BITS: usize> DivAssign for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: PartialEq + Copy + Div<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+{
+    fn div_assign(&mut self, rhs: Self) {
+        // Delegate to the Div implementation above.
+        *self = *self / rhs;
+    }
+}
+
+// Bitwise operator implementations
+impl<T, const BITS: usize> BitAnd for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: PartialEq + Copy + BitAnd<T, Output = T>,
+{
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        let value = self.value & rhs.value;
+        Self { value }
+    }
+}
+
+impl<T, const BITS: usize> BitAndAssign for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: PartialEq + Copy + BitAndAssign<T>,
+{
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.value &= rhs.value;
+    }
+}
+
+impl<T, const BITS: usize> BitOr for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: PartialEq + Copy + BitOr<T, Output = T>,
+{
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        let value = self.value | rhs.value;
+        Self { value }
+    }
+}
+
+impl<T, const BITS: usize> BitOrAssign for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: PartialEq + Copy + BitOrAssign<T>,
+{
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.value |= rhs.value;
+    }
+}
+
+impl<T, const BITS: usize> BitXor for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: PartialEq + Copy + BitXor<T, Output = T>,
+{
+    type Output = Self;
+
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        let value = self.value ^ rhs.value;
+        Self { value }
+    }
+}
+
+impl<T, const BITS: usize> BitXorAssign for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: PartialEq + Copy + BitXorAssign<T>,
+{
+    fn bitxor_assign(&mut self, rhs: Self) {
+        self.value ^= rhs.value;
+    }
+}
+
+impl<T, const BITS: usize> Not for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: PartialEq + Copy + Not<Output = T>,
+{
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        let value = !self.value;
+        Self { value }
+    }
+}
+
+impl<T, TSHIFTBITS, const BITS: usize> Shl<TSHIFTBITS> for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: Copy + Shl<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    TSHIFTBITS: TryInto<usize> + Copy,
+{
+    type Output = Self;
+
+    fn shl(self, rhs: TSHIFTBITS) -> Self::Output {
+        // With debug assertions, the << and >> operators throw an exception if the shift amount
+        // is larger than the number of bits (in which case the result would always be 0)
+        debug_assert!(
+            rhs.try_into().unwrap_or(usize::MAX) < BITS,
+            "attempted to shift left with overflow"
+        );
+
+        // Shift left twice to avoid needing an unnecessarily strict `TSHIFTBITS: Add<Self::UNUSED_BITS>` bound.
+        // This should be optimised to a single shift.
+        let value = ((self.value << rhs) << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+        Self { value }
+    }
+}
+
+impl<T, TSHIFTBITS, const BITS: usize> ShlAssign<TSHIFTBITS> for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: Copy + Shl<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    TSHIFTBITS: TryInto<usize> + Copy,
+{
+    fn shl_assign(&mut self, rhs: TSHIFTBITS) {
+        // Delegate to the Shl implementation above.
+        *self = *self << rhs;
+    }
+}
+
+impl<T, TSHIFTBITS, const BITS: usize> Shr<TSHIFTBITS> for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: Copy + Shr<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    TSHIFTBITS: TryInto<usize> + Copy,
+{
+    type Output = Self;
+
+    fn shr(self, rhs: TSHIFTBITS) -> Self::Output {
+        // With debug assertions, the << and >> operators throw an exception if the shift amount
+        // is larger than the number of bits (in which case the result would always be 0)
+        debug_assert!(
+            rhs.try_into().unwrap_or(usize::MAX) < BITS,
+            "attempted to shift right with overflow"
+        );
+
+        Self {
+            // Our unused bits can only ever all be 1 or 0, depending on the sign.
+            // As right shifts on primitive types perform sign-extension anyways we don't need to do any extra work here.
+            value: self.value >> rhs,
+        }
+    }
+}
+
+impl<T, TSHIFTBITS, const BITS: usize> ShrAssign<TSHIFTBITS> for Int<T, BITS>
+where
+    Self: SignedNumber,
+    T: Copy + Shr<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    TSHIFTBITS: TryInto<usize> + Copy,
+{
+    fn shr_assign(&mut self, rhs: TSHIFTBITS) {
+        // Delegate to the Shr implementation above.
+        *self = *self >> rhs;
+    }
+}
+
+// Delegated trait implementations
+impl<T, const BITS: usize> fmt::Display for Int<T, BITS>
+where
+    T: fmt::Display,
+{
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.value.fmt(f)
+    }
+}
+
+impl<T, const BITS: usize> fmt::Debug for Int<T, BITS>
+where
+    T: fmt::Debug,
+{
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.value.fmt(f)
+    }
+}
+
+impl<T, const BITS: usize> fmt::LowerHex for Int<T, BITS>
+where
+    T: fmt::LowerHex,
+{
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.value.fmt(f)
+    }
+}
+
+impl<T, const BITS: usize> fmt::UpperHex for Int<T, BITS>
+where
+    T: fmt::UpperHex,
+{
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.value.fmt(f)
+    }
+}
+
+impl<T, const BITS: usize> fmt::Octal for Int<T, BITS>
+where
+    T: fmt::Octal,
+{
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.value.fmt(f)
+    }
+}
+
+impl<T, const BITS: usize> fmt::Binary for Int<T, BITS>
+where
+    T: fmt::Binary,
+{
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.value.fmt(f)
+    }
+}
+
+impl<T, const BITS: usize> Hash for Int<T, BITS>
+where
+    T: Hash,
+{
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.value.hash(state)
+    }
+}
+
+// Conversions
+from_arbitrary_int_impl!(Int(i8), [i16, i32, i64, i128]);
+from_arbitrary_int_impl!(Int(i16), [i8, i32, i64, i128]);
+from_arbitrary_int_impl!(Int(i32), [i8, i16, i64, i128]);
+from_arbitrary_int_impl!(Int(i64), [i8, i16, i32, i128]);
+from_arbitrary_int_impl!(Int(i128), [i8, i32, i64, i16]);
+
+from_native_impl!(Int(i8), [i8, i16, i32, i64, i128]);
+from_native_impl!(Int(i16), [i8, i16, i32, i64, i128]);
+from_native_impl!(Int(i32), [i8, i16, i32, i64, i128]);
+from_native_impl!(Int(i64), [i8, i16, i32, i64, i128]);
+from_native_impl!(Int(i128), [i8, i16, i32, i64, i128]);
+
+pub use aliases::*;
+
+#[allow(non_camel_case_types)]
+#[rustfmt::skip]
+pub(crate) mod aliases {
+    use crate::common::type_alias;
+
+    type_alias!(Int(i8), (i1, 1), (i2, 2), (i3, 3), (i4, 4), (i5, 5), (i6, 6), (i7, 7));
+    type_alias!(Int(i16), (i9, 9), (i10, 10), (i11, 11), (i12, 12), (i13, 13), (i14, 14), (i15, 15));
+    type_alias!(Int(i32), (i17, 17), (i18, 18), (i19, 19), (i20, 20), (i21, 21), (i22, 22), (i23, 23), (i24, 24), (i25, 25), (i26, 26), (i27, 27), (i28, 28), (i29, 29), (i30, 30), (i31, 31));
+    type_alias!(Int(i64), (i33, 33), (i34, 34), (i35, 35), (i36, 36), (i37, 37), (i38, 38), (i39, 39), (i40, 40), (i41, 41), (i42, 42), (i43, 43), (i44, 44), (i45, 45), (i46, 46), (i47, 47), (i48, 48), (i49, 49), (i50, 50), (i51, 51), (i52, 52), (i53, 53), (i54, 54), (i55, 55), (i56, 56), (i57, 57), (i58, 58), (i59, 59), (i60, 60), (i61, 61), (i62, 62), (i63, 63));
+    type_alias!(Int(i128), (i65, 65), (i66, 66), (i67, 67), (i68, 68), (i69, 69), (i70, 70), (i71, 71), (i72, 72), (i73, 73), (i74, 74), (i75, 75), (i76, 76), (i77, 77), (i78, 78), (i79, 79), (i80, 80), (i81, 81), (i82, 82), (i83, 83), (i84, 84), (i85, 85), (i86, 86), (i87, 87), (i88, 88), (i89, 89), (i90, 90), (i91, 91), (i92, 92), (i93, 93), (i94, 94), (i95, 95), (i96, 96), (i97, 97), (i98, 98), (i99, 99), (i100, 100), (i101, 101), (i102, 102), (i103, 103), (i104, 104), (i105, 105), (i106, 106), (i107, 107), (i108, 108), (i109, 109), (i110, 110), (i111, 111), (i112, 112), (i113, 113), (i114, 114), (i115, 115), (i116, 116), (i117, 117), (i118, 118), (i119, 119), (i120, 120), (i121, 121), (i122, 122), (i123, 123), (i124, 124), (i125, 125), (i126, 126), (i127, 127));
+}

@@ -12,12 +12,16 @@ fn constants() {
     // Make a constant to ensure new().value() works in a const-context
     const TEST_CONSTANT: u8 = u7::new(127).value();
     assert_eq!(TEST_CONSTANT, 127u8);
+    const TEST_CONSTANT_SIGNED: i8 = i7::new(63).value();
+    assert_eq!(TEST_CONSTANT_SIGNED, 63);
 
     // Same with widen()
     const TEST_CONSTANT2: u7 = u6::new(63).widen();
     assert_eq!(TEST_CONSTANT2, u7::new(63));
+    const TEST_CONSTANT2_SIGNED: i7 = i6::new(31).widen();
+    assert_eq!(TEST_CONSTANT2_SIGNED, i7::new(31));
 
-    // Same with widen()
+    // And try_new()
     const TEST_CONSTANT3A: Result<u6, TryNewError> = u6::try_new(62);
     assert_eq!(TEST_CONSTANT3A, Ok(u6::new(62)));
     const TEST_CONSTANT3B: Result<u6, TryNewError> = u6::try_new(64);
@@ -25,7 +29,7 @@ fn constants() {
 }
 
 #[test]
-fn create_simple() {
+fn create_simple_unsigned() {
     let value7 = u7::new(123);
     let value8 = UInt::<u8, 8>::new(189);
 
@@ -46,15 +50,36 @@ fn create_simple() {
 }
 
 #[test]
+fn create_simple_signed() {
+    assert_eq!(i5::new(0).value(), 0);
+    assert_eq!(i8::new(124).value(), 124);
+    assert_eq!(i17::new(-6032).value(), -6032);
+    assert_eq!(i24::new(-5).value(), -5);
+    assert_eq!(i67::new(5).value(), 5);
+}
+
+#[test]
 fn create_try_new() {
-    assert_eq!(u7::new(123).value(), 123);
     assert_eq!(u7::try_new(190).expect_err("No error seen"), TryNewError {});
+    assert_eq!(i7::try_new(127).expect_err("No error seen"), TryNewError {});
 }
 
 #[test]
 #[should_panic]
 fn create_panic_u7() {
     u7::new(128);
+}
+
+#[test]
+#[should_panic]
+fn create_panic_i7_positive() {
+    i7::new(64);
+}
+
+#[test]
+#[should_panic]
+fn create_panic_i7_negative() {
+    i7::new(-65);
 }
 
 #[test]
@@ -82,7 +107,7 @@ fn create_panic_u127() {
 }
 
 #[test]
-fn add() {
+fn add_unsigned() {
     assert_eq!(u7::new(10) + u7::new(20), u7::new(30));
     assert_eq!(u7::new(100) + u7::new(27), u7::new(127));
 }
@@ -90,14 +115,35 @@ fn add() {
 #[cfg(debug_assertions)]
 #[test]
 #[should_panic]
-fn add_overflow() {
+fn add_overflow_unsigned() {
     let _ = u7::new(127) + u7::new(3);
 }
 
 #[cfg(not(debug_assertions))]
 #[test]
-fn add_no_overflow() {
+fn add_no_overflow_unsigned() {
     let _ = u7::new(127) + u7::new(3);
+}
+
+#[test]
+fn add_signed() {
+    assert_eq!(i7::new(10) + i7::new(20), i7::new(30));
+    assert_eq!(i7::new(60) + i7::new(3), i7::new(63));
+    assert_eq!(i7::new(10) + i7::new(-3), i7::new(7));
+    assert_eq!(i7::new(10) + i7::new(-10), i7::new(0));
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn add_overflow_signed() {
+    let _ = i7::new(63) + i7::new(1);
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn add_no_overflow_signed() {
+    let _ = i7::new(63) + i7::new(1);
 }
 
 #[cfg(feature = "num-traits")]
@@ -129,7 +175,7 @@ fn num_traits_bounded() {
 }
 
 #[test]
-fn addassign() {
+fn addassign_unsigned() {
     let mut value = u9::new(500);
     value += u9::new(11);
     assert_eq!(value, u9::new(511));
@@ -138,7 +184,7 @@ fn addassign() {
 #[cfg(debug_assertions)]
 #[test]
 #[should_panic]
-fn addassign_overflow() {
+fn addassign_overflow_unsigned() {
     let mut value = u9::new(500);
     value += u9::new(40);
 }
@@ -152,7 +198,33 @@ fn addassign_no_overflow() {
 }
 
 #[test]
-fn sub() {
+fn addassign_signed() {
+    let mut value = i9::new(200);
+    value += i9::new(55);
+    assert_eq!(value, i9::new(255));
+
+    let mut value = i9::new(200);
+    value -= i9::new(55);
+    assert_eq!(value, i9::new(145));
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn addassign_overflow_signed() {
+    let mut value = i9::new(250);
+    value += i9::new(6);
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn addassign_no_overflow_signed() {
+    let mut value = i9::new(250);
+    value += i9::new(6);
+}
+
+#[test]
+fn sub_unsigned() {
     assert_eq!(u7::new(22) - u7::new(10), u7::new(12));
     assert_eq!(u7::new(127) - u7::new(127), u7::new(0));
 }
@@ -160,19 +232,40 @@ fn sub() {
 #[cfg(debug_assertions)]
 #[test]
 #[should_panic]
-fn sub_overflow() {
+fn sub_overflow_unsigned() {
     let _ = u7::new(100) - u7::new(127);
 }
 
 #[cfg(not(debug_assertions))]
 #[test]
-fn sub_no_overflow() {
+fn sub_no_overflow_unsigned() {
     let value = u7::new(100) - u7::new(127);
     assert_eq!(value, u7::new(101));
 }
 
 #[test]
-fn subassign() {
+fn sub_signed() {
+    assert_eq!(i7::new(63) - i7::new(63), i7::new(0));
+    assert_eq!(i7::new(22) - i7::new(10), i7::new(12));
+    assert_eq!(i7::new(-22) - i7::new(10), i7::new(-32));
+    assert_eq!(i7::new(-22) - i7::new(-10), i7::new(-12));
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn sub_overflow_signed() {
+    let _ = i7::new(-60) - i7::new(63);
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn sub_no_overflow_signed() {
+    assert_eq!(i7::new(-60) - i7::new(63), i7::new(5));
+}
+
+#[test]
+fn subassign_unsigned() {
     let mut value = u9::new(500);
     value -= u9::new(11);
     assert_eq!(value, u9::new(489));
@@ -181,21 +274,44 @@ fn subassign() {
 #[cfg(debug_assertions)]
 #[test]
 #[should_panic]
-fn subassign_overflow() {
+fn subassign_overflow_unsigned() {
     let mut value = u9::new(30);
     value -= u9::new(40);
 }
 
 #[cfg(not(debug_assertions))]
 #[test]
-fn subassign_no_overflow() {
+fn subassign_no_overflow_unsigned() {
     let mut value = u9::new(30);
     value -= u9::new(40);
     assert_eq!(value, u9::new(502));
 }
 
 #[test]
-fn mul() {
+fn subassign_signed() {
+    let mut value = i9::new(200);
+    value -= i9::new(11);
+    assert_eq!(value, i9::new(189));
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn subassign_overflow_signed() {
+    let mut value = i9::new(-250);
+    value -= i9::new(7);
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn subassign_no_overflow_signed() {
+    let mut value = i9::new(-250);
+    value -= i9::new(7);
+    assert_eq!(value, i9::new(255));
+}
+
+#[test]
+fn mul_unsigned() {
     assert_eq!(u7::new(22) * u7::new(4), u7::new(88));
     assert_eq!(u7::new(127) * u7::new(0), u7::new(0));
 }
@@ -203,19 +319,40 @@ fn mul() {
 #[cfg(debug_assertions)]
 #[test]
 #[should_panic]
-fn mul_overflow() {
+fn mul_overflow_unsigned() {
     let _ = u7::new(100) * u7::new(2);
 }
 
 #[cfg(not(debug_assertions))]
 #[test]
-fn mul_no_overflow() {
+fn mul_no_overflow_unsigned() {
     let result = u7::new(100) * u7::new(2);
     assert_eq!(result, u7::new(72));
 }
 
 #[test]
-fn mulassign() {
+fn mul_signed() {
+    assert_eq!(i7::new(20) * i7::new(3), i7::new(60));
+    assert_eq!(i7::new(63) * i7::new(0), i7::new(0));
+    assert_eq!(i7::new(20) * i7::new(-3), i7::new(-60));
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn mul_overflow_signed() {
+    let _ = i7::new(60) * i7::new(2);
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn mul_no_overflow_signed() {
+    let result = i7::new(60) * i7::new(2);
+    assert_eq!(result, i7::new(-8));
+}
+
+#[test]
+fn mulassign_unsigned() {
     let mut value = u9::new(240);
     value *= u9::new(2);
     assert_eq!(value, u9::new(480));
@@ -224,21 +361,44 @@ fn mulassign() {
 #[cfg(debug_assertions)]
 #[test]
 #[should_panic]
-fn mulassign_overflow() {
+fn mulassign_overflow_unsigned() {
     let mut value = u9::new(500);
     value *= u9::new(2);
 }
 
 #[cfg(not(debug_assertions))]
 #[test]
-fn mulassign_no_overflow() {
+fn mulassign_no_overflow_unsigned() {
     let mut value = u9::new(500);
     value *= u9::new(40);
     assert_eq!(value, u9::new(32));
 }
 
 #[test]
-fn div() {
+fn mulassign_signed() {
+    let mut value = i9::new(120);
+    value *= i9::new(2);
+    assert_eq!(value, i9::new(240));
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn mulassign_overflow_signed() {
+    let mut value = i9::new(250);
+    value *= i9::new(2);
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn mulassign_no_overflow_signed() {
+    let mut value = i9::new(250);
+    value *= i9::new(2);
+    assert_eq!(value, i9::new(-12));
+}
+
+#[test]
+fn div_unsigned() {
     // div just forwards to the underlying type, so there isn't much to do
     assert_eq!(u7::new(22) / u7::new(4), u7::new(5));
     assert_eq!(u7::new(127) / u7::new(1), u7::new(127));
@@ -247,12 +407,41 @@ fn div() {
 
 #[should_panic]
 #[test]
-fn div_by_zero() {
+fn div_by_zero_unsigned() {
     let _ = u7::new(22) / u7::new(0);
 }
 
 #[test]
-fn divassign() {
+fn div_signed() {
+    assert_eq!(i7::new(22) / i7::new(4), i7::new(5));
+    assert_eq!(i7::new(63) / i7::new(1), i7::new(63));
+    assert_eq!(i7::new(63) / i7::new(63), i7::new(1));
+    assert_eq!(i7::new(63) / i7::new(-1), i7::new(-63));
+    assert_eq!(i7::new(-4) / i7::new(4), i7::new(-1));
+}
+
+#[should_panic]
+#[test]
+fn div_by_zero_signed() {
+    let _ = i7::new(22) / i7::new(0);
+}
+
+#[cfg(debug_assertions)]
+#[should_panic]
+#[test]
+fn div_overflow() {
+    let _ = i7::new(-64) / i7::new(-1);
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn div_no_overflow() {
+    let value = i7::new(-64) / i7::new(-1);
+    assert_eq!(value, i7::new(-64));
+}
+
+#[test]
+fn divassign_unsigned() {
     let mut value = u9::new(240);
     value /= u9::new(2);
     assert_eq!(value, u9::new(120));
@@ -260,13 +449,27 @@ fn divassign() {
 
 #[should_panic]
 #[test]
-fn divassign_by_zero() {
+fn divassign_by_zero_unsigned() {
     let mut value = u9::new(240);
     value /= u9::new(0);
 }
 
 #[test]
-fn bitand() {
+fn divassign_signed() {
+    let mut value = i9::new(240);
+    value /= i9::new(2);
+    assert_eq!(value, i9::new(120));
+}
+
+#[should_panic]
+#[test]
+fn divassign_by_zero_signed() {
+    let mut value = i9::new(240);
+    value /= i9::new(0);
+}
+
+#[test]
+fn bitand_unsigned() {
     assert_eq!(
         u17::new(0b11001100) & u17::new(0b01101001),
         u17::new(0b01001000)
@@ -279,14 +482,40 @@ fn bitand() {
 }
 
 #[test]
-fn bitandassign() {
+fn bitandassign_unsigned() {
     let mut value = u4::new(0b0101);
     value &= u4::new(0b0110);
     assert_eq!(value, u4::new(0b0100));
 }
 
 #[test]
-fn bitor() {
+fn bitand_signed() {
+    assert_eq!(
+        i17::from_bits(0b11001100) & i17::from_bits(0b01101001),
+        i17::from_bits(0b01001000)
+    );
+    assert_eq!(i17::from_bits(0b11001100) & i17::new(0), i17::new(0));
+    assert_eq!(
+        i17::from_bits(0b11001100) & i17::from_bits(0x1_FFFF),
+        i17::from_bits(0b11001100)
+    );
+
+    // Mask off the sign bit
+    assert_eq!(
+        i4::from_bits(0b1101) & i4::from_bits(0b0111),
+        i4::from_bits(0b0101)
+    );
+}
+
+#[test]
+fn bitandassign_signed() {
+    let mut value = i4::from_bits(0b0101);
+    value &= i4::from_bits(0b0110);
+    assert_eq!(value, i4::from_bits(0b0100));
+}
+
+#[test]
+fn bitor_unsigned() {
     assert_eq!(
         u17::new(0b11001100) | u17::new(0b01101001),
         u17::new(0b11101101)
@@ -299,14 +528,37 @@ fn bitor() {
 }
 
 #[test]
-fn bitorassign() {
+fn bitorassign_unsigned() {
     let mut value = u4::new(0b0101);
     value |= u4::new(0b0110);
     assert_eq!(value, u4::new(0b0111));
 }
 
 #[test]
-fn bitxor() {
+fn bitor_signed() {
+    assert_eq!(
+        i17::from_bits(0b11001100) | i17::from_bits(0b01101001),
+        i17::from_bits(0b11101101)
+    );
+    assert_eq!(
+        i17::from_bits(0b11001100) | i17::new(0),
+        i17::from_bits(0b11001100)
+    );
+    assert_eq!(
+        i17::from_bits(0b11001100) | i17::from_bits(0x1_FFFF),
+        i17::from_bits(0x1_FFFF)
+    );
+}
+
+#[test]
+fn bitorassign_signed() {
+    let mut value = i4::from_bits(0b0101);
+    value |= i4::from_bits(0b0110);
+    assert_eq!(value, i4::from_bits(0b0111));
+}
+
+#[test]
+fn bitxor_unsigned() {
     assert_eq!(
         u17::new(0b11001100) ^ u17::new(0b01101001),
         u17::new(0b10100101)
@@ -319,29 +571,82 @@ fn bitxor() {
 }
 
 #[test]
-fn bitxorassign() {
+fn bitxorassign_unsigned() {
     let mut value = u4::new(0b0101);
     value ^= u4::new(0b0110);
     assert_eq!(value, u4::new(0b0011));
 }
 
 #[test]
-fn not() {
+fn bitxor_signed() {
+    assert_eq!(
+        i17::from_bits(0b11001100) ^ i17::from_bits(0b01101001),
+        i17::from_bits(0b10100101)
+    );
+    assert_eq!(
+        i17::from_bits(0b11001100) ^ i17::new(0),
+        i17::from_bits(0b11001100)
+    );
+    assert_eq!(
+        i17::from_bits(0b11001100) ^ i17::from_bits(0x1_FFFF),
+        i17::from_bits(0b1_11111111_00110011)
+    );
+}
+
+#[test]
+fn bitxorassign_signed() {
+    let mut value = i4::from_bits(0b0101);
+    value ^= i4::from_bits(0b0110);
+    assert_eq!(value, i4::from_bits(0b0011));
+}
+
+#[test]
+fn not_unsigned() {
     assert_eq!(!u17::new(0), u17::new(0b1_11111111_11111111));
     assert_eq!(!u5::new(0b10101), u5::new(0b01010));
 }
 
 #[test]
-fn shl() {
+fn not_signed() {
+    assert_eq!(!i17::new(0), i17::from_bits(0b1_11111111_11111111));
+    assert_eq!(!i5::from_bits(0b10101), i5::from_bits(0b01010));
+}
+
+#[test]
+fn shl_unsigned() {
     assert_eq!(u17::new(0b1) << 5u8, u17::new(0b100000));
     // Ensure bits on the left are shifted out
     assert_eq!(u9::new(0b11110000) << 3u64, u9::new(0b1_10000000));
 }
 
+#[test]
+fn shl_signed() {
+    assert_eq!(i17::new(1) << 5usize, i17::from_bits(0b10_0000));
+    // Ensure bits on the left are shifted out
+    assert_eq!(
+        i9::from_bits(0b1111_0000) << 3i64,
+        i9::from_bits(0b1_1000_0000)
+    );
+}
+
 #[cfg(debug_assertions)]
 #[test]
 #[should_panic]
-fn shl_too_much8() {
+fn shl_too_much8_signed() {
+    let _ = i53::new(123) << 53i8;
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn shl_negative() {
+    let _ = i53::new(123) << -53i8;
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn shl_too_much8_unsigned() {
     let _ = u53::new(123) << 53u8;
 }
 
@@ -381,17 +686,32 @@ fn shl_too_much_usize() {
 }
 
 #[test]
-fn shlassign() {
+fn shlassign_unsigned() {
     let mut value = u9::new(0b11110000);
     value <<= 3;
     assert_eq!(value, u9::new(0b1_10000000));
 }
 
+#[test]
+fn shlassign_signed() {
+    let mut value = i9::from_bits(0b11110000);
+    value <<= 3;
+    assert_eq!(value, i9::from_bits(0b1_10000000));
+}
+
 #[cfg(debug_assertions)]
 #[test]
 #[should_panic]
-fn shlassign_too_much() {
+fn shlassign_too_much_unsigned() {
     let mut value = u9::new(0b11110000);
+    value <<= 9;
+}
+
+#[cfg(debug_assertions)]
+#[test]
+#[should_panic]
+fn shlassign_too_much_signed() {
+    let mut value = i9::new(0b11110000);
     value <<= 9;
 }
 
@@ -404,7 +724,7 @@ fn shlassign_too_much2() {
 }
 
 #[test]
-fn shr() {
+fn shr_unsigned() {
     assert_eq!(u17::new(0b100110) >> 5usize, u17::new(1));
 
     // Ensure there's no sign extension
@@ -412,13 +732,37 @@ fn shr() {
 }
 
 #[test]
-fn shrassign() {
+fn shrassign_unsigned() {
     let mut value = u9::new(0b1_11110000);
     value >>= 6;
     assert_eq!(value, u9::new(0b0_00000111));
 }
 
 #[test]
+fn shr_signed() {
+    assert_eq!(i17::from_bits(0b100110) >> 5usize, i17::new(1));
+
+    // Ensure there is sign extension
+    assert_eq!(
+        i17::from_bits(0b1_00000000_00000000) >> 8,
+        i17::from_bits(0b1_11111111_00000000)
+    );
+
+    assert_eq!(
+        i17::from_bits(0b1_00000000_00000000) >> 16,
+        i17::from_bits(0b1_11111111_11111111)
+    );
+}
+
+#[test]
+fn shrassign_signed() {
+    let mut value = i9::from_bits(0b1_00000000);
+    value >>= 5;
+    assert_eq!(value, i9::from_bits(0b1_11111000));
+}
+
+#[test]
+#[allow(clippy::bool_assert_comparison)]
 fn compare() {
     assert_eq!(true, u4::new(0b1100) > u4::new(0b0011));
     assert_eq!(true, u4::new(0b1100) >= u4::new(0b0011));
@@ -443,7 +787,7 @@ fn compare() {
 }
 
 #[test]
-fn min_max() {
+fn min_max_unsigned() {
     assert_eq!(0, u4::MIN.value());
     assert_eq!(0b1111, u4::MAX.value());
     assert_eq!(u4::new(0b1111), u4::MAX);
@@ -463,23 +807,85 @@ fn min_max() {
 }
 
 #[test]
-fn bits() {
+fn min_max_signed() {
+    assert_eq!(i1::MIN.value(), -1);
+    assert_eq!(i1::MAX.value(), 0);
+
+    assert_eq!(i3::MIN.value(), -4);
+    assert_eq!(i3::MAX.value(), 3);
+
+    assert_eq!(i4::MIN.value(), -8);
+    assert_eq!(i4::MAX.value(), 7);
+
+    assert_eq!(i14::MIN.value(), -8192);
+    assert_eq!(i14::MAX.value(), 8191);
+
+    assert_eq!(i25::MIN.value(), -16777216);
+    assert_eq!(i25::MAX.value(), 16777215);
+
+    assert_eq!(i63::MIN.value(), -4611686018427387904);
+    assert_eq!(i63::MAX.value(), 4611686018427387903);
+
+    assert_eq!(i122::MIN.value(), -2658455991569831745807614120560689152);
+    assert_eq!(i122::MAX.value(), 2658455991569831745807614120560689151);
+}
+
+#[test]
+fn bit_width() {
     assert_eq!(4, u4::BITS);
+    assert_eq!(4, i4::BITS);
+
     assert_eq!(12, u12::BITS);
+    assert_eq!(12, i12::BITS);
+
     assert_eq!(120, u120::BITS);
+    assert_eq!(120, i120::BITS);
+
     assert_eq!(13, UInt::<u128, 13usize>::BITS);
+    assert_eq!(13, Int::<i128, 13usize>::BITS);
 
     assert_eq!(8, u8::BITS);
+    assert_eq!(8, i8::BITS);
+
     assert_eq!(16, u16::BITS);
+    assert_eq!(16, i16::BITS);
+}
+
+#[test]
+fn to_from_bits() {
+    assert_eq!(i2::from_bits(i2::new(-1).to_bits()).value(), -1);
+    assert_eq!(i4::from_bits(i4::new(-3).to_bits()).value(), -3);
+
+    for i in i4::MIN.value()..=i4::MAX.value() {
+        let bits = i4::new(i).to_bits();
+        assert_eq!(i4::from_bits(bits).value(), i);
+        assert_eq!(bits & !i4::MASK as u8, 0);
+    }
+
+    for i in i13::MIN.value()..=i13::MAX.value() {
+        let bits = i13::new(i).to_bits();
+        assert_eq!(i13::from_bits(bits).value(), i);
+        assert_eq!(bits & !i13::MASK as u16, 0);
+    }
 }
 
 #[test]
 fn mask() {
     assert_eq!(0x1u8, u1::MASK);
+    assert_eq!(0x1i8, i1::MASK);
+
     assert_eq!(0xFu8, u4::MASK);
+    assert_eq!(0xFi8, i4::MASK);
+
     assert_eq!(0x3FFFFu32, u18::MASK);
+    assert_eq!(0x3FFFFi32, i18::MASK);
+
     assert_eq!(0x7FFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFFu128, u127::MASK);
+    assert_eq!(0x7FFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFFi128, i127::MASK);
+
     assert_eq!(0x7FFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFFu128, u127::MASK);
+    assert_eq!(0x7FFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFFi128, i127::MASK);
+
     assert_eq!(0xFFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFFu128, u128::MAX);
 }
 
@@ -488,17 +894,32 @@ fn min_max_fullwidth() {
     assert_eq!(u8::MIN, UInt::<u8, 8>::MIN.value());
     assert_eq!(u8::MAX, UInt::<u8, 8>::MAX.value());
 
+    assert_eq!(i8::MIN, Int::<i8, 8>::MIN.value());
+    assert_eq!(i8::MAX, Int::<i8, 8>::MAX.value());
+
     assert_eq!(u16::MIN, UInt::<u16, 16>::MIN.value());
     assert_eq!(u16::MAX, UInt::<u16, 16>::MAX.value());
+
+    assert_eq!(i16::MIN, Int::<i16, 16>::MIN.value());
+    assert_eq!(i16::MAX, Int::<i16, 16>::MAX.value());
 
     assert_eq!(u32::MIN, UInt::<u32, 32>::MIN.value());
     assert_eq!(u32::MAX, UInt::<u32, 32>::MAX.value());
 
+    assert_eq!(i32::MIN, Int::<i32, 32>::MIN.value());
+    assert_eq!(i32::MAX, Int::<i32, 32>::MAX.value());
+
     assert_eq!(u64::MIN, UInt::<u64, 64>::MIN.value());
     assert_eq!(u64::MAX, UInt::<u64, 64>::MAX.value());
 
+    assert_eq!(i64::MIN, Int::<i64, 64>::MIN.value());
+    assert_eq!(i64::MAX, Int::<i64, 64>::MAX.value());
+
     assert_eq!(u128::MIN, UInt::<u128, 128>::MIN.value());
     assert_eq!(u128::MAX, UInt::<u128, 128>::MAX.value());
+
+    assert_eq!(i128::MIN, Int::<i128, 128>::MIN.value());
+    assert_eq!(i128::MAX, Int::<i128, 128>::MAX.value());
 }
 
 #[allow(deprecated)]
@@ -781,6 +1202,7 @@ fn into_native_ints_fewer_bits() {
 }
 
 #[test]
+#[allow(clippy::bool_assert_comparison)]
 fn from_into_bool() {
     assert_eq!(u1::from(true), u1::new(1));
     assert_eq!(u1::from(false), u1::new(0));
@@ -801,6 +1223,7 @@ fn widen() {
 }
 
 #[test]
+#[allow(clippy::to_string_in_format_args)]
 fn to_string() {
     assert_eq!("Value: 5", format!("Value: {}", 5u32.to_string()));
     assert_eq!("Value: 5", format!("Value: {}", u5::new(5).to_string()));
@@ -1369,21 +1792,37 @@ fn simple_le_be() {
 }
 
 #[test]
-fn wrapping_add() {
+fn wrapping_add_unsigned() {
     assert_eq!(u7::new(120).wrapping_add(u7::new(1)), u7::new(121));
     assert_eq!(u7::new(120).wrapping_add(u7::new(10)), u7::new(2));
     assert_eq!(u7::new(127).wrapping_add(u7::new(127)), u7::new(126));
 }
 
 #[test]
-fn wrapping_sub() {
+fn wrapping_add_signed() {
+    assert_eq!(i7::new(60).wrapping_add(i7::new(4)).value(), -64);
+    assert_eq!(i7::new(-64).wrapping_add(i7::new(-10)).value(), 54);
+    assert_eq!(i7::MAX.wrapping_add(i7::new(1)).value(), i7::MIN.value());
+    assert_eq!(i7::MIN.wrapping_add(i7::new(-1)).value(), i7::MAX.value());
+}
+
+#[test]
+fn wrapping_sub_unsigned() {
     assert_eq!(u7::new(120).wrapping_sub(u7::new(1)), u7::new(119));
     assert_eq!(u7::new(10).wrapping_sub(u7::new(20)), u7::new(118));
     assert_eq!(u7::new(0).wrapping_sub(u7::new(1)), u7::new(127));
 }
 
 #[test]
-fn wrapping_mul() {
+fn wrapping_sub_signed() {
+    assert_eq!(i7::new(-64).wrapping_sub(i7::new(4)).value(), 60);
+    assert_eq!(i7::new(10).wrapping_sub(i7::new(22)).value(), -12);
+    assert_eq!(i7::MAX.wrapping_sub(i7::new(-1)).value(), i7::MIN.value());
+    assert_eq!(i7::MIN.wrapping_sub(i7::new(1)).value(), i7::MAX.value());
+}
+
+#[test]
+fn wrapping_mul_unsigned() {
     assert_eq!(u7::new(120).wrapping_mul(u7::new(0)), u7::new(0));
     assert_eq!(u7::new(120).wrapping_mul(u7::new(1)), u7::new(120));
 
@@ -1395,21 +1834,55 @@ fn wrapping_mul() {
 }
 
 #[test]
-fn wrapping_div() {
+fn wrapping_mul_signed() {
+    assert_eq!(i7::new(60).wrapping_mul(i7::new(0)), i7::new(0));
+    assert_eq!(i7::new(60).wrapping_mul(i7::new(1)), i7::new(60));
+    assert_eq!(i7::new(60).wrapping_mul(i7::new(-1)), i7::new(-60));
+
+    // Overflow the i7
+    assert_eq!(i7::new(63).wrapping_mul(i7::new(2)), i7::new(-2));
+    assert_eq!(i7::new(63).wrapping_mul(i7::new(-2)), i7::new(2));
+
+    // Overflow the underlying type
+    assert_eq!(i7::new(63).wrapping_mul(i7::new(3)), i7::new(61));
+    assert_eq!(i7::new(63).wrapping_mul(i7::new(-3)), i7::new(-61));
+}
+
+#[test]
+fn wrapping_div_unsigned() {
     assert_eq!(u7::new(120).wrapping_div(u7::new(1)), u7::new(120));
     assert_eq!(u7::new(120).wrapping_div(u7::new(2)), u7::new(60));
     assert_eq!(u7::new(120).wrapping_div(u7::new(120)), u7::new(1));
     assert_eq!(u7::new(120).wrapping_div(u7::new(121)), u7::new(0));
 }
 
+#[test]
+fn wrapping_div_signed() {
+    // Regular division
+    assert_eq!(i7::new(60).wrapping_div(i7::new(1)), i7::new(60));
+    assert_eq!(i7::new(60).wrapping_div(i7::new(-1)), i7::new(-60));
+    assert_eq!(i7::new(60).wrapping_div(i7::new(2)), i7::new(30));
+    assert_eq!(i7::new(60).wrapping_div(i7::new(-2)), i7::new(-30));
+    assert_eq!(i7::new(60).wrapping_div(i7::new(60)), i7::new(1));
+
+    // Wrapping
+    assert_eq!(i7::new(-64).wrapping_div(i7::new(-1)), i7::new(-64));
+}
+
 #[should_panic]
 #[test]
-fn wrapping_div_by_zero() {
+fn wrapping_div_by_zero_unsigned() {
     let _ = u7::new(120).wrapping_div(u7::new(0));
 }
 
+#[should_panic]
 #[test]
-fn wrapping_shl() {
+fn wrapping_div_by_zero_signed() {
+    let _ = i7::new(60).wrapping_div(i7::new(0));
+}
+
+#[test]
+fn wrapping_shl_unsigned() {
     assert_eq!(u7::new(0b010_1101).wrapping_shl(0), u7::new(0b010_1101));
     assert_eq!(u7::new(0b010_1101).wrapping_shl(1), u7::new(0b101_1010));
     assert_eq!(u7::new(0b010_1101).wrapping_shl(6), u7::new(0b100_0000));
@@ -1420,7 +1893,39 @@ fn wrapping_shl() {
 }
 
 #[test]
-fn wrapping_shr() {
+fn wrapping_shl_signed() {
+    assert_eq!(
+        i7::from_bits(0b010_1101).wrapping_shl(0),
+        i7::from_bits(0b010_1101)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).wrapping_shl(1),
+        i7::from_bits(0b101_1010)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).wrapping_shl(6),
+        i7::from_bits(0b100_0000)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).wrapping_shl(7),
+        i7::from_bits(0b010_1101)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).wrapping_shl(8),
+        i7::from_bits(0b101_1010)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).wrapping_shl(14),
+        i7::from_bits(0b010_1101)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).wrapping_shl(15),
+        i7::from_bits(0b101_1010)
+    );
+}
+
+#[test]
+fn wrapping_shr_unsigned() {
     assert_eq!(u7::new(0b010_1101).wrapping_shr(0), u7::new(0b010_1101));
     assert_eq!(u7::new(0b010_1101).wrapping_shr(1), u7::new(0b001_0110));
     assert_eq!(u7::new(0b010_1101).wrapping_shr(5), u7::new(0b000_0001));
@@ -1428,6 +1933,68 @@ fn wrapping_shr() {
     assert_eq!(u7::new(0b010_1101).wrapping_shr(8), u7::new(0b001_0110));
     assert_eq!(u7::new(0b010_1101).wrapping_shr(14), u7::new(0b010_1101));
     assert_eq!(u7::new(0b010_1101).wrapping_shr(15), u7::new(0b001_0110));
+}
+
+#[test]
+fn wrapping_shr_signed() {
+    assert_eq!(
+        i7::from_bits(0b010_1101).wrapping_shr(0),
+        i7::from_bits(0b010_1101)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).wrapping_shr(1),
+        i7::from_bits(0b001_0110)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).wrapping_shr(5),
+        i7::from_bits(0b000_0001)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).wrapping_shr(7),
+        i7::from_bits(0b010_1101)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).wrapping_shr(8),
+        i7::from_bits(0b001_0110)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).wrapping_shr(14),
+        i7::from_bits(0b010_1101)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).wrapping_shr(15),
+        i7::from_bits(0b001_0110)
+    );
+
+    // Sign extension
+    assert_eq!(
+        i7::from_bits(0b110_1101).wrapping_shr(0),
+        i7::from_bits(0b110_1101)
+    );
+    assert_eq!(
+        i7::from_bits(0b110_1101).wrapping_shr(1),
+        i7::from_bits(0b111_0110)
+    );
+    assert_eq!(
+        i7::from_bits(0b110_1101).wrapping_shr(4),
+        i7::from_bits(0b111_1110)
+    );
+    assert_eq!(
+        i7::from_bits(0b110_1101).wrapping_shr(7),
+        i7::from_bits(0b110_1101)
+    );
+    assert_eq!(
+        i7::from_bits(0b110_1101).wrapping_shr(8),
+        i7::from_bits(0b111_0110)
+    );
+    assert_eq!(
+        i7::from_bits(0b110_1101).wrapping_shr(14),
+        i7::from_bits(0b110_1101)
+    );
+    assert_eq!(
+        i7::from_bits(0b110_1101).wrapping_shr(15),
+        i7::from_bits(0b111_0110)
+    );
 }
 
 #[test]
@@ -2165,12 +2732,21 @@ fn new_constructors_catch_out_bounds_4() {
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
-fn new_masked() {
+fn new_masked_unsigned() {
     let a = u10::new(0b11_01010111);
     let b = u9::masked_new(a);
     assert_eq!(b.as_u32(), 0b1_01010111);
     let c = u7::masked_new(a);
     assert_eq!(c.as_u32(), 0b1010111);
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+fn new_masked_signed() {
+    assert_eq!(i14::masked_new(-1).value(), -1);
+    assert_eq!(i14::masked_new(1).value(), 1);
+    assert_eq!(i14::masked_new(-15).value(), -15);
+    assert_eq!(i4::masked_new(i8::MAX).value(), -1);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
