@@ -56,6 +56,9 @@ fn create_simple_signed() {
     assert_eq!(i17::new(-6032).value(), -6032);
     assert_eq!(i24::new(-5).value(), -5);
     assert_eq!(i67::new(5).value(), 5);
+
+    assert_eq!(Int::<i8, 8>::new(127).value(), 127);
+    assert_eq!(Int::<i8, 8>::new(-128).value(), -128);
 }
 
 #[test]
