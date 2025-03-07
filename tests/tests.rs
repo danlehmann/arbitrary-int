@@ -1,4 +1,8 @@
 #![cfg_attr(feature = "step_trait", feature(step_trait))]
+#![cfg_attr(
+    feature = "const_convert_and_const_trait_impl",
+    feature(const_trait_impl)
+)]
 
 extern crate core;
 
@@ -1211,6 +1215,23 @@ fn from_into_bool() {
     assert_eq!(u1::from(false), u1::new(0));
     assert_eq!(bool::from(u1::new(1)), true);
     assert_eq!(bool::from(u1::new(0)), false);
+}
+
+#[cfg(feature = "const_convert_and_const_trait_impl")]
+#[test]
+#[allow(clippy::bool_assert_comparison)]
+fn from_into_bool_const() {
+    const TRUE: u1 = u1::from(true);
+    assert_eq!(TRUE, u1::new(1));
+
+    const FALSE: u1 = u1::from(false);
+    assert_eq!(FALSE, u1::new(0));
+
+    const TRUE_BOOL: bool = bool::from(u1::new(1));
+    assert_eq!(TRUE_BOOL, true);
+
+    const FALSE_BOOL: bool = bool::from(u1::new(0));
+    assert_eq!(FALSE_BOOL, false);
 }
 
 #[test]
@@ -2757,4 +2778,39 @@ fn new_masked_signed() {
 fn as_flexible() {
     let a: u32 = u14::new(123).as_();
     assert_eq!(a, 123u32);
+}
+
+#[cfg(feature = "const_convert_and_const_trait_impl")]
+#[test]
+pub fn const_constructors_unsigned() {
+    const IN_BETWEEN: u4 = <u4 as Number>::new(5);
+    assert_eq!(IN_BETWEEN.value(), 5);
+
+    const MAX: u4 = <u4 as Number>::new(15);
+    assert_eq!(MAX.value(), 15);
+
+    const MIN: u4 = <u4 as Number>::new(0);
+    assert_eq!(MIN.value(), 0);
+
+    const TOO_BIG: Result<u4, TryNewError> = <u4 as Number>::try_new(16);
+    assert!(TOO_BIG.is_err());
+}
+
+#[cfg(feature = "const_convert_and_const_trait_impl")]
+#[test]
+pub fn const_constructors_signed() {
+    const IN_BETWEEN: i4 = <i4 as SignedNumber>::new(4);
+    assert_eq!(IN_BETWEEN.value(), 4);
+
+    const MAX: i4 = <i4 as SignedNumber>::new(7);
+    assert_eq!(MAX.value(), 7);
+
+    const MIN: i4 = <i4 as SignedNumber>::new(-8);
+    assert_eq!(MIN.value(), -8);
+
+    const TOO_BIG: Result<i4, TryNewError> = <i4 as SignedNumber>::try_new(8);
+    assert!(TOO_BIG.is_err());
+
+    const TOO_SMALL: Result<i4, TryNewError> = <i4 as SignedNumber>::try_new(-9);
+    assert!(TOO_SMALL.is_err());
 }

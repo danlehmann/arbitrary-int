@@ -11,6 +11,7 @@ use core::{
     },
 };
 
+#[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
 pub trait SignedNumber: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
     type UnderlyingType: SignedNumber
         + Debug
@@ -76,6 +77,47 @@ pub trait SignedNumber: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq
     fn as_<T: SignedNumber>(self) -> T {
         T::masked_new(self)
     }
+}
+
+#[cfg(feature = "const_convert_and_const_trait_impl")]
+macro_rules! impl_signed_number_native {
+    ($( $type:ty ),+) => {
+        $(
+            impl const SignedNumber for $type {
+                type UnderlyingType = $type;
+                const BITS: usize = Self::BITS as usize;
+                const MIN: Self = Self::MIN;
+                const MAX: Self = Self::MAX;
+
+                #[inline]
+                fn new(value: Self::UnderlyingType) -> Self { value }
+
+                #[inline]
+                fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> { Ok(value) }
+
+                #[inline]
+                fn value(self) -> Self::UnderlyingType { self }
+
+                #[inline]
+                fn as_i8(&self) -> i8 { *self as i8 }
+
+                #[inline]
+                fn as_i16(&self) -> i16 { *self as i16 }
+
+                #[inline]
+                fn as_i32(&self) -> i32 { *self as i32 }
+
+                #[inline]
+                fn as_i64(&self) -> i64 { *self as i64 }
+
+                #[inline]
+                fn as_i128(&self) -> i128 { *self as i128 }
+
+                #[inline]
+                fn as_isize(&self) -> isize { *self as isize }
+            }
+        )+
+    };
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
@@ -227,6 +269,79 @@ macro_rules! int_impl_num {
                     } else {
                         Self { value: Self::UnderlyingType::masked_new(value) }
                     }
+                }
+
+                fn as_i8(&self) -> i8 {
+                    self.value() as _
+                }
+
+                fn as_i16(&self) -> i16 {
+                    self.value() as _
+                }
+
+                fn as_i32(&self) -> i32 {
+                    self.value() as _
+                }
+
+                fn as_i64(&self) -> i64 {
+                    self.value() as _
+                }
+
+                fn as_i128(&self) -> i128 {
+                    self.value() as _
+                }
+
+                fn as_isize(&self) -> isize {
+                    self.value() as _
+                }
+
+                #[inline]
+                fn value(self) -> $type {
+                    #[cfg(feature = "hint")]
+                    unsafe {
+                        core::hint::assert_unchecked(self.value >= Self::MIN.value);
+                        core::hint::assert_unchecked(self.value <= Self::MAX.value);
+                    }
+
+                    self.value
+                }
+            }
+        )+
+    };
+}
+
+#[cfg(feature = "const_convert_and_const_trait_impl")]
+macro_rules! int_impl_num {
+    ($($type:ident),+) => {
+        $(
+            impl<const BITS: usize> const SignedNumber for Int<$type, BITS> {
+                type UnderlyingType = $type;
+
+                const BITS: usize = BITS;
+
+                const MIN: Self = Self { value: -Self::MAX.value - 1 };
+
+                // The existence of MAX also serves as a bounds check: If NUM_BITS is > available bits,
+                // we will get a compiler error right here
+                const MAX: Self = Self {
+                    // MAX is always positive so we don't have to worry about the sign
+                    value: (<$type as SignedNumber>::MAX >> (<$type as SignedNumber>::BITS - Self::BITS)),
+                };
+
+                #[inline]
+                fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> {
+                    if value >= Self::MIN.value && value <= Self::MAX.value {
+                        Ok(Self { value })
+                    } else {
+                        Err(TryNewError{})
+                    }
+                }
+
+                #[inline]
+                fn new(value: $type) -> Self {
+                    assert!(value >= Self::MIN.value && value <= Self::MAX.value);
+
+                    Self { value }
                 }
 
                 fn as_i8(&self) -> i8 {
