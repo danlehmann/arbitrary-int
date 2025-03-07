@@ -79,11 +79,12 @@ pub trait SignedNumber: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq
     }
 }
 
-#[cfg(feature = "const_convert_and_const_trait_impl")]
 macro_rules! impl_signed_number_native {
-    ($( $type:ty ),+) => {
+    // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
+    // This macro will be invoked with `i8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
+    ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
-            impl const SignedNumber for $type {
+            impl $($const_keyword)? SignedNumber for $type {
                 type UnderlyingType = $type;
                 const BITS: usize = Self::BITS as usize;
                 const MIN: Self = Self::MIN;
@@ -98,47 +99,7 @@ macro_rules! impl_signed_number_native {
                 #[inline]
                 fn value(self) -> Self::UnderlyingType { self }
 
-                #[inline]
-                fn as_i8(&self) -> i8 { *self as i8 }
-
-                #[inline]
-                fn as_i16(&self) -> i16 { *self as i16 }
-
-                #[inline]
-                fn as_i32(&self) -> i32 { *self as i32 }
-
-                #[inline]
-                fn as_i64(&self) -> i64 { *self as i64 }
-
-                #[inline]
-                fn as_i128(&self) -> i128 { *self as i128 }
-
-                #[inline]
-                fn as_isize(&self) -> isize { *self as isize }
-            }
-        )+
-    };
-}
-
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-macro_rules! impl_signed_number_native {
-    ($( $type:ty ),+) => {
-        $(
-            impl SignedNumber for $type {
-                type UnderlyingType = $type;
-                const BITS: usize = Self::BITS as usize;
-                const MIN: Self = Self::MIN;
-                const MAX: Self = Self::MAX;
-
-                #[inline]
-                fn new(value: Self::UnderlyingType) -> Self { value }
-
-                #[inline]
-                fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> { Ok(value) }
-
-                #[inline]
-                fn value(self) -> Self::UnderlyingType { self }
-
+                #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
                 fn from_<T: SignedNumber>(value: T) -> Self {
                     if T::BITS > Self::BITS as usize {
@@ -147,6 +108,7 @@ macro_rules! impl_signed_number_native {
                     Self::masked_new(value)
                 }
 
+                #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
                 fn masked_new<T: SignedNumber>(value: T) -> Self {
                     // Primitive types don't need masking
@@ -182,7 +144,11 @@ macro_rules! impl_signed_number_native {
     };
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 impl_signed_number_native!(i8, i16, i32, i64, i128);
+
+#[cfg(feature = "const_convert_and_const_trait_impl")]
+impl_signed_number_native!(i8 as const, i16 as const, i32 as const, i64 as const, i128 as const);
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd)]
 pub struct Int<T, const BITS: usize> {
@@ -220,11 +186,12 @@ impl<T: Copy, const BITS: usize> Int<T, BITS> {
     }
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 macro_rules! int_impl_num {
-    ($($type:ident),+) => {
+    // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
+    // This macro will be invoked with `i8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
+    ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
-            impl<const BITS: usize> SignedNumber for Int<$type, BITS> {
+            impl<const BITS: usize> $($const_keyword)? SignedNumber for Int<$type, BITS> {
                 type UnderlyingType = $type;
 
                 const BITS: usize = BITS;
@@ -254,6 +221,7 @@ macro_rules! int_impl_num {
                     Self { value }
                 }
 
+                #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
                 fn from_<T: SignedNumber>(value: T) -> Self {
                     if Self::BITS < T::BITS {
@@ -262,6 +230,7 @@ macro_rules! int_impl_num {
                     Self { value: Self::UnderlyingType::masked_new(value) }
                 }
 
+                #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 fn masked_new<T: SignedNumber>(value: T) -> Self {
                     if Self::BITS < T::BITS {
                         let value = (value.as_::<Self::UnderlyingType>() << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
@@ -310,80 +279,11 @@ macro_rules! int_impl_num {
     };
 }
 
-#[cfg(feature = "const_convert_and_const_trait_impl")]
-macro_rules! int_impl_num {
-    ($($type:ident),+) => {
-        $(
-            impl<const BITS: usize> const SignedNumber for Int<$type, BITS> {
-                type UnderlyingType = $type;
-
-                const BITS: usize = BITS;
-
-                const MIN: Self = Self { value: -Self::MAX.value - 1 };
-
-                // The existence of MAX also serves as a bounds check: If NUM_BITS is > available bits,
-                // we will get a compiler error right here
-                const MAX: Self = Self {
-                    // MAX is always positive so we don't have to worry about the sign
-                    value: (<$type as SignedNumber>::MAX >> (<$type as SignedNumber>::BITS - Self::BITS)),
-                };
-
-                #[inline]
-                fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> {
-                    if value >= Self::MIN.value && value <= Self::MAX.value {
-                        Ok(Self { value })
-                    } else {
-                        Err(TryNewError{})
-                    }
-                }
-
-                #[inline]
-                fn new(value: $type) -> Self {
-                    assert!(value >= Self::MIN.value && value <= Self::MAX.value);
-
-                    Self { value }
-                }
-
-                fn as_i8(&self) -> i8 {
-                    self.value() as _
-                }
-
-                fn as_i16(&self) -> i16 {
-                    self.value() as _
-                }
-
-                fn as_i32(&self) -> i32 {
-                    self.value() as _
-                }
-
-                fn as_i64(&self) -> i64 {
-                    self.value() as _
-                }
-
-                fn as_i128(&self) -> i128 {
-                    self.value() as _
-                }
-
-                fn as_isize(&self) -> isize {
-                    self.value() as _
-                }
-
-                #[inline]
-                fn value(self) -> $type {
-                    #[cfg(feature = "hint")]
-                    unsafe {
-                        core::hint::assert_unchecked(self.value >= Self::MIN.value);
-                        core::hint::assert_unchecked(self.value <= Self::MAX.value);
-                    }
-
-                    self.value
-                }
-            }
-        )+
-    };
-}
-
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 int_impl_num!(i8, i16, i32, i64, i128);
+
+#[cfg(feature = "const_convert_and_const_trait_impl")]
+int_impl_num!(i8 as const, i16 as const, i32 as const, i64 as const, i128 as const);
 
 macro_rules! int_impl {
     ($(($type:ident, $unsigned_type:ident)),+) => {
