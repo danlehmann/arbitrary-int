@@ -518,9 +518,25 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Saturating integer addition. Computes `self + rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!(u14::new(100).saturating_add(u14::new(1)), u14::new(101));
+                /// assert_eq!(u14::MAX.saturating_add(u14::new(100)), u14::MAX);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_add(self, rhs: Self) -> Self {
                     let saturated = if core::mem::size_of::<$type>() << 3 == BITS {
-                        // We are something like a UInt::<u8; 8>. We can fallback to the base implementation
+                        // We are something like a UInt::<u8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_add` instead of `saturating_add` in the common case, which is faster.
                         self.value.saturating_add(rhs.value)
                     } else {
                         // We're dealing with fewer bits than the underlying type (e.g. u7).
@@ -534,6 +550,20 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Saturating integer subtraction. Computes `self - rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(100).saturating_sub(u14::new(27)), u14::new(73));
+                /// assert_eq!(u14::new(13).saturating_sub(u14::new(127)), u14::new(0));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_sub(self, rhs: Self) -> Self {
                     // For unsigned numbers, the only difference is when we reach 0 - which is the same
                     // no matter the data size
@@ -542,6 +572,20 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Saturating integer multiplication. Computes `self * rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!(u14::new(2).saturating_mul(u14::new(10)), u14::new(20));
+                /// assert_eq!(u14::MAX.saturating_mul(u14::new(10)), u14::MAX);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_mul(self, rhs: Self) -> Self {
                     let product = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
                         // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
@@ -559,6 +603,23 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Saturating integer division. Computes `self / rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Panics
+                ///
+                /// This function will panic if rhs is zero.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(5).saturating_div(u14::new(2)), u14::new(2));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_div(self, rhs: Self) -> Self {
                     // When dividing unsigned numbers, we never need to saturate.
                     // Division by zero in saturating_div throws an exception (in debug and release mode),
@@ -568,9 +629,23 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Saturating integer exponentiation. Computes `self.pow(exp)`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!(u14::new(4).saturating_pow(3), u14::new(64));
+                /// assert_eq!(u14::MAX.saturating_pow(2), u14::MAX);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_pow(self, exp: u32) -> Self {
                     // It might be possible to handwrite this to be slightly faster as both
-                    // saturating_pow has to do a bounds-check and then we do second one
+                    // `saturating_pow` has to do a bounds-check and then we do second one.
                     let powed = self.value.saturating_pow(exp);
                     let max = Self::MAX.value();
                     let saturated = if powed > max { max } else { powed };

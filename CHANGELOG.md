@@ -1,6 +1,6 @@
 # Changelog
 
-## arbitrary-int 1.4.0
+## arbitrary-int 1.4.0 (unreleased)
 
 ### Added
 
@@ -9,7 +9,6 @@
     * Support for the following optional Cargo features: `serde`, `step_trait`, `defmt`, `borsh` and `schemars`
     * Byte operations (`to_ne_bytes`, ...)
     * Extract functions (`extract_i8`, ...)
-    * Saturating arithmetic functions (`saturating_add`, ...)
     * Checked arithmetic functions (`checked_add`, ...)
     * Overflowing arithmetic functions (`overflowing_add`, ...)
 

@@ -519,6 +519,173 @@ macro_rules! int_impl {
                         value: (self.value >> shift_amount),
                     }
                 }
+
+                /// Saturating integer addition. Computes `self + rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(100).saturating_add(i14::new(1)), i14::new(101));
+                /// assert_eq!(i14::MAX.saturating_add(i14::new(100)), i14::MAX);
+                /// assert_eq!(i14::MIN.saturating_add(i14::new(-1)), i14::MIN);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn saturating_add(self, rhs: Self) -> Self {
+                    if Self::UNUSED_BITS == 0 {
+                        // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_add` instead of `saturating_add` in the common case, which is faster.
+                        let value = self.value.saturating_add(rhs.value);
+                        Self { value }
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. i7).
+                        // That means the addition can never overflow the underlying type.
+                        let value = self.value.wrapping_add(rhs.value);
+                        if value > Self::MAX.value {
+                            Self::MAX
+                        } else if value < Self::MIN.value {
+                            Self::MIN
+                        } else {
+                            Self { value }
+                        }
+                    }
+                }
+
+                /// Saturating integer subtraction. Computes `self - rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(100).saturating_sub(i14::new(127)), i14::new(-27));
+                /// assert_eq!(i14::MIN.saturating_sub(i14::new(100)), i14::MIN);
+                /// assert_eq!(i14::MAX.saturating_sub(i14::new(-1)), i14::MAX);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn saturating_sub(self, rhs: Self) -> Self {
+                    if Self::UNUSED_BITS == 0 {
+                        // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_sub` instead of `saturating_sub` in the common case, which is faster.
+                        let value = self.value.saturating_sub(rhs.value);
+                        Self { value }
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. i7).
+                        // That means the subtraction can never overflow the underlying type.
+                        let value = self.value.wrapping_sub(rhs.value);
+                        if value > Self::MAX.value {
+                            Self::MAX
+                        } else if value < Self::MIN.value {
+                            Self::MIN
+                        } else {
+                            Self { value }
+                        }
+                    }
+                }
+
+                /// Saturating integer multiplication. Computes `self * rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(10).saturating_mul(i14::new(12)), i14::new(120));
+                /// assert_eq!(i14::MAX.saturating_mul(i14::new(10)), i14::MAX);
+                /// assert_eq!(i14::MIN.saturating_mul(i14::new(10)), i14::MIN);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn saturating_mul(self, rhs: Self) -> Self {
+                    let value = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                        // We have half the bits (e.g. i4 * i4) of the base type, so we can't overflow the base type
+                        // `wrapping_mul` likely provides the best performance on all cpus
+                        self.value.wrapping_mul(rhs.value)
+                    } else {
+                        // We have more than half the bits (e.g. i6 * i6)
+                        self.value.saturating_mul(rhs.value)
+                    };
+
+                    if value > Self::MAX.value {
+                        Self::MAX
+                    } else if value < Self::MIN.value {
+                        Self::MIN
+                    } else {
+                        Self { value }
+                    }
+                }
+
+                /// Saturating integer division. Computes `self / rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Panics
+                ///
+                /// This function will panic if rhs is zero.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(5).saturating_div(i14::new(2)), i14::new(2));
+                /// assert_eq!(i14::MAX.saturating_div(i14::new(-1)), i14::MIN + i14::new(1));
+                /// assert_eq!(i14::MIN.saturating_div(i14::new(-1)), i14::MAX);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn saturating_div(self, rhs: Self) -> Self {
+                    // As `Self::MIN / -1` is equal to `Self::MAX + 1` we always need to check for overflow.
+                    let value = self.value.saturating_div(rhs.value);
+
+                    if value > Self::MAX.value {
+                        Self::MAX
+                    } else if value < Self::MIN.value {
+                        Self::MIN
+                    } else {
+                        Self { value }
+                    }
+                }
+
+                /// Saturating integer exponentiation. Computes `self.pow(exp)`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(-4).saturating_pow(3), i14::new(-64));
+                /// assert_eq!(i14::MIN.saturating_pow(2), i14::MAX);
+                /// assert_eq!(i14::MIN.saturating_pow(3), i14::MIN);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn saturating_pow(self, exp: u32) -> Self {
+                    // It might be possible to handwrite this to be slightly faster as both
+                    // `saturating_pow` has to do a bounds-check and then we do second one.
+                    let value = self.value.saturating_pow(exp);
+
+                    if value > Self::MAX.value {
+                        Self::MAX
+                    } else if value < Self::MIN.value {
+                        Self::MIN
+                    } else {
+                        Self { value }
+                    }
+                }
             }
         )+
     };
