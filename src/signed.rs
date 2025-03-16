@@ -365,6 +365,7 @@ macro_rules! int_impl {
                 /// ```
                 /// To convert from the bitwise representation back to an instance, use [`Self::from_bits`].
                 #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn to_bits(self) -> $unsigned_type {
                     (self.value() & Self::MASK) as $unsigned_type
                 }
@@ -452,6 +453,8 @@ macro_rules! int_impl {
                 }
 
                 /// Returns an [`Int`] with a wider bit depth but with the same base data type
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn widen<const BITS_RESULT: usize>(self) -> Int<$type, BITS_RESULT> {
                     const { assert!(BITS < BITS_RESULT, "Can not call widen() with the given bit widths") };
 

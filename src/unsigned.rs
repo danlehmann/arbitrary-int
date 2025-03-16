@@ -446,7 +446,9 @@ macro_rules! uint_impl {
                     }
                 }
 
-                /// Returns a UInt with a wider bit depth but with the same base data type
+                /// Returns a [`UInt`] with a wider bit depth but with the same base data type
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn widen<const BITS_RESULT: usize>(
                     self,
                 ) -> UInt<$type, BITS_RESULT> {
@@ -882,18 +884,22 @@ macro_rules! uint_impl {
                 }
 
                 /// Reverses the order of bits in the integer. The least significant bit becomes the most significant bit, second least-significant bit becomes second most-significant bit, etc.
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn reverse_bits(self) -> Self {
                     let shift_right = (core::mem::size_of::<$type>() << 3) - BITS;
                     Self { value: self.value.reverse_bits() >> shift_right }
                 }
 
                 /// Returns the number of ones in the binary representation of self.
+                #[inline]
                 pub const fn count_ones(self) -> u32 {
                     // The upper bits are zero, so we can ignore them
                     self.value.count_ones()
                 }
 
                 /// Returns the number of zeros in the binary representation of self.
+                #[inline]
                 pub const fn count_zeros(self) -> u32 {
                     // The upper bits are zero, so we can have to subtract them from the result
                     let filler_bits = ((core::mem::size_of::<$type>() << 3) - BITS) as u32;
@@ -901,29 +907,35 @@ macro_rules! uint_impl {
                 }
 
                 /// Returns the number of leading ones in the binary representation of self.
+                #[inline]
                 pub const fn leading_ones(self) -> u32 {
                     let shift = ((core::mem::size_of::<$type>() << 3) - BITS) as u32;
                     (self.value << shift).leading_ones()
                 }
 
                 /// Returns the number of leading zeros in the binary representation of self.
+                #[inline]
                 pub const fn leading_zeros(self) -> u32 {
                     let shift = ((core::mem::size_of::<$type>() << 3) - BITS) as u32;
                     (self.value << shift).leading_zeros()
                 }
 
                 /// Returns the number of leading ones in the binary representation of self.
+                #[inline]
                 pub const fn trailing_ones(self) -> u32 {
                     self.value.trailing_ones()
                 }
 
                 /// Returns the number of leading zeros in the binary representation of self.
+                #[inline]
                 pub const fn trailing_zeros(self) -> u32 {
                     self.value.trailing_zeros()
                 }
 
                 /// Shifts the bits to the left by a specified amount, n, wrapping the truncated bits to the end of the resulting integer.
                 /// Please note this isn't the same operation as the << shifting operator!
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn rotate_left(self, n: u32) -> Self {
                     let b = BITS as u32;
                     let n = if n >= b { n % b } else { n };
@@ -935,6 +947,8 @@ macro_rules! uint_impl {
 
                 /// Shifts the bits to the right by a specified amount, n, wrapping the truncated bits to the beginning of the resulting integer.
                 /// Please note this isn't the same operation as the >> shifting operator!
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn rotate_right(self, n: u32) -> Self {
                     let b = BITS as u32;
                     let n = if n >= b { n % b } else { n };
