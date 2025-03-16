@@ -378,7 +378,7 @@ macro_rules! uint_impl {
 
                 /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
                 /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient.
-                /// panics if start_bit+<number of bits> doesn't fit within an u8, e.g. u5::extract_u8(8, 4);
+                /// panics if `start_bit+<number of bits>` doesn't fit within an u8, e.g. `u5::extract_u8(8, 4)`;
                 #[inline]
                 pub const fn extract_u8(value: u8, start_bit: usize) -> Self {
                     assert!(start_bit + BITS <= 8);
@@ -392,7 +392,7 @@ macro_rules! uint_impl {
 
                 /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
                 /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if start_bit+<number of bits> doesn't fit within a u16, e.g. u15::extract_u16(8, 2);
+                /// panics if `start_bit+<number of bits>` doesn't fit within a u16, e.g. `u15::extract_u16(8, 2)`;
                 #[inline]
                 pub const fn extract_u16(value: u16, start_bit: usize) -> Self {
                     assert!(start_bit + BITS <= 16);
@@ -406,7 +406,7 @@ macro_rules! uint_impl {
 
                 /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
                 /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if start_bit+<number of bits> doesn't fit within a u32, e.g. u30::extract_u32(8, 4);
+                /// panics if `start_bit+<number of bits>` doesn't fit within a u32, e.g. `u30::extract_u32(8, 4)`;
                 #[inline]
                 pub const fn extract_u32(value: u32, start_bit: usize) -> Self {
                     assert!(start_bit + BITS <= 32);
@@ -420,7 +420,7 @@ macro_rules! uint_impl {
 
                 /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
                 /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if start_bit+<number of bits> doesn't fit within a u64, e.g. u60::extract_u64(8, 5);
+                /// panics if `start_bit+<number of bits>` doesn't fit within a u64, e.g. `u60::extract_u64(8, 5)`;
                 #[inline]
                 pub const fn extract_u64(value: u64, start_bit: usize) -> Self {
                     assert!(start_bit + BITS <= 64);
@@ -434,7 +434,7 @@ macro_rules! uint_impl {
 
                 /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
                 /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if start_bit+<number of bits> doesn't fit within a u128, e.g. u120::extract_u64(8, 9);
+                /// panics if `start_bit+<number of bits>` doesn't fit within a u128, e.g. `u120::extract_u64(8, 9)`;
                 #[inline]
                 pub const fn extract_u128(value: u128, start_bit: usize) -> Self {
                     assert!(start_bit + BITS <= 128);
