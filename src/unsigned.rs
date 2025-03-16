@@ -459,6 +459,20 @@ macro_rules! uint_impl {
                     UInt::<$type, BITS_RESULT> { value: self.value }
                 }
 
+                /// Wrapping (modular) addition. Computes `self + rhs`, wrapping around at the
+                /// boundary of the type.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!(u14::new(200).wrapping_add(u14::new(55)), u14::new(255));
+                /// assert_eq!(u14::new(200).wrapping_add(u14::MAX), u14::new(199));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_add(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_add(rhs.value);
                     Self {
@@ -466,6 +480,20 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Wrapping (modular) subtraction. Computes `self - rhs`, wrapping around at the
+                /// boundary of the type.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!(u14::new(100).wrapping_sub(u14::new(100)), u14::new(0));
+                /// assert_eq!(u14::new(100).wrapping_sub(u14::MAX), u14::new(101));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_sub(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_sub(rhs.value);
                     Self {
@@ -473,6 +501,20 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Wrapping (modular) multiplication. Computes `self * rhs`, wrapping around at the
+                /// boundary of the type.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::u7;
+                /// assert_eq!(u7::new(10).wrapping_mul(u7::new(12)), u7::new(120));
+                /// assert_eq!(u7::new(25).wrapping_mul(u7::new(12)), u7::new(44));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_mul(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_mul(rhs.value);
                     Self {
@@ -480,6 +522,26 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Wrapping (modular) division. Computes `self / rhs`.
+                ///
+                /// Wrapped division on unsigned types is just normal division. There’s no way
+                /// wrapping could ever happen. This function exists so that all operations are
+                /// accounted for in the wrapping operations.
+                ///
+                /// # Panics
+                ///
+                /// This function will panic if `rhs` is zero.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(100).wrapping_div(u14::new(10)), u14::new(10));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_div(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_div(rhs.value);
                     Self {
@@ -488,6 +550,25 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Panic-free bitwise shift-left; yields `self << mask(rhs)`, where mask
+                /// removes any high-order bits of `rhs` that would cause the shift to
+                /// exceed the bitwidth of the type.
+                ///
+                /// Note that this is not the same as a rotate-left; the RHS of a wrapping
+                /// shift-left is restricted to the range of the type, rather than the bits
+                /// shifted out of the LHS being returned to the other end.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(1).wrapping_shl(7), u14::new(128));
+                /// assert_eq!(u14::new(1).wrapping_shl(128), u14::new(4));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_shl(self, rhs: u32) -> Self {
                     // modulo is expensive on some platforms, so only do it when necessary
                     let shift_amount = if rhs >= (BITS as u32) {
@@ -505,6 +586,24 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Panic-free bitwise shift-right; yields `self >> mask(rhs)`, where mask removes any
+                /// high-order bits of `rhs` that would cause the shift to exceed the bitwidth of the type.
+                ///
+                /// Note that this is not the same as a rotate-right; the RHS of a wrapping shift-right is
+                /// restricted to the range of the type, rather than the bits shifted out of the LHS being
+                /// returned to the other end.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(128).wrapping_shr(7), u14::new(1));
+                /// assert_eq!(u14::new(128).wrapping_shr(128), u14::new(32));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_shr(self, rhs: u32) -> Self {
                     // modulo is expensive on some platforms, so only do it when necessary
                     let shift_amount = if rhs >= (BITS as u32) {
