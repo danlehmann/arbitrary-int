@@ -2022,7 +2022,7 @@ fn wrapping_shr_signed() {
 }
 
 #[test]
-fn saturating_add() {
+fn saturating_add_unsigned() {
     assert_eq!(u7::new(120).saturating_add(u7::new(1)), u7::new(121));
     assert_eq!(u7::new(120).saturating_add(u7::new(10)), u7::new(127));
     assert_eq!(u7::new(127).saturating_add(u7::new(127)), u7::new(127));
@@ -2033,7 +2033,27 @@ fn saturating_add() {
 }
 
 #[test]
-fn saturating_sub() {
+fn saturating_add_signed() {
+    assert_eq!(i7::new(60).saturating_add(i7::new(1)), i7::new(61));
+    assert_eq!(i7::new(60).saturating_add(i7::new(-1)), i7::new(59));
+
+    assert_eq!(i7::new(-60).saturating_add(i7::new(1)), i7::new(-59));
+    assert_eq!(i7::new(-60).saturating_add(i7::new(-1)), i7::new(-61));
+
+    assert_eq!(i7::new(63).saturating_add(i7::new(10)), i7::new(63));
+    assert_eq!(i7::new(63).saturating_add(i7::new(63)), i7::new(63));
+
+    assert_eq!(i7::new(-64).saturating_add(i7::new(-10)), i7::new(-64));
+    assert_eq!(i7::new(-64).saturating_add(i7::new(-64)), i7::new(-64));
+
+    assert_eq!(
+        Int::<i8, 8>::new(120).saturating_add(Int::<i8, 8>::new(10)),
+        Int::<i8, 8>::new(127)
+    );
+}
+
+#[test]
+fn saturating_sub_unsigned() {
     assert_eq!(u7::new(120).saturating_sub(u7::new(30)), u7::new(90));
     assert_eq!(u7::new(120).saturating_sub(u7::new(119)), u7::new(1));
     assert_eq!(u7::new(120).saturating_sub(u7::new(120)), u7::new(0));
@@ -2042,7 +2062,30 @@ fn saturating_sub() {
 }
 
 #[test]
-fn saturating_mul() {
+fn saturating_sub_signed() {
+    assert_eq!(i7::new(60).saturating_sub(i7::new(30)), i7::new(30));
+    assert_eq!(i7::new(-60).saturating_sub(i7::new(-30)), i7::new(-30));
+
+    assert_eq!(i7::new(30).saturating_sub(i7::new(-30)), i7::new(60));
+    assert_eq!(i7::new(-30).saturating_sub(i7::new(30)), i7::new(-60));
+
+    assert_eq!(i7::new(63).saturating_sub(i7::new(62)), i7::new(1));
+    assert_eq!(i7::new(-63).saturating_sub(i7::new(-64)), i7::new(1));
+
+    assert_eq!(i7::new(-2).saturating_sub(i7::new(63)), i7::new(-64));
+    assert_eq!(i7::new(60).saturating_sub(i7::new(-6)), i7::new(63));
+
+    assert_eq!(i7::new(63).saturating_sub(i7::new(-64)), i7::new(63));
+    assert_eq!(i7::new(-64).saturating_sub(i7::new(63)), i7::new(-64));
+
+    assert_eq!(
+        Int::<i8, 8>::new(-128).saturating_sub(Int::<i8, 8>::new(10)),
+        Int::<i8, 8>::new(-128)
+    );
+}
+
+#[test]
+fn saturating_mul_unsigned() {
     // Fast-path: Only the arbitrary int is bounds checked
     assert_eq!(u4::new(5).saturating_mul(u4::new(2)), u4::new(10));
     assert_eq!(u4::new(5).saturating_mul(u4::new(3)), u4::new(15));
@@ -2064,7 +2107,47 @@ fn saturating_mul() {
 }
 
 #[test]
-fn saturating_div() {
+fn saturating_mul_signed() {
+    // Fast-path: Only the arbitrary int is bounds checked
+    assert_eq!(i4::new(2).saturating_mul(i4::new(2)), i4::new(4));
+    assert_eq!(i4::new(2).saturating_mul(i4::new(3)), i4::new(6));
+    assert_eq!(i4::new(2).saturating_mul(i4::new(4)), i4::new(7));
+
+    assert_eq!(i4::new(-2).saturating_mul(i4::new(2)), i4::new(-4));
+    assert_eq!(i4::new(-2).saturating_mul(i4::new(3)), i4::new(-6));
+    assert_eq!(i4::new(-2).saturating_mul(i4::new(4)), i4::new(-8));
+
+    assert_eq!(i4::new(2).saturating_mul(i4::new(-2)), i4::new(-4));
+    assert_eq!(i4::new(2).saturating_mul(i4::new(-3)), i4::new(-6));
+    assert_eq!(i4::new(2).saturating_mul(i4::new(-4)), i4::new(-8));
+
+    assert_eq!(i4::new(-2).saturating_mul(i4::new(-2)), i4::new(4));
+    assert_eq!(i4::new(-2).saturating_mul(i4::new(-3)), i4::new(6));
+    assert_eq!(i4::new(-2).saturating_mul(i4::new(-4)), i4::new(7));
+
+    // Slow-path (well, one more comparison)
+    assert_eq!(i5::new(5).saturating_mul(i5::new(2)), i5::new(10));
+    assert_eq!(i5::new(5).saturating_mul(i5::new(3)), i5::new(15));
+    assert_eq!(i5::new(5).saturating_mul(i5::new(4)), i5::new(15));
+    assert_eq!(i5::new(5).saturating_mul(i5::new(5)), i5::new(15));
+    assert_eq!(i5::new(5).saturating_mul(i5::new(6)), i5::new(15));
+    assert_eq!(i5::new(5).saturating_mul(i5::new(7)), i5::new(15));
+
+    assert_eq!(i5::new(-5).saturating_mul(i5::new(2)), i5::new(-10));
+    assert_eq!(i5::new(-5).saturating_mul(i5::new(3)), i5::new(-15));
+    assert_eq!(i5::new(-5).saturating_mul(i5::new(4)), i5::new(-16));
+
+    assert_eq!(i5::new(5).saturating_mul(i5::new(-2)), i5::new(-10));
+    assert_eq!(i5::new(5).saturating_mul(i5::new(-3)), i5::new(-15));
+    assert_eq!(i5::new(5).saturating_mul(i5::new(-4)), i5::new(-16));
+
+    assert_eq!(i5::new(-5).saturating_mul(i5::new(-2)), i5::new(10));
+    assert_eq!(i5::new(-5).saturating_mul(i5::new(-3)), i5::new(15));
+    assert_eq!(i5::new(-5).saturating_mul(i5::new(-4)), i5::new(15));
+}
+
+#[test]
+fn saturating_div_unsigned() {
     assert_eq!(u4::new(5).saturating_div(u4::new(1)), u4::new(5));
     assert_eq!(u4::new(5).saturating_div(u4::new(2)), u4::new(2));
     assert_eq!(u4::new(5).saturating_div(u4::new(3)), u4::new(1));
@@ -2074,19 +2157,72 @@ fn saturating_div() {
 
 #[test]
 #[should_panic]
-fn saturating_divby0() {
+fn saturating_divby0_unsigned() {
     // saturating_div throws an exception on zero
     let _ = u4::new(5).saturating_div(u4::new(0));
 }
 
 #[test]
-fn saturating_pow() {
+fn saturating_div_signed() {
+    assert_eq!(i5::MIN.saturating_div(i5::new(-1)), i5::MAX);
+
+    assert_eq!(i5::new(5).saturating_div(i5::new(1)), i5::new(5));
+    assert_eq!(i5::new(5).saturating_div(i5::new(2)), i5::new(2));
+    assert_eq!(i5::new(5).saturating_div(i5::new(3)), i5::new(1));
+    assert_eq!(i5::new(5).saturating_div(i5::new(4)), i5::new(1));
+    assert_eq!(i5::new(5).saturating_div(i5::new(5)), i5::new(1));
+
+    assert_eq!(i5::new(-5).saturating_div(i5::new(1)), i5::new(-5));
+    assert_eq!(i5::new(-5).saturating_div(i5::new(2)), i5::new(-2));
+    assert_eq!(i5::new(-5).saturating_div(i5::new(3)), i5::new(-1));
+    assert_eq!(i5::new(-5).saturating_div(i5::new(4)), i5::new(-1));
+    assert_eq!(i5::new(-5).saturating_div(i5::new(5)), i5::new(-1));
+
+    assert_eq!(i5::new(5).saturating_div(i5::new(-1)), i5::new(-5));
+    assert_eq!(i5::new(5).saturating_div(i5::new(-2)), i5::new(-2));
+    assert_eq!(i5::new(5).saturating_div(i5::new(-3)), i5::new(-1));
+    assert_eq!(i5::new(5).saturating_div(i5::new(-4)), i5::new(-1));
+    assert_eq!(i5::new(5).saturating_div(i5::new(-5)), i5::new(-1));
+
+    assert_eq!(i5::new(-5).saturating_div(i5::new(-1)), i5::new(5));
+    assert_eq!(i5::new(-5).saturating_div(i5::new(-2)), i5::new(2));
+    assert_eq!(i5::new(-5).saturating_div(i5::new(-3)), i5::new(1));
+    assert_eq!(i5::new(-5).saturating_div(i5::new(-4)), i5::new(1));
+    assert_eq!(i5::new(-5).saturating_div(i5::new(-5)), i5::new(1));
+}
+
+#[test]
+#[should_panic]
+fn saturating_divby0_signed() {
+    // saturating_div throws an exception on zero
+    let _ = i4::new(5).saturating_div(i4::new(0));
+}
+
+#[test]
+fn saturating_pow_unsigned() {
     assert_eq!(u7::new(5).saturating_pow(0), u7::new(1));
     assert_eq!(u7::new(5).saturating_pow(1), u7::new(5));
     assert_eq!(u7::new(5).saturating_pow(2), u7::new(25));
     assert_eq!(u7::new(5).saturating_pow(3), u7::new(125));
     assert_eq!(u7::new(5).saturating_pow(4), u7::new(127));
     assert_eq!(u7::new(5).saturating_pow(255), u7::new(127));
+}
+
+#[test]
+fn saturating_pow_signed() {
+    assert_eq!(i7::new(5).saturating_pow(0), i7::new(1));
+    assert_eq!(i7::new(5).saturating_pow(1), i7::new(5));
+    assert_eq!(i7::new(5).saturating_pow(2), i7::new(25));
+    assert_eq!(i7::new(5).saturating_pow(3), i7::new(63));
+    assert_eq!(i7::new(5).saturating_pow(4), i7::new(63));
+    assert_eq!(i7::new(5).saturating_pow(255), i7::new(63));
+
+    assert_eq!(i7::new(-5).saturating_pow(0), i7::new(1));
+    assert_eq!(i7::new(-5).saturating_pow(1), i7::new(-5));
+    assert_eq!(i7::new(-5).saturating_pow(2), i7::new(25));
+    assert_eq!(i7::new(-5).saturating_pow(3), i7::new(-64));
+    assert_eq!(i7::new(-5).saturating_pow(4), i7::new(63));
+    assert_eq!(i7::new(-5).saturating_pow(255), i7::new(-64));
 }
 
 #[test]

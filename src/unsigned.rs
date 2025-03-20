@@ -378,7 +378,7 @@ macro_rules! uint_impl {
 
                 /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
                 /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient.
-                /// panics if start_bit+<number of bits> doesn't fit within an u8, e.g. u5::extract_u8(8, 4);
+                /// panics if `start_bit+<number of bits>` doesn't fit within an u8, e.g. `u5::extract_u8(8, 4)`;
                 #[inline]
                 pub const fn extract_u8(value: u8, start_bit: usize) -> Self {
                     assert!(start_bit + BITS <= 8);
@@ -392,7 +392,7 @@ macro_rules! uint_impl {
 
                 /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
                 /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if start_bit+<number of bits> doesn't fit within a u16, e.g. u15::extract_u16(8, 2);
+                /// panics if `start_bit+<number of bits>` doesn't fit within a u16, e.g. `u15::extract_u16(8, 2)`;
                 #[inline]
                 pub const fn extract_u16(value: u16, start_bit: usize) -> Self {
                     assert!(start_bit + BITS <= 16);
@@ -406,7 +406,7 @@ macro_rules! uint_impl {
 
                 /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
                 /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if start_bit+<number of bits> doesn't fit within a u32, e.g. u30::extract_u32(8, 4);
+                /// panics if `start_bit+<number of bits>` doesn't fit within a u32, e.g. `u30::extract_u32(8, 4)`;
                 #[inline]
                 pub const fn extract_u32(value: u32, start_bit: usize) -> Self {
                     assert!(start_bit + BITS <= 32);
@@ -420,7 +420,7 @@ macro_rules! uint_impl {
 
                 /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
                 /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if start_bit+<number of bits> doesn't fit within a u64, e.g. u60::extract_u64(8, 5);
+                /// panics if `start_bit+<number of bits>` doesn't fit within a u64, e.g. `u60::extract_u64(8, 5)`;
                 #[inline]
                 pub const fn extract_u64(value: u64, start_bit: usize) -> Self {
                     assert!(start_bit + BITS <= 64);
@@ -434,7 +434,7 @@ macro_rules! uint_impl {
 
                 /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
                 /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if start_bit+<number of bits> doesn't fit within a u128, e.g. u120::extract_u64(8, 9);
+                /// panics if `start_bit+<number of bits>` doesn't fit within a u128, e.g. `u120::extract_u64(8, 9)`;
                 #[inline]
                 pub const fn extract_u128(value: u128, start_bit: usize) -> Self {
                     assert!(start_bit + BITS <= 128);
@@ -446,7 +446,9 @@ macro_rules! uint_impl {
                     }
                 }
 
-                /// Returns a UInt with a wider bit depth but with the same base data type
+                /// Returns a [`UInt`] with a wider bit depth but with the same base data type
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn widen<const BITS_RESULT: usize>(
                     self,
                 ) -> UInt<$type, BITS_RESULT> {
@@ -459,6 +461,20 @@ macro_rules! uint_impl {
                     UInt::<$type, BITS_RESULT> { value: self.value }
                 }
 
+                /// Wrapping (modular) addition. Computes `self + rhs`, wrapping around at the
+                /// boundary of the type.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!(u14::new(200).wrapping_add(u14::new(55)), u14::new(255));
+                /// assert_eq!(u14::new(200).wrapping_add(u14::MAX), u14::new(199));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_add(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_add(rhs.value);
                     Self {
@@ -466,6 +482,20 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Wrapping (modular) subtraction. Computes `self - rhs`, wrapping around at the
+                /// boundary of the type.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!(u14::new(100).wrapping_sub(u14::new(100)), u14::new(0));
+                /// assert_eq!(u14::new(100).wrapping_sub(u14::MAX), u14::new(101));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_sub(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_sub(rhs.value);
                     Self {
@@ -473,6 +503,20 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Wrapping (modular) multiplication. Computes `self * rhs`, wrapping around at the
+                /// boundary of the type.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::u7;
+                /// assert_eq!(u7::new(10).wrapping_mul(u7::new(12)), u7::new(120));
+                /// assert_eq!(u7::new(25).wrapping_mul(u7::new(12)), u7::new(44));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_mul(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_mul(rhs.value);
                     Self {
@@ -480,6 +524,26 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Wrapping (modular) division. Computes `self / rhs`.
+                ///
+                /// Wrapped division on unsigned types is just normal division. There’s no way
+                /// wrapping could ever happen. This function exists so that all operations are
+                /// accounted for in the wrapping operations.
+                ///
+                /// # Panics
+                ///
+                /// This function will panic if `rhs` is zero.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(100).wrapping_div(u14::new(10)), u14::new(10));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_div(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_div(rhs.value);
                     Self {
@@ -488,6 +552,25 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Panic-free bitwise shift-left; yields `self << mask(rhs)`, where mask
+                /// removes any high-order bits of `rhs` that would cause the shift to
+                /// exceed the bitwidth of the type.
+                ///
+                /// Note that this is not the same as a rotate-left; the RHS of a wrapping
+                /// shift-left is restricted to the range of the type, rather than the bits
+                /// shifted out of the LHS being returned to the other end.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(1).wrapping_shl(7), u14::new(128));
+                /// assert_eq!(u14::new(1).wrapping_shl(128), u14::new(4));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_shl(self, rhs: u32) -> Self {
                     // modulo is expensive on some platforms, so only do it when necessary
                     let shift_amount = if rhs >= (BITS as u32) {
@@ -505,6 +588,24 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Panic-free bitwise shift-right; yields `self >> mask(rhs)`, where mask removes any
+                /// high-order bits of `rhs` that would cause the shift to exceed the bitwidth of the type.
+                ///
+                /// Note that this is not the same as a rotate-right; the RHS of a wrapping shift-right is
+                /// restricted to the range of the type, rather than the bits shifted out of the LHS being
+                /// returned to the other end.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(128).wrapping_shr(7), u14::new(1));
+                /// assert_eq!(u14::new(128).wrapping_shr(128), u14::new(32));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_shr(self, rhs: u32) -> Self {
                     // modulo is expensive on some platforms, so only do it when necessary
                     let shift_amount = if rhs >= (BITS as u32) {
@@ -518,9 +619,25 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Saturating integer addition. Computes `self + rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!(u14::new(100).saturating_add(u14::new(1)), u14::new(101));
+                /// assert_eq!(u14::MAX.saturating_add(u14::new(100)), u14::MAX);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_add(self, rhs: Self) -> Self {
                     let saturated = if core::mem::size_of::<$type>() << 3 == BITS {
-                        // We are something like a UInt::<u8; 8>. We can fallback to the base implementation
+                        // We are something like a UInt::<u8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_add` instead of `saturating_add` in the common case, which is faster.
                         self.value.saturating_add(rhs.value)
                     } else {
                         // We're dealing with fewer bits than the underlying type (e.g. u7).
@@ -534,6 +651,20 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Saturating integer subtraction. Computes `self - rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(100).saturating_sub(u14::new(27)), u14::new(73));
+                /// assert_eq!(u14::new(13).saturating_sub(u14::new(127)), u14::new(0));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_sub(self, rhs: Self) -> Self {
                     // For unsigned numbers, the only difference is when we reach 0 - which is the same
                     // no matter the data size
@@ -542,6 +673,20 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Saturating integer multiplication. Computes `self * rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!(u14::new(2).saturating_mul(u14::new(10)), u14::new(20));
+                /// assert_eq!(u14::MAX.saturating_mul(u14::new(10)), u14::MAX);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_mul(self, rhs: Self) -> Self {
                     let product = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
                         // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
@@ -559,6 +704,23 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Saturating integer division. Computes `self / rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Panics
+                ///
+                /// This function will panic if rhs is zero.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(5).saturating_div(u14::new(2)), u14::new(2));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_div(self, rhs: Self) -> Self {
                     // When dividing unsigned numbers, we never need to saturate.
                     // Division by zero in saturating_div throws an exception (in debug and release mode),
@@ -568,9 +730,23 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Saturating integer exponentiation. Computes `self.pow(exp)`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!(u14::new(4).saturating_pow(3), u14::new(64));
+                /// assert_eq!(u14::MAX.saturating_pow(2), u14::MAX);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_pow(self, exp: u32) -> Self {
                     // It might be possible to handwrite this to be slightly faster as both
-                    // saturating_pow has to do a bounds-check and then we do second one
+                    // `saturating_pow` has to do a bounds-check and then we do second one.
                     let powed = self.value.saturating_pow(exp);
                     let max = Self::MAX.value();
                     let saturated = if powed > max { max } else { powed };
@@ -708,18 +884,22 @@ macro_rules! uint_impl {
                 }
 
                 /// Reverses the order of bits in the integer. The least significant bit becomes the most significant bit, second least-significant bit becomes second most-significant bit, etc.
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn reverse_bits(self) -> Self {
                     let shift_right = (core::mem::size_of::<$type>() << 3) - BITS;
                     Self { value: self.value.reverse_bits() >> shift_right }
                 }
 
                 /// Returns the number of ones in the binary representation of self.
+                #[inline]
                 pub const fn count_ones(self) -> u32 {
                     // The upper bits are zero, so we can ignore them
                     self.value.count_ones()
                 }
 
                 /// Returns the number of zeros in the binary representation of self.
+                #[inline]
                 pub const fn count_zeros(self) -> u32 {
                     // The upper bits are zero, so we can have to subtract them from the result
                     let filler_bits = ((core::mem::size_of::<$type>() << 3) - BITS) as u32;
@@ -727,29 +907,35 @@ macro_rules! uint_impl {
                 }
 
                 /// Returns the number of leading ones in the binary representation of self.
+                #[inline]
                 pub const fn leading_ones(self) -> u32 {
                     let shift = ((core::mem::size_of::<$type>() << 3) - BITS) as u32;
                     (self.value << shift).leading_ones()
                 }
 
                 /// Returns the number of leading zeros in the binary representation of self.
+                #[inline]
                 pub const fn leading_zeros(self) -> u32 {
                     let shift = ((core::mem::size_of::<$type>() << 3) - BITS) as u32;
                     (self.value << shift).leading_zeros()
                 }
 
                 /// Returns the number of leading ones in the binary representation of self.
+                #[inline]
                 pub const fn trailing_ones(self) -> u32 {
                     self.value.trailing_ones()
                 }
 
                 /// Returns the number of leading zeros in the binary representation of self.
+                #[inline]
                 pub const fn trailing_zeros(self) -> u32 {
                     self.value.trailing_zeros()
                 }
 
                 /// Shifts the bits to the left by a specified amount, n, wrapping the truncated bits to the end of the resulting integer.
                 /// Please note this isn't the same operation as the << shifting operator!
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn rotate_left(self, n: u32) -> Self {
                     let b = BITS as u32;
                     let n = if n >= b { n % b } else { n };
@@ -761,6 +947,8 @@ macro_rules! uint_impl {
 
                 /// Shifts the bits to the right by a specified amount, n, wrapping the truncated bits to the beginning of the resulting integer.
                 /// Please note this isn't the same operation as the >> shifting operator!
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn rotate_right(self, n: u32) -> Self {
                     let b = BITS as u32;
                     let n = if n >= b { n % b } else { n };

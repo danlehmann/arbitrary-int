@@ -365,6 +365,7 @@ macro_rules! int_impl {
                 /// ```
                 /// To convert from the bitwise representation back to an instance, use [`Self::from_bits`].
                 #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn to_bits(self) -> $unsigned_type {
                     (self.value() & Self::MASK) as $unsigned_type
                 }
@@ -452,6 +453,8 @@ macro_rules! int_impl {
                 }
 
                 /// Returns an [`Int`] with a wider bit depth but with the same base data type
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn widen<const BITS_RESULT: usize>(self) -> Int<$type, BITS_RESULT> {
                     const { assert!(BITS < BITS_RESULT, "Can not call widen() with the given bit widths") };
 
@@ -460,6 +463,20 @@ macro_rules! int_impl {
                     Int::<$type, BITS_RESULT> { value: self.value }
                 }
 
+                /// Wrapping (modular) addition. Computes `self + rhs`, wrapping around at the
+                /// boundary of the type.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(100).wrapping_add(i14::new(27)), i14::new(127));
+                /// assert_eq!(i14::MAX.wrapping_add(i14::new(2)), i14::MIN + i14::new(1));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_add(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_add(rhs.value);
                     Self {
@@ -467,6 +484,20 @@ macro_rules! int_impl {
                     }
                 }
 
+                /// Wrapping (modular) subtraction. Computes `self - rhs`, wrapping around at the
+                /// boundary of the type.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(0).wrapping_sub(i14::new(127)), i14::new(-127));
+                /// assert_eq!(i14::new(-2).wrapping_sub(i14::MAX), i14::MAX);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_sub(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_sub(rhs.value);
                     Self {
@@ -474,6 +505,20 @@ macro_rules! int_impl {
                     }
                 }
 
+                /// Wrapping (modular) multiplication. Computes `self * rhs`, wrapping around at the
+                /// boundary of the type.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::i14;
+                /// assert_eq!(i14::new(10).wrapping_mul(i14::new(12)), i14::new(120));
+                /// assert_eq!(i14::new(12).wrapping_mul(i14::new(1024)), i14::new(-4096));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_mul(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_mul(rhs.value);
                     Self {
@@ -481,6 +526,29 @@ macro_rules! int_impl {
                     }
                 }
 
+                /// Wrapping (modular) division. Computes `self / rhs`, wrapping around at the
+                /// boundary of the type.
+                ///
+                /// The only case where such wrapping can occur is when one divides `MIN / -1` on a
+                /// signed type (where `MIN` is the negative minimal value for the type); this is
+                /// equivalent to `-MIN`, a positive value that is too large to represent in the type.
+                /// In such a case, this function returns `MIN` itself.
+                ///
+                /// # Panics
+                ///
+                /// This function will panic if `rhs` is zero.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(100).wrapping_div(i14::new(10)), i14::new(10));
+                /// assert_eq!(i14::MIN.wrapping_div(i14::new(-1)), i14::MIN);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_div(self, rhs: Self) -> Self {
                     let sum = self.value.wrapping_div(rhs.value);
                     Self {
@@ -490,6 +558,24 @@ macro_rules! int_impl {
                     }
                 }
 
+                /// Panic-free bitwise shift-left; yields `self << mask(rhs)`, where mask removes any
+                /// high-order bits of `rhs` that would cause the shift to exceed the bitwidth of the type.
+                ///
+                /// Note that this is not the same as a rotate-left; the RHS of a wrapping shift-left is
+                /// restricted to the range of the type, rather than the bits shifted out of the LHS being
+                /// returned to the other end.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::i14;
+                /// assert_eq!(i14::new(-1).wrapping_shl(7), i14::new(-128));
+                /// assert_eq!(i14::new(-1).wrapping_shl(128), i14::new(-4));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_shl(self, rhs: u32) -> Self {
                     // modulo is expensive on some platforms, so only do it when necessary
                     let shift_amount = Self::UNUSED_BITS as u32 + (if rhs >= BITS as u32 {
@@ -507,6 +593,24 @@ macro_rules! int_impl {
                     }
                 }
 
+                /// Panic-free bitwise shift-right; yields `self >> mask(rhs)`, where mask removes any
+                /// high-order bits of `rhs` that would cause the shift to exceed the bitwidth of the type.
+                ///
+                /// Note that this is not the same as a rotate-right; the RHS of a wrapping shift-right is
+                /// restricted to the range of the type, rather than the bits shifted out of the LHS being
+                /// returned to the other end.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::i14;
+                /// assert_eq!(i14::new(-128).wrapping_shr(7), i14::new(-1));
+                /// assert_eq!(i14::new(-128).wrapping_shr(60), i14::new(-8));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_shr(self, rhs: u32) -> Self {
                     // modulo is expensive on some platforms, so only do it when necessary
                     let shift_amount = if rhs >= (BITS as u32) {
@@ -517,6 +621,173 @@ macro_rules! int_impl {
 
                     Self {
                         value: (self.value >> shift_amount),
+                    }
+                }
+
+                /// Saturating integer addition. Computes `self + rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(100).saturating_add(i14::new(1)), i14::new(101));
+                /// assert_eq!(i14::MAX.saturating_add(i14::new(100)), i14::MAX);
+                /// assert_eq!(i14::MIN.saturating_add(i14::new(-1)), i14::MIN);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn saturating_add(self, rhs: Self) -> Self {
+                    if Self::UNUSED_BITS == 0 {
+                        // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_add` instead of `saturating_add` in the common case, which is faster.
+                        let value = self.value.saturating_add(rhs.value);
+                        Self { value }
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. i7).
+                        // That means the addition can never overflow the underlying type.
+                        let value = self.value.wrapping_add(rhs.value);
+                        if value > Self::MAX.value {
+                            Self::MAX
+                        } else if value < Self::MIN.value {
+                            Self::MIN
+                        } else {
+                            Self { value }
+                        }
+                    }
+                }
+
+                /// Saturating integer subtraction. Computes `self - rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(100).saturating_sub(i14::new(127)), i14::new(-27));
+                /// assert_eq!(i14::MIN.saturating_sub(i14::new(100)), i14::MIN);
+                /// assert_eq!(i14::MAX.saturating_sub(i14::new(-1)), i14::MAX);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn saturating_sub(self, rhs: Self) -> Self {
+                    if Self::UNUSED_BITS == 0 {
+                        // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_sub` instead of `saturating_sub` in the common case, which is faster.
+                        let value = self.value.saturating_sub(rhs.value);
+                        Self { value }
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. i7).
+                        // That means the subtraction can never overflow the underlying type.
+                        let value = self.value.wrapping_sub(rhs.value);
+                        if value > Self::MAX.value {
+                            Self::MAX
+                        } else if value < Self::MIN.value {
+                            Self::MIN
+                        } else {
+                            Self { value }
+                        }
+                    }
+                }
+
+                /// Saturating integer multiplication. Computes `self * rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(10).saturating_mul(i14::new(12)), i14::new(120));
+                /// assert_eq!(i14::MAX.saturating_mul(i14::new(10)), i14::MAX);
+                /// assert_eq!(i14::MIN.saturating_mul(i14::new(10)), i14::MIN);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn saturating_mul(self, rhs: Self) -> Self {
+                    let value = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                        // We have half the bits (e.g. i4 * i4) of the base type, so we can't overflow the base type
+                        // `wrapping_mul` likely provides the best performance on all cpus
+                        self.value.wrapping_mul(rhs.value)
+                    } else {
+                        // We have more than half the bits (e.g. i6 * i6)
+                        self.value.saturating_mul(rhs.value)
+                    };
+
+                    if value > Self::MAX.value {
+                        Self::MAX
+                    } else if value < Self::MIN.value {
+                        Self::MIN
+                    } else {
+                        Self { value }
+                    }
+                }
+
+                /// Saturating integer division. Computes `self / rhs`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Panics
+                ///
+                /// This function will panic if rhs is zero.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(5).saturating_div(i14::new(2)), i14::new(2));
+                /// assert_eq!(i14::MAX.saturating_div(i14::new(-1)), i14::MIN + i14::new(1));
+                /// assert_eq!(i14::MIN.saturating_div(i14::new(-1)), i14::MAX);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn saturating_div(self, rhs: Self) -> Self {
+                    // As `Self::MIN / -1` is equal to `Self::MAX + 1` we always need to check for overflow.
+                    let value = self.value.saturating_div(rhs.value);
+
+                    if value > Self::MAX.value {
+                        Self::MAX
+                    } else if value < Self::MIN.value {
+                        Self::MIN
+                    } else {
+                        Self { value }
+                    }
+                }
+
+                /// Saturating integer exponentiation. Computes `self.pow(exp)`, saturating at the numeric
+                /// bounds instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(-4).saturating_pow(3), i14::new(-64));
+                /// assert_eq!(i14::MIN.saturating_pow(2), i14::MAX);
+                /// assert_eq!(i14::MIN.saturating_pow(3), i14::MIN);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn saturating_pow(self, exp: u32) -> Self {
+                    // It might be possible to handwrite this to be slightly faster as both
+                    // `saturating_pow` has to do a bounds-check and then we do second one.
+                    let value = self.value.saturating_pow(exp);
+
+                    if value > Self::MAX.value {
+                        Self::MAX
+                    } else if value < Self::MIN.value {
+                        Self::MIN
+                    } else {
+                        Self { value }
                     }
                 }
             }
