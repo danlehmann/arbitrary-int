@@ -6,7 +6,7 @@
 
 - New types for signed integers: `i1`, ..., `i127`. They have a similar API to unsigned integers, though a few
   features currently remain exclusive to unsigned integers:
-    * Support for the following optional Cargo features: `serde`, `step_trait`, `defmt`, `borsh` and `schemars`
+    * Support for the following optional Cargo features: `step_trait`, `defmt`, `borsh` and `schemars`
     * Byte operations (`to_ne_bytes`, ...)
     * Extract functions (`extract_i8`, ...)
     * Checked arithmetic functions (`checked_add`, ...)

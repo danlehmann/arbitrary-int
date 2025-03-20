@@ -1129,6 +1129,65 @@ where
     }
 }
 
+// Serde's invalid_value error (https://rust-lang.github.io/hashbrown/serde/de/trait.Error.html#method.invalid_value)
+// takes an Unexpected (https://rust-lang.github.io/hashbrown/serde/de/enum.Unexpected.html) which only accepts a 64 bit
+// integer. This is a problem for us because we want to support 128 bit integers. To work around this we define our own
+// error type using the Int's underlying type which implements Display and then use serde::de::Error::custom to create
+// an error with our custom type.
+#[cfg(feature = "serde")]
+struct InvalidIntValueError<T>
+where
+    T: SignedNumber,
+    T::UnderlyingType: fmt::Display,
+{
+    value: T::UnderlyingType,
+}
+
+#[cfg(feature = "serde")]
+impl<T> fmt::Display for InvalidIntValueError<T>
+where
+    T: SignedNumber,
+    T::UnderlyingType: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "invalid value: integer `{}`, expected a value between `{}` and `{}`",
+            self.value,
+            T::MIN.value(),
+            T::MAX.value()
+        )
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<T, const BITS: usize> serde::Serialize for Int<T, BITS>
+where
+    T: serde::Serialize,
+{
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.value.serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, T, const BITS: usize> serde::Deserialize<'de> for Int<T, BITS>
+where
+    Self: SignedNumber<UnderlyingType = T>,
+    T: fmt::Display + PartialOrd + serde::Deserialize<'de>,
+{
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = T::deserialize(deserializer)?;
+
+        if value >= Self::MIN.value && value <= Self::MAX.value {
+            Ok(Self { value })
+        } else {
+            let err = InvalidIntValueError::<Self> { value };
+            Err(serde::de::Error::custom(err))
+        }
+    }
+}
+
 // Conversions
 from_arbitrary_int_impl!(Int(i8), [i16, i32, i64, i128]);
 from_arbitrary_int_impl!(Int(i16), [i8, i32, i64, i128]);

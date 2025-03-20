@@ -2639,8 +2639,8 @@ fn steps_between() {
 
 #[cfg(feature = "serde")]
 #[test]
-fn serde() {
-    use serde_test::{assert_de_tokens_error, assert_tokens, Token};
+fn serde_unsigned() {
+    use serde_test::{assert_de_tokens, assert_de_tokens_error, assert_tokens, Token};
 
     let a = u7::new(0b0101_0101);
     assert_tokens(&a, &[Token::U8(0b0101_0101)]);
@@ -2661,6 +2661,52 @@ fn serde() {
         &[Token::I64(-1)],
         "invalid value: integer `-1`, expected u128",
     );
+
+    // Ensure that integer conversion is allowed as long as the values are within range.
+    // This matches the behavior of primitive types: https://docs.rs/serde/1.0.219/src/serde/de/impls.rs.html#302
+    assert_de_tokens(&u7::new(0), &[Token::I8(0)]);
+    assert_de_tokens(&u7::new(15), &[Token::I8(15)]);
+    assert_de_tokens(&u7::MAX, &[Token::I8(i8::MAX)]);
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn serde_signed() {
+    use serde_test::{assert_de_tokens, assert_de_tokens_error, assert_tokens, Token};
+
+    let a = i7::new(55);
+    assert_tokens(&a, &[Token::I8(55)]);
+
+    let b = i7::new(-64);
+    assert_tokens(&b, &[Token::I8(-64)]);
+
+    let c = i63::new(0x1234_5678_9ABC_DEFE);
+    assert_tokens(&c, &[Token::I64(0x1234_5678_9ABC_DEFE)]);
+
+    // This requires https://github.com/serde-rs/test/issues/18 (Add Token::I128 and Token::U128 to serde_test)
+    // let c = u127::new(0x1234_5678_9ABC_DEFE_DCBA_9876_5432_1010);
+    // assert_tokens(&c, &[Token::U128(0x1234_5678_9ABC_DEFE_DCBA_9876_5432_1010)]);
+
+    assert_de_tokens_error::<i2>(
+        &[Token::U8(85)],
+        "invalid value: integer `85`, expected a value between `-2` and `1`",
+    );
+
+    assert_de_tokens_error::<i7>(
+        &[Token::I8(i8::MIN)],
+        "invalid value: integer `-128`, expected a value between `-64` and `63`",
+    );
+
+    assert_de_tokens_error::<i63>(
+        &[Token::U64(i64::MAX as u64 + 1)],
+        "invalid value: integer `9223372036854775808`, expected i64",
+    );
+
+    // Ensure that integer conversion is allowed as long as the values are within range.
+    // This matches the behavior of primitive types: https://docs.rs/serde/1.0.219/src/serde/de/impls.rs.html#347
+    assert_de_tokens(&i7::new(0), &[Token::U8(0)]);
+    assert_de_tokens(&i7::new(15), &[Token::U8(15)]);
+    assert_de_tokens(&i7::MAX, &[Token::U8(i7::MAX.value() as u8)]);
 }
 
 #[cfg(feature = "borsh")]

@@ -1444,27 +1444,35 @@ where
 // we define our own error type using the UInt's underlying type which implements Display and then use
 // serde::de::Error::custom to create an error with our custom type.
 #[cfg(feature = "serde")]
-struct InvalidUIntValueError<T: Display> {
-    value: T,
-    max: T,
+struct InvalidUIntValueError<T>
+where
+    T: Number,
+    T::UnderlyingType: Display,
+{
+    value: T::UnderlyingType,
 }
 
 #[cfg(feature = "serde")]
-impl<T: Display> Display for InvalidUIntValueError<T> {
+impl<T> Display for InvalidUIntValueError<T>
+where
+    T: Number,
+    T::UnderlyingType: Display,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "invalid value: integer `{}`, expected a value between `0` and `{}`",
-            self.value, self.max
+            self.value,
+            T::MAX.value()
         )
     }
 }
 
 #[cfg(feature = "serde")]
-impl<'de, T: Display, const BITS: usize> Deserialize<'de> for UInt<T, BITS>
+impl<'de, T, const BITS: usize> Deserialize<'de> for UInt<T, BITS>
 where
-    Self: Number,
-    T: Deserialize<'de> + PartialOrd,
+    Self: Number<UnderlyingType = T>,
+    T: Display + PartialOrd + Deserialize<'de>,
 {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = T::deserialize(deserializer)?;
@@ -1472,10 +1480,8 @@ where
         if value <= Self::MAX.value {
             Ok(Self { value })
         } else {
-            Err(serde::de::Error::custom(InvalidUIntValueError {
-                value,
-                max: Self::MAX.value,
-            }))
+            let err = InvalidUIntValueError::<Self> { value };
+            Err(serde::de::Error::custom(err))
         }
     }
 }
