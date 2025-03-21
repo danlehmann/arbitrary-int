@@ -3,9 +3,21 @@
 // Define type aliases like u1, u63 and u80 (and their signed equivalents) using the smallest possible underlying data type.
 // These are for convenience only - UInt<u32, 15> is still legal
 macro_rules! type_alias {
-    ($ty:ident($storage:ty), $(($name:ident, $bits:expr)),+) => {
-        $( pub type $name = crate::$ty<$storage, $bits>; )+
-    }
+    ($(($storage:literal, $start:literal..=$end:literal)), +$(,)? ) => {
+        paste::paste! {
+            $(
+                seq_macro::seq!(N in $start..=$end {
+                    #(
+                        #[allow(non_camel_case_types)]
+                        pub type u~N = crate::UInt<[< u $storage >], N>;
+
+                        #[allow(non_camel_case_types)]
+                        pub type i~N = crate::Int<[< i $storage >], N>;
+                    )*
+                });
+            )*
+        }
+    };
 }
 
 pub(crate) use type_alias;
