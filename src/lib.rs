@@ -8,6 +8,12 @@
 #[cfg(all(feature = "borsh", not(feature = "std")))]
 extern crate alloc;
 
+#[cfg(feature = "arbitrary")]
+mod arbitrary_impl;
+
+#[cfg(feature = "quickcheck")]
+mod quickcheck_impl;
+
 use core::fmt;
 
 mod common;
@@ -25,3 +31,10 @@ impl fmt::Display for TryNewError {
         write!(f, "Value too large to fit within this integer type")
     }
 }
+
+pub use aliases::*;
+
+mod aliases {
+    super::common::type_alias!((8, 1..=7), (16, 9..=15), (32, 17..=31), (64, 33..=63), (128, 65..=127));
+}
+
