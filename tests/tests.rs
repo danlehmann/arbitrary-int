@@ -2476,7 +2476,7 @@ fn overflowing_shr() {
 }
 
 #[test]
-fn reverse_bits() {
+fn reverse_bits_unsigned() {
     const A: u5 = u5::new(0b11101);
     const B: u5 = A.reverse_bits();
     assert_eq!(B, u5::new(0b10111));
@@ -2491,7 +2491,22 @@ fn reverse_bits() {
 }
 
 #[test]
-fn count_ones_and_zeros() {
+fn reverse_bits_signed() {
+    const A: i5 = i5::from_bits(0b11101);
+    const B: i5 = A.reverse_bits();
+    assert_eq!(B, i5::from_bits(0b10111));
+
+    assert_eq!(
+        Int::<i128, 6>::from_bits(0b101011),
+        Int::<i128, 6>::from_bits(0b110101).reverse_bits()
+    );
+
+    assert_eq!(i1::new(0).reverse_bits().value(), 0);
+    assert_eq!(i1::new(-1).reverse_bits().value(), -1);
+}
+
+#[test]
+fn count_ones_and_zeros_unsigned() {
     assert_eq!(4, u5::new(0b10111).count_ones());
     assert_eq!(1, u5::new(0b10111).count_zeros());
     assert_eq!(1, u5::new(0b10111).leading_ones());
@@ -2504,16 +2519,54 @@ fn count_ones_and_zeros() {
 
     assert_eq!(0, u5::new(0b00000).count_ones());
     assert_eq!(5, u5::new(0b00000).count_zeros());
+    assert_eq!(0, u5::new(0b00000).leading_ones());
+    assert_eq!(5, u5::new(0b00000).leading_zeros());
+    assert_eq!(0, u5::new(0b00000).trailing_ones());
+    assert_eq!(5, u5::new(0b00000).trailing_zeros());
 
     assert_eq!(5, u5::new(0b11111).count_ones());
     assert_eq!(0, u5::new(0b11111).count_zeros());
+    assert_eq!(5, u5::new(0b11111).leading_ones());
+    assert_eq!(0, u5::new(0b11111).leading_zeros());
+    assert_eq!(5, u5::new(0b11111).trailing_ones());
+    assert_eq!(0, u5::new(0b11111).trailing_zeros());
 
     assert_eq!(3, u127::new(0b111).count_ones());
     assert_eq!(124, u127::new(0b111).count_zeros());
 }
 
 #[test]
-fn rotate_left() {
+fn count_ones_and_zeros_signed() {
+    assert_eq!(4, i5::from_bits(0b10111).count_ones());
+    assert_eq!(1, i5::from_bits(0b10111).count_zeros());
+    assert_eq!(1, i5::from_bits(0b10111).leading_ones());
+    assert_eq!(0, i5::from_bits(0b10111).leading_zeros());
+    assert_eq!(3, i5::from_bits(0b10111).trailing_ones());
+    assert_eq!(0, i5::from_bits(0b10111).trailing_zeros());
+
+    assert_eq!(2, i5::from_bits(0b10100).trailing_zeros());
+    assert_eq!(3, i5::from_bits(0b00011).leading_zeros());
+
+    assert_eq!(0, i5::from_bits(0b00000).count_ones());
+    assert_eq!(5, i5::from_bits(0b00000).count_zeros());
+    assert_eq!(0, i5::from_bits(0b00000).leading_ones());
+    assert_eq!(5, i5::from_bits(0b00000).leading_zeros());
+    assert_eq!(0, i5::from_bits(0b00000).trailing_ones());
+    assert_eq!(5, i5::from_bits(0b00000).trailing_zeros());
+
+    assert_eq!(5, i5::from_bits(0b11111).count_ones());
+    assert_eq!(0, i5::from_bits(0b11111).count_zeros());
+    assert_eq!(5, i5::from_bits(0b11111).leading_ones());
+    assert_eq!(0, i5::from_bits(0b11111).leading_zeros());
+    assert_eq!(5, i5::from_bits(0b11111).trailing_ones());
+    assert_eq!(0, i5::from_bits(0b11111).trailing_zeros());
+
+    assert_eq!(3, i127::new(0b111).count_ones());
+    assert_eq!(124, i127::new(0b111).count_zeros());
+}
+
+#[test]
+fn rotate_left_unsigned() {
     assert_eq!(u1::new(0b1), u1::new(0b1).rotate_left(1));
     assert_eq!(u2::new(0b01), u2::new(0b10).rotate_left(1));
 
@@ -2530,7 +2583,56 @@ fn rotate_left() {
 }
 
 #[test]
-fn rotate_right() {
+fn rotate_left_signed() {
+    assert_eq!(i1::from_bits(0b1), i1::from_bits(0b1).rotate_left(1));
+    assert_eq!(i2::from_bits(0b01), i2::from_bits(0b10).rotate_left(1));
+
+    assert_eq!(
+        i5::from_bits(0b10111),
+        i5::from_bits(0b10111).rotate_left(0)
+    );
+    assert_eq!(
+        i5::from_bits(0b01111),
+        i5::from_bits(0b10111).rotate_left(1)
+    );
+    assert_eq!(
+        i5::from_bits(0b11110),
+        i5::from_bits(0b10111).rotate_left(2)
+    );
+    assert_eq!(
+        i5::from_bits(0b11101),
+        i5::from_bits(0b10111).rotate_left(3)
+    );
+    assert_eq!(
+        i5::from_bits(0b11011),
+        i5::from_bits(0b10111).rotate_left(4)
+    );
+    assert_eq!(
+        i5::from_bits(0b10111),
+        i5::from_bits(0b10111).rotate_left(5)
+    );
+    assert_eq!(
+        i5::from_bits(0b01111),
+        i5::from_bits(0b10111).rotate_left(6)
+    );
+    assert_eq!(
+        i5::from_bits(0b01111),
+        i5::from_bits(0b10111).rotate_left(556)
+    );
+
+    assert_eq!(
+        i24::from_bits(0x0FFEEC),
+        i24::from_bits(0xC0FFEE).rotate_left(4)
+    );
+
+    assert_eq!(
+        Int::<i8, 8>::from_bits(0b1010_0001),
+        Int::<i8, 8>::from_bits(0b1101_0000).rotate_left(1)
+    );
+}
+
+#[test]
+fn rotate_right_unsigned() {
     assert_eq!(u1::new(0b1), u1::new(0b1).rotate_right(1));
     assert_eq!(u2::new(0b01), u2::new(0b10).rotate_right(1));
 
@@ -2543,6 +2645,51 @@ fn rotate_right() {
     assert_eq!(u5::new(0b11001), u5::new(0b10011).rotate_right(6));
 
     assert_eq!(u24::new(0xEC0FFE), u24::new(0xC0FFEE).rotate_right(4));
+}
+
+#[test]
+fn rotate_right_signed() {
+    assert_eq!(i1::from_bits(0b1), i1::from_bits(0b1).rotate_right(1));
+    assert_eq!(i2::from_bits(0b01), i2::from_bits(0b10).rotate_right(1));
+
+    assert_eq!(
+        i5::from_bits(0b10011),
+        i5::from_bits(0b10011).rotate_right(0)
+    );
+    assert_eq!(
+        i5::from_bits(0b11001),
+        i5::from_bits(0b10011).rotate_right(1)
+    );
+    assert_eq!(
+        i5::from_bits(0b11100),
+        i5::from_bits(0b10011).rotate_right(2)
+    );
+    assert_eq!(
+        i5::from_bits(0b01110),
+        i5::from_bits(0b10011).rotate_right(3)
+    );
+    assert_eq!(
+        i5::from_bits(0b00111),
+        i5::from_bits(0b10011).rotate_right(4)
+    );
+    assert_eq!(
+        i5::from_bits(0b10011),
+        i5::from_bits(0b10011).rotate_right(5)
+    );
+    assert_eq!(
+        i5::from_bits(0b11001),
+        i5::from_bits(0b10011).rotate_right(6)
+    );
+
+    assert_eq!(
+        i24::from_bits(0xEC0FFE),
+        i24::from_bits(0xC0FFEE).rotate_right(4)
+    );
+
+    assert_eq!(
+        Int::<i8, 8>::from_bits(0b0110_1000),
+        Int::<i8, 8>::from_bits(0b1101_0000).rotate_right(1)
+    );
 }
 
 #[cfg(feature = "step_trait")]
