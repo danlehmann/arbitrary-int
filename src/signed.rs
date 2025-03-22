@@ -1129,6 +1129,17 @@ where
     }
 }
 
+#[cfg(feature = "defmt")]
+impl<T, const BITS: usize> defmt::Format for Int<T, BITS>
+where
+    T: defmt::Format,
+{
+    #[inline]
+    fn format(&self, f: defmt::Formatter) {
+        self.value.format(f)
+    }
+}
+
 // Serde's invalid_value error (https://rust-lang.github.io/hashbrown/serde/de/trait.Error.html#method.invalid_value)
 // takes an Unexpected (https://rust-lang.github.io/hashbrown/serde/de/enum.Unexpected.html) which only accepts a 64 bit
 // integer. This is a problem for us because we want to support 128 bit integers. To work around this we define our own
