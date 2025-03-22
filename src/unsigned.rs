@@ -1,7 +1,6 @@
 use crate::common::{from_arbitrary_int_impl, from_native_impl};
 use crate::TryNewError;
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
-use core::hash::{Hash, Hasher};
 #[cfg(feature = "step_trait")]
 use core::iter::Step;
 #[cfg(feature = "num-traits")]
@@ -151,7 +150,7 @@ impl_number_native!(u8, u16, u32, u64, u128);
 #[cfg(feature = "const_convert_and_const_trait_impl")]
 impl_number_native!(u8 as const, u16 as const, u32 as const, u64 as const, u128 as const);
 
-#[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
 pub struct UInt<T, const BITS: usize> {
     value: T,
 }
@@ -1509,16 +1508,6 @@ where
             ..Default::default()
         };
         Schema::Object(schema_object)
-    }
-}
-
-impl<T, const BITS: usize> Hash for UInt<T, BITS>
-where
-    T: Hash,
-{
-    #[inline]
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.value.hash(state)
     }
 }
 

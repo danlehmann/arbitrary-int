@@ -4,7 +4,6 @@ use crate::{
 };
 use core::{
     fmt::{self, Debug},
-    hash::{Hash, Hasher},
     ops::{
         Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
         DivAssign, Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
@@ -1116,16 +1115,6 @@ where
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.value.fmt(f)
-    }
-}
-
-impl<T, const BITS: usize> Hash for Int<T, BITS>
-where
-    T: Hash,
-{
-    #[inline]
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.value.hash(state)
     }
 }
 
