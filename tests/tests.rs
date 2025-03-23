@@ -968,35 +968,45 @@ fn extract_typed_unsigned() {
 #[test]
 fn extract_typed_signed() {
     // Note that binary literals cannot produce negative values, hence the `0b..._u8 as i8` casts.
-    assert_eq!(
-        i5::from_bits(0b10000),
-        i5::extract_i8(0b11110000_u8 as i8, 0)
-    );
+    let (value_8, expected_8) = (0b11110000_u8, 0b10000);
+    assert_eq!(i5::from_bits(expected_8), i5::extract_i8(value_8 as i8, 0));
+    assert_eq!(i5::from_bits(expected_8), i5::extract_u8(value_8, 0));
 
+    let (value_16, expected_16) = (0b11110000_11110110_u16, 0b00011);
     assert_eq!(
-        i5::from_bits(0b00011),
-        i5::extract_i16(0b11110000_11110110_u16 as i16, 6)
+        i5::from_bits(expected_16),
+        i5::extract_i16(value_16 as i16, 6)
     );
+    assert_eq!(i5::from_bits(expected_16), i5::extract_u16(value_16, 6));
 
+    let (value_32, expected_32) = (0b11110010_11110110_00000000_00000000_u32, 0b01011);
     assert_eq!(
-        i5::from_bits(0b01011),
-        i5::extract_i32(0b11110010_11110110_00000000_00000000_u32 as i32, 22)
+        i5::from_bits(expected_32),
+        i5::extract_i32(value_32 as i32, 22)
     );
+    assert_eq!(i5::from_bits(expected_32), i5::extract_u32(value_32, 22));
 
-    assert_eq!(
-        i5::from_bits(0b01011),
-        i5::extract_i64(
-            0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_u64 as i64,
-            54
-        )
+    let (value_64, expected_64) = (
+        0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_u64,
+        0b01011,
     );
-
     assert_eq!(
-        i5::from_bits(0b01011),
-        i5::extract_i128(
-            0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_u128 as i128,
-            118,
-        )
+        i5::from_bits(expected_64),
+        i5::extract_i64(value_64 as i64, 54)
+    );
+    assert_eq!(i5::from_bits(expected_64), i5::extract_u64(value_64, 54));
+
+    let (value_128, expected_128) = (
+        0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_u128,
+        0b01011,
+    );
+    assert_eq!(
+        i5::from_bits(expected_128),
+        i5::extract_i128(value_128 as i128, 118)
+    );
+    assert_eq!(
+        i5::from_bits(expected_128),
+        i5::extract_u128(value_128, 118)
     );
 }
 
@@ -1015,14 +1025,28 @@ fn extract_full_width_typed_unsigned() {
 #[test]
 fn extract_full_width_typed_signed() {
     // Note that binary literals cannot produce negative values, hence the `0b..._u8 as i8` casts.
+    let (value_8, expected_8) = (0b1010_0011_u8, 0b1010_0011);
     assert_eq!(
-        0b1010_0011,
-        Int::<i8, 8>::extract_i8(0b1010_0011_u8 as i8, 0).to_bits()
+        expected_8,
+        Int::<i8, 8>::extract_i8(value_8 as i8, 0).to_bits()
+    );
+    assert_eq!(expected_8, Int::<i8, 8>::extract_u8(value_8, 0).to_bits());
+
+    let (value_16, expected_16) = (0b1111_1111_1010_0011_u16, 0b1010_0011);
+    assert_eq!(
+        expected_16,
+        Int::<i8, 8>::extract_i16(value_16 as i16, 0).to_bits()
     );
     assert_eq!(
-        0b1010_0011,
-        Int::<i8, 8>::extract_i16(0b1111_1111_1010_0011_u16 as i16, 0).to_bits()
+        expected_16,
+        Int::<i8, 8>::extract_u16(value_16, 0).to_bits()
     );
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_signed_with_unsigned_value() {
+    let _ = i5::extract_u8(0b11110000, 4);
 }
 
 #[test]
