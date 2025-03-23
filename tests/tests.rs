@@ -948,7 +948,7 @@ fn extract() {
 }
 
 #[test]
-fn extract_typed() {
+fn extract_typed_unsigned() {
     assert_eq!(u5::new(0b10000), u5::extract_u8(0b11110000, 0));
     assert_eq!(u5::new(0b00011), u5::extract_u16(0b11110000_11110110, 6));
     assert_eq!(
@@ -966,7 +966,42 @@ fn extract_typed() {
 }
 
 #[test]
-fn extract_full_width_typed() {
+fn extract_typed_signed() {
+    // Note that binary literals cannot produce negative values, hence the `0b..._u8 as i8` casts.
+    assert_eq!(
+        i5::from_bits(0b10000),
+        i5::extract_i8(0b11110000_u8 as i8, 0)
+    );
+
+    assert_eq!(
+        i5::from_bits(0b00011),
+        i5::extract_i16(0b11110000_11110110_u16 as i16, 6)
+    );
+
+    assert_eq!(
+        i5::from_bits(0b01011),
+        i5::extract_i32(0b11110010_11110110_00000000_00000000_u32 as i32, 22)
+    );
+
+    assert_eq!(
+        i5::from_bits(0b01011),
+        i5::extract_i64(
+            0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_u64 as i64,
+            54
+        )
+    );
+
+    assert_eq!(
+        i5::from_bits(0b01011),
+        i5::extract_i128(
+            0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_u128 as i128,
+            118,
+        )
+    );
+}
+
+#[test]
+fn extract_full_width_typed_unsigned() {
     assert_eq!(
         0b1010_0011,
         UInt::<u8, 8>::extract_u8(0b1010_0011, 0).value()
@@ -978,39 +1013,90 @@ fn extract_full_width_typed() {
 }
 
 #[test]
+fn extract_full_width_typed_signed() {
+    // Note that binary literals cannot produce negative values, hence the `0b..._u8 as i8` casts.
+    assert_eq!(
+        0b1010_0011,
+        Int::<i8, 8>::extract_i8(0b1010_0011_u8 as i8, 0).to_bits()
+    );
+    assert_eq!(
+        0b1010_0011,
+        Int::<i8, 8>::extract_i16(0b1111_1111_1010_0011_u16 as i16, 0).to_bits()
+    );
+}
+
+#[test]
 #[should_panic]
-fn extract_not_enough_bits_8() {
+fn extract_not_enough_bits_8_unsigned() {
     let _ = u5::extract_u8(0b11110000, 4);
 }
 
 #[test]
 #[should_panic]
-fn extract_not_enough_bits_8_full_width() {
+fn extract_not_enough_bits_8_signed() {
+    // Note that binary literals cannot produce negative values, hence `as` cast.
+    let _ = i5::extract_i8(0b11110000_u8 as i8, 4);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_8_full_width_unsigned() {
     let _ = UInt::<u8, 8>::extract_u8(0b11110000, 1);
 }
 
 #[test]
 #[should_panic]
-fn extract_not_enough_bits_16() {
+fn extract_not_enough_bits_8_full_width_signed() {
+    // Note that binary literals cannot produce negative values, hence `as` cast.
+    let _ = Int::<i8, 8>::extract_i8(0b11110000_u8 as i8, 1);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_16_unsigned() {
     let _ = u5::extract_u16(0b11110000, 12);
 }
 
 #[test]
 #[should_panic]
-fn extract_not_enough_bits_32() {
+fn extract_not_enough_bits_16_signed() {
+    let _ = i5::extract_i16(0b11110000, 12);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_32_unsigned() {
     let _ = u5::extract_u32(0b11110000, 28);
 }
 
 #[test]
 #[should_panic]
-fn extract_not_enough_bits_64() {
+fn extract_not_enough_bits_32_signed() {
+    let _ = i5::extract_i32(0b11110000, 28);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_64_unsigned() {
     let _ = u5::extract_u64(0b11110000, 60);
 }
 
 #[test]
 #[should_panic]
-fn extract_not_enough_bits_128() {
+fn extract_not_enough_bits_64_signed() {
+    let _ = i5::extract_i64(0b11110000, 60);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_128_unsigned() {
     let _ = u5::extract_u128(0b11110000, 124);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_128_signed() {
+    let _ = i5::extract_i128(0b11110000, 124);
 }
 
 #[test]
