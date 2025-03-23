@@ -10,6 +10,8 @@
     * Byte operations (`to_ne_bytes`, ...)
     * Checked arithmetic functions (`checked_add`, ...)
     * Overflowing arithmetic functions (`overflowing_add`, ...)
+- Various new extract functions: `extract_i8`, `extract_i16`, ..., `extract_i128`. These are the same as the
+  equivalent `extract_u<N>` functions, but work with signed integers instead.
 
 ## arbitrary-int 1.3.0
 

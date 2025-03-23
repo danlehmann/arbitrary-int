@@ -949,20 +949,34 @@ fn extract() {
 
 #[test]
 fn extract_typed_unsigned() {
-    assert_eq!(u5::new(0b10000), u5::extract_u8(0b11110000, 0));
-    assert_eq!(u5::new(0b00011), u5::extract_u16(0b11110000_11110110, 6));
-    assert_eq!(
-        u5::new(0b01011),
-        u5::extract_u32(0b11110010_11110110_00000000_00000000, 22)
+    let (value_8, expected_8) = (0b11110000_u8, 0b10000);
+    assert_eq!(u5::new(expected_8), u5::extract_u8(value_8, 0));
+    assert_eq!(u5::new(expected_8), u5::extract_i8(value_8 as i8, 0));
+
+    let (value_16, expected_16) = (0b11110000_11110110_u16, 0b00011);
+    assert_eq!(u5::new(expected_16), u5::extract_u16(value_16, 6));
+    assert_eq!(u5::new(expected_16), u5::extract_i16(value_16 as i16, 6));
+
+    let (value_32, expected_32) = (0b11110010_11110110_00000000_00000000_u32, 0b01011);
+    assert_eq!(u5::new(expected_32), u5::extract_u32(value_32, 22));
+    assert_eq!(u5::new(expected_32), u5::extract_i32(value_32 as i32, 22));
+
+    let (value_64, expected_64) = (
+        0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_u64,
+        0b01011,
     );
-    assert_eq!(
-        u5::new(0b01011),
-        u5::extract_u64(
-            0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000,
-            54
-        )
+    assert_eq!(u5::new(expected_64), u5::extract_u64(value_64, 54));
+    assert_eq!(u5::new(expected_64), u5::extract_i64(value_64 as i64, 54));
+
+    let (value_128, expected_128) = (
+        0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_u128,
+        0b01011,
     );
-    assert_eq!(u5::new(0b01011), u5::extract_u128(0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000, 118));
+    assert_eq!(u5::new(expected_128), u5::extract_u128(value_128, 118));
+    assert_eq!(
+        u5::new(expected_128),
+        u5::extract_i128(value_128 as i128, 118)
+    );
 }
 
 #[test]
@@ -1012,13 +1026,18 @@ fn extract_typed_signed() {
 
 #[test]
 fn extract_full_width_typed_unsigned() {
+    let (value_8, expected_8) = (0b1010_0011_u8, 0b1010_0011);
+    assert_eq!(expected_8, UInt::<u8, 8>::extract_u8(value_8, 0).value());
     assert_eq!(
-        0b1010_0011,
-        UInt::<u8, 8>::extract_u8(0b1010_0011, 0).value()
+        expected_8,
+        UInt::<u8, 8>::extract_i8(value_8 as i8, 0).value()
     );
+
+    let (value_16, expected_16) = (0b1111_1111_1010_0011_u16, 0b1010_0011);
+    assert_eq!(expected_16, UInt::<u8, 8>::extract_u16(value_16, 0).value());
     assert_eq!(
-        0b1010_0011,
-        UInt::<u8, 8>::extract_u16(0b1111_1111_1010_0011, 0).value()
+        expected_16,
+        UInt::<u8, 8>::extract_i16(value_16 as i16, 0).value()
     );
 }
 
@@ -1041,6 +1060,12 @@ fn extract_full_width_typed_signed() {
         expected_16,
         Int::<i8, 8>::extract_u16(value_16, 0).to_bits()
     );
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_unsigned_with_signed_value() {
+    let _ = u5::extract_i8(0b11110000_u8 as i8, 4);
 }
 
 #[test]

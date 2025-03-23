@@ -376,17 +376,17 @@ macro_rules! uint_impl {
                     }
                 }
 
-                // Generate the `extract_u{8,16,32,64,128}` functions.
+                // Generate the `extract_{i,u}{8,16,32,64,128}` functions.
                 impl_extract!(
                     $type,
                     "new((value >> start_bit) & MASK)",
                     |value| value & Self::MASK,
 
-                    (8, (u8, extract_u8)),
-                    (16, (u16, extract_u16)),
-                    (32, (u32, extract_u32)),
-                    (64, (u64, extract_u64)),
-                    (128, (u128, extract_u128))
+                    (8, (u8, extract_u8), (i8, extract_i8)),
+                    (16, (u16, extract_u16), (i16, extract_i16)),
+                    (32, (u32, extract_u32), (i32, extract_i32)),
+                    (64, (u64, extract_u64), (i64, extract_i64)),
+                    (128, (u128, extract_u128), (i128, extract_i128))
                 );
 
                 /// Returns a [`UInt`] with a wider bit depth but with the same base data type
