@@ -157,6 +157,9 @@ pub struct UInt<T, const BITS: usize> {
 }
 
 impl<T: Copy, const BITS: usize> UInt<T, BITS> {
+    /// The number of bits in the underlying type that are not present in this type.
+    const UNUSED_BITS: usize = ((core::mem::size_of::<T>() << 3) - Self::BITS);
+
     pub const BITS: usize = BITS;
 
     /// Returns the type as a fundamental data type
@@ -559,6 +562,8 @@ macro_rules! uint_impl {
                 /// Note that this is not the same as a rotate-left; the RHS of a wrapping
                 /// shift-left is restricted to the range of the type, rather than the bits
                 /// shifted out of the LHS being returned to the other end.
+                /// A [`rotate_left`](Self::rotate_left) function exists as well, which may
+                /// be what you want instead.
                 ///
                 /// # Examples
                 ///
@@ -594,6 +599,8 @@ macro_rules! uint_impl {
                 /// Note that this is not the same as a rotate-right; the RHS of a wrapping shift-right is
                 /// restricted to the range of the type, rather than the bits shifted out of the LHS being
                 /// returned to the other end.
+                /// A [`rotate_right`](Self::rotate_right) function exists as well, which may be what you
+                /// want instead.
                 ///
                 /// # Examples
                 ///
@@ -634,7 +641,7 @@ macro_rules! uint_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_add(self, rhs: Self) -> Self {
-                    let saturated = if core::mem::size_of::<$type>() << 3 == BITS {
+                    let saturated = if Self::UNUSED_BITS == 0 {
                         // We are something like a UInt::<u8; 8>, we can fallback to the base implementation.
                         // This is very unlikely to happen in practice, but checking allows us to use
                         // `wrapping_add` instead of `saturating_add` in the common case, which is faster.
@@ -756,7 +763,7 @@ macro_rules! uint_impl {
                 }
 
                 pub const fn checked_add(self, rhs: Self) -> Option<Self> {
-                    if core::mem::size_of::<$type>() << 3 == BITS {
+                    if Self::UNUSED_BITS == 0 {
                         // We are something like a UInt::<u8; 8>. We can fallback to the base implementation
                         match self.value.checked_add(rhs.value) {
                             Some(value) => Some(Self { value }),
@@ -827,7 +834,7 @@ macro_rules! uint_impl {
                 }
 
                 pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
-                    let (value, overflow) = if core::mem::size_of::<$type>() << 3 == BITS {
+                    let (value, overflow) = if Self::UNUSED_BITS == 0 {
                         // We are something like a UInt::<u8; 8>. We can fallback to the base implementation
                         self.value.overflowing_add(rhs.value)
                     } else {
@@ -883,78 +890,216 @@ macro_rules! uint_impl {
                     }
                 }
 
-                /// Reverses the order of bits in the integer. The least significant bit becomes the most significant bit, second least-significant bit becomes second most-significant bit, etc.
+                /// Reverses the order of bits in the integer. The least significant bit becomes the most
+                /// significant bit, second least-significant bit becomes second most-significant bit, etc.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::u6;
+                /// assert_eq!(u6::new(0b10_1010).reverse_bits(), u6::new(0b01_0101));
+                /// assert_eq!(u6::new(0), u6::new(0).reverse_bits());
+                /// ```
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn reverse_bits(self) -> Self {
-                    let shift_right = (core::mem::size_of::<$type>() << 3) - BITS;
-                    Self { value: self.value.reverse_bits() >> shift_right }
+                    Self { value: self.value().reverse_bits() >> Self::UNUSED_BITS }
                 }
 
-                /// Returns the number of ones in the binary representation of self.
+                /// Returns the number of ones in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u7, Number};
+                /// let n = u7::new(0b100_1100);
+                /// assert_eq!(n.count_ones(), 3);
+                ///
+                /// let max = u7::MAX;
+                /// assert_eq!(max.count_ones(), 7);
+                ///
+                /// let zero = u7::new(0);
+                /// assert_eq!(zero.count_ones(), 0);
+                /// ```
                 #[inline]
                 pub const fn count_ones(self) -> u32 {
                     // The upper bits are zero, so we can ignore them
-                    self.value.count_ones()
+                    self.value().count_ones()
                 }
 
-                /// Returns the number of zeros in the binary representation of self.
+                /// Returns the number of zeros in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u7, Number};
+                /// let zero = u7::new(0);
+                /// assert_eq!(zero.count_zeros(), 7);
+                ///
+                /// let max = u7::MAX;
+                /// assert_eq!(max.count_zeros(), 0);
+                /// ```
                 #[inline]
                 pub const fn count_zeros(self) -> u32 {
-                    // The upper bits are zero, so we can have to subtract them from the result
-                    let filler_bits = ((core::mem::size_of::<$type>() << 3) - BITS) as u32;
-                    self.value.count_zeros() - filler_bits
+                    // The upper bits are zero, so we can have to subtract them from the result.
+                    // We can avoid a bounds check in debug builds with `wrapping_sub` since this cannot overflow.
+                    self.value().count_zeros().wrapping_sub(Self::UNUSED_BITS as u32)
                 }
 
-                /// Returns the number of leading ones in the binary representation of self.
+                /// Returns the number of leading ones in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u7, Number};
+                /// let n = !(u7::MAX >> 2);
+                /// assert_eq!(n.leading_ones(), 2);
+                ///
+                /// let zero = u7::new(0);
+                /// assert_eq!(zero.leading_ones(), 0);
+                ///
+                /// let max = u7::MAX;
+                /// assert_eq!(max.leading_ones(), 7);
+                /// ```
                 #[inline]
                 pub const fn leading_ones(self) -> u32 {
-                    let shift = ((core::mem::size_of::<$type>() << 3) - BITS) as u32;
-                    (self.value << shift).leading_ones()
+                    (self.value() << Self::UNUSED_BITS).leading_ones()
                 }
 
-                /// Returns the number of leading zeros in the binary representation of self.
+                /// Returns the number of leading zeros in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u7, Number};
+                /// let n = u7::MAX >> 2;
+                /// assert_eq!(n.leading_zeros(), 2);
+                ///
+                /// let zero = u7::new(0);
+                /// assert_eq!(zero.leading_zeros(), 7);
+                ///
+                /// let max = u7::MAX;
+                /// assert_eq!(max.leading_zeros(), 0);
+                /// ```
                 #[inline]
                 pub const fn leading_zeros(self) -> u32 {
-                    let shift = ((core::mem::size_of::<$type>() << 3) - BITS) as u32;
-                    (self.value << shift).leading_zeros()
+                    if Self::UNUSED_BITS == 0 {
+                        self.value().leading_zeros()
+                    } else {
+                        // Prevent an all-zero value reporting the underlying type's entire bit width by setting
+                        // the first unused bit to one, causing `leading_zeros()` to ignore the unused bits.
+                        let first_unused_bit_set = const { 1 << (Self::UNUSED_BITS - 1) };
+                        ((self.value() << Self::UNUSED_BITS) | first_unused_bit_set).leading_zeros()
+                    }
                 }
 
-                /// Returns the number of leading ones in the binary representation of self.
+                /// Returns the number of trailing ones in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u7, Number};
+                /// let n = u7::new(0b1010111);
+                /// assert_eq!(n.trailing_ones(), 3);
+                ///
+                /// let zero = u7::new(0);
+                /// assert_eq!(zero.trailing_ones(), 0);
+                ///
+                /// let max = u7::MAX;
+                /// assert_eq!(max.trailing_ones(), 7);
+                /// ```
                 #[inline]
                 pub const fn trailing_ones(self) -> u32 {
-                    self.value.trailing_ones()
+                    self.value().trailing_ones()
                 }
 
-                /// Returns the number of leading zeros in the binary representation of self.
+                /// Returns the number of trailing zeros in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{u7, Number};
+                /// let n = u7::new(0b010_1000);
+                /// assert_eq!(n.trailing_zeros(), 3);
+                ///
+                /// let zero = u7::new(0);
+                /// assert_eq!(zero.trailing_zeros(), 7);
+                ///
+                /// let max = u7::MAX;
+                /// assert_eq!(max.trailing_zeros(), 0);
+                /// ```
                 #[inline]
                 pub const fn trailing_zeros(self) -> u32 {
-                    self.value.trailing_zeros()
+                    // Prevent an all-zeros value reporting the underlying type's entire bit width by setting
+                    // all the unused bits.
+                    (self.value() | !Self::MASK).trailing_zeros()
                 }
 
-                /// Shifts the bits to the left by a specified amount, n, wrapping the truncated bits to the end of the resulting integer.
-                /// Please note this isn't the same operation as the << shifting operator!
+                /// Shifts the bits to the left by a specified amount, `n`, wrapping the truncated bits
+                /// to the end of the resulting integer.
+                ///
+                /// Please note this isn’t the same operation as the `<<` shifting operator!
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::u6;
+                /// let n = u6::new(0b10_1010);
+                /// let m = u6::new(0b01_0101);
+                ///
+                /// assert_eq!(n.rotate_left(1), m);
+                /// ```
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn rotate_left(self, n: u32) -> Self {
                     let b = BITS as u32;
                     let n = if n >= b { n % b } else { n };
 
-                    let moved_bits = (self.value << n) & Self::MASK;
-                    let truncated_bits = self.value >> (b - n);
+                    let moved_bits = (self.value() << n) & Self::MASK;
+                    let truncated_bits = self.value() >> (b - n);
                     Self { value: moved_bits | truncated_bits }
                 }
 
-                /// Shifts the bits to the right by a specified amount, n, wrapping the truncated bits to the beginning of the resulting integer.
-                /// Please note this isn't the same operation as the >> shifting operator!
+                /// Shifts the bits to the right by a specified amount, `n`, wrapping the truncated bits
+                /// to the beginning of the resulting integer.
+                ///
+                /// Please note this isn’t the same operation as the `>>` shifting operator!
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::u6;
+                /// let n = u6::new(0b10_1010);
+                /// let m = u6::new(0b01_0101);
+                ///
+                /// assert_eq!(n.rotate_right(1), m);
+                /// ```
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn rotate_right(self, n: u32) -> Self {
                     let b = BITS as u32;
                     let n = if n >= b { n % b } else { n };
 
-                    let moved_bits = self.value >> n;
-                    let truncated_bits = (self.value << (b - n)) & Self::MASK;
+                    let moved_bits = self.value() >> n;
+                    let truncated_bits = (self.value() << (b - n)) & Self::MASK;
                     Self { value: moved_bits | truncated_bits }
                 }
             }

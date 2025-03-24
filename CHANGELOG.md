@@ -12,6 +12,10 @@
     * Checked arithmetic functions (`checked_add`, ...)
     * Overflowing arithmetic functions (`overflowing_add`, ...)
 
+### Fixed
+
+- `leading_zeros` and `trailing_zeros` now report the correct number of bits when a value of `MIN` is passed.
+
 ## arbitrary-int 1.3.0
 
 ### Added

@@ -156,8 +156,10 @@ pub struct Int<T, const BITS: usize> {
 }
 
 impl<T: Copy, const BITS: usize> Int<T, BITS> {
-    pub const BITS: usize = BITS;
+    /// The number of bits in the underlying type that are not present in this type.
     const UNUSED_BITS: usize = ((core::mem::size_of::<T>() << 3) - Self::BITS);
+
+    pub const BITS: usize = BITS;
 
     /// Returns the type as a fundamental data type
     ///
@@ -564,6 +566,8 @@ macro_rules! int_impl {
                 /// Note that this is not the same as a rotate-left; the RHS of a wrapping shift-left is
                 /// restricted to the range of the type, rather than the bits shifted out of the LHS being
                 /// returned to the other end.
+                /// A [`rotate_left`](Self::rotate_left) function exists as well, which may be what you
+                /// want instead.
                 ///
                 /// # Examples
                 ///
@@ -599,6 +603,8 @@ macro_rules! int_impl {
                 /// Note that this is not the same as a rotate-right; the RHS of a wrapping shift-right is
                 /// restricted to the range of the type, rather than the bits shifted out of the LHS being
                 /// returned to the other end.
+                /// A [`rotate_right`](Self::rotate_right) function exists as well, which may be what you
+                /// want instead.
                 ///
                 /// # Examples
                 ///
@@ -789,6 +795,193 @@ macro_rules! int_impl {
                     } else {
                         Self { value }
                     }
+                }
+
+                /// Reverses the order of bits in the integer. The least significant bit becomes the most
+                /// significant bit, second least-significant bit becomes second most-significant bit, etc.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::i6;
+                /// assert_eq!(i6::from_bits(0b10_1010).reverse_bits(), i6::from_bits(0b01_0101));
+                /// assert_eq!(i6::new(0), i6::new(0).reverse_bits());
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn reverse_bits(self) -> Self {
+                    let value = self.value().reverse_bits() >> Self::UNUSED_BITS;
+                    Self { value }
+                }
+
+                /// Returns the number of ones in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::i6;
+                /// let n = i6::from_bits(0b00_1000);
+                /// assert_eq!(n.count_ones(), 1);
+                /// ```
+                #[inline]
+                pub const fn count_ones(self) -> u32 {
+                    // Due to sign-extension the unused bits may be either all ones or zeros, so we need to mask them off.
+                    (self.value() & Self::MASK).count_ones()
+                }
+
+                /// Returns the number of zeros in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i6, SignedNumber};
+                /// assert_eq!(i6::MAX.count_zeros(), 1);
+                /// ```
+                #[inline]
+                pub const fn count_zeros(self) -> u32 {
+                    // Due to sign-extension the unused bits may be either all ones or zeros, so we need to mask them off.
+                    // Afterwards the unused bits are all zero, so we can subtract them from the result.
+                    // We can avoid a bounds check in debug builds with `wrapping_sub` since this cannot overflow.
+                    (self.value() & Self::MASK).count_zeros().wrapping_sub(Self::UNUSED_BITS as u32)
+                }
+
+                /// Returns the number of leading ones in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::i6;
+                /// let n = i6::new(-1);
+                /// assert_eq!(n.leading_ones(), 6);
+                /// ```
+                #[inline]
+                pub const fn leading_ones(self) -> u32 {
+                    (self.value() << Self::UNUSED_BITS).leading_ones()
+                }
+
+                /// Returns the number of leading zeros in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::i6;
+                /// let n = i6::new(-1);
+                /// assert_eq!(n.leading_zeros(), 0);
+                /// ```
+                #[inline]
+                pub const fn leading_zeros(self) -> u32 {
+                    if Self::UNUSED_BITS == 0 {
+                        self.value().leading_zeros()
+                    } else {
+                        // Prevent an all-zero value reporting the underlying type's entire bit width by setting
+                        // the first unused bit to one, causing `leading_zeros()` to ignore all unused bits.
+                        let first_unused_bit_set = const { 1 << (Self::UNUSED_BITS - 1) };
+                        ((self.value() << Self::UNUSED_BITS) | first_unused_bit_set).leading_zeros()
+                    }
+                }
+
+                /// Returns the number of trailing ones in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::i6;
+                /// let n = i6::new(3);
+                /// assert_eq!(n.trailing_ones(), 2);
+                /// ```
+                #[inline]
+                pub const fn trailing_ones(self) -> u32 {
+                    // Prevent an all-ones value reporting the underlying type's entire bit width by masking
+                    // off all the unused bits.
+                    (self.value() & Self::MASK).trailing_ones()
+                }
+
+                /// Returns the number of trailing zeros in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::i6;
+                /// let n = i6::new(-4);
+                /// assert_eq!(n.trailing_zeros(), 2);
+                /// ```
+                #[inline]
+                pub const fn trailing_zeros(self) -> u32 {
+                    // Prevent an all-ones value reporting the underlying type's entire bit width by setting
+                    // all the unused bits.
+                    (self.value() | !Self::MASK).trailing_zeros()
+                }
+
+                /// Shifts the bits to the left by a specified amount, `n`, wrapping the truncated bits
+                /// to the end of the resulting integer.
+                ///
+                /// Please note this isn’t the same operation as the `<<` shifting operator!
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::i6;
+                /// let n = i6::from_bits(0b10_1010);
+                /// let m = i6::from_bits(0b01_0101);
+                ///
+                /// assert_eq!(n.rotate_left(1), m);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn rotate_left(self, n: u32) -> Self {
+                    let b = BITS as u32;
+                    let n = if n >= b { n % b } else { n };
+
+                    // Temporarily switch to an unsigned type to prevent sign-extension with `>>`.
+                    let moved_bits = ((self.value() << n) & Self::MASK) as $unsigned_type;
+                    let truncated_bits = ((self.value() & Self::MASK) as $unsigned_type) >> (b - n);
+                    let value = (((moved_bits | truncated_bits) << Self::UNUSED_BITS) as $type) >> Self::UNUSED_BITS;
+                    Self { value }
+                }
+
+                /// Shifts the bits to the right by a specified amount, `n`, wrapping the truncated bits
+                /// to the beginning of the resulting integer.
+                ///
+                /// Please note this isn’t the same operation as the `>>` shifting operator!
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::i6;
+                /// let n = i6::from_bits(0b10_1010);
+                /// let m = i6::from_bits(0b01_0101);
+                ///
+                /// assert_eq!(n.rotate_right(1), m);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn rotate_right(self, n: u32) -> Self {
+                    let b = BITS as u32;
+                    let n = if n >= b { n % b } else { n };
+
+                    // Temporarily switch to an unsigned type to prevent sign-extension with `>>`.
+                    let moved_bits = (self.value() & Self::MASK) as $unsigned_type >> n;
+                    let truncated_bits = ((self.value() << (b - n)) & Self::MASK) as $unsigned_type;
+                    let value = (((moved_bits | truncated_bits) << Self::UNUSED_BITS) as $type) >> Self::UNUSED_BITS;
+                    Self { value }
                 }
             }
         )+
