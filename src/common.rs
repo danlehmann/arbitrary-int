@@ -90,3 +90,32 @@ macro_rules! from_native_impl {
 }
 
 pub(crate) use from_native_impl;
+
+macro_rules! impl_extract {
+    (
+        $base_type:ty,
+        $example:literal,
+        |$value:ident| $constructor:expr,
+        $(($bits:literal, $(($type:ty, $extract_fn:ident)),+)),+
+    ) => {
+        $($(
+            #[doc = concat!("Extracts bits from a given value, starting from `start_bit`. This is equivalent to: `", $example, "`.")]
+            /// Unlike [`new`](Self::new), this function doesn't perform range-checking and is slightly more efficient.
+            ///
+            /// # Panics
+            ///
+            #[doc = concat!(" Panics if `start_bit + Self::BITS` doesn't fit within an ", stringify!($type), ", i.e. it is greater than ", stringify!($bits), ".")]
+            #[inline]
+            pub const fn $extract_fn(value: $type, start_bit: usize) -> Self {
+                // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
+                let _ = Self::MAX;
+                assert!(start_bit + BITS <= $bits);
+
+                let $value = (value >> start_bit) as $base_type;
+                Self { value: $constructor }
+            }
+        )+)+
+    };
+}
+
+pub(crate) use impl_extract;

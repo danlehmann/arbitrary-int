@@ -1,5 +1,5 @@
 use crate::{
-    common::{from_arbitrary_int_impl, from_native_impl},
+    common::{from_arbitrary_int_impl, from_native_impl, impl_extract},
     TryNewError,
 };
 use core::{
@@ -452,6 +452,19 @@ macro_rules! int_impl {
                     }
                     self.value
                 }
+
+                // Generate the `extract_{i,u}{8,16,32,64,128}` functions.
+                impl_extract!(
+                    $type,
+                    "from_bits(value >> start_bit)",
+                    |value| (value << Self::UNUSED_BITS) >> Self::UNUSED_BITS,
+
+                    (8, (i8, extract_i8), (u8, extract_u8)),
+                    (16, (i16, extract_i16), (u16, extract_u16)),
+                    (32, (i32, extract_i32), (u32, extract_u32)),
+                    (64, (i64, extract_i64), (u64, extract_u64)),
+                    (128, (i128, extract_i128), (u128, extract_u128))
+                );
 
                 /// Returns an [`Int`] with a wider bit depth but with the same base data type
                 #[inline]

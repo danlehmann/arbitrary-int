@@ -1,4 +1,4 @@
-use crate::common::{from_arbitrary_int_impl, from_native_impl};
+use crate::common::{from_arbitrary_int_impl, from_native_impl, impl_extract};
 use crate::TryNewError;
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
 #[cfg(feature = "step_trait")]
@@ -378,75 +378,18 @@ macro_rules! uint_impl {
                     }
                 }
 
-                /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
-                /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient.
-                /// panics if `start_bit+<number of bits>` doesn't fit within an u8, e.g. `u5::extract_u8(8, 4)`;
-                #[inline]
-                pub const fn extract_u8(value: u8, start_bit: usize) -> Self {
-                    assert!(start_bit + BITS <= 8);
-                    // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
-                    let _ = Self::MAX;
+                // Generate the `extract_{i,u}{8,16,32,64,128}` functions.
+                impl_extract!(
+                    $type,
+                    "new((value >> start_bit) & MASK)",
+                    |value| value & Self::MASK,
 
-                    Self {
-                        value: ((value >> start_bit) as $type) & Self::MAX.value,
-                    }
-                }
-
-                /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
-                /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if `start_bit+<number of bits>` doesn't fit within a u16, e.g. `u15::extract_u16(8, 2)`;
-                #[inline]
-                pub const fn extract_u16(value: u16, start_bit: usize) -> Self {
-                    assert!(start_bit + BITS <= 16);
-                    // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
-                    let _ = Self::MAX;
-
-                    Self {
-                        value: ((value >> start_bit) as $type) & Self::MAX.value,
-                    }
-                }
-
-                /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
-                /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if `start_bit+<number of bits>` doesn't fit within a u32, e.g. `u30::extract_u32(8, 4)`;
-                #[inline]
-                pub const fn extract_u32(value: u32, start_bit: usize) -> Self {
-                    assert!(start_bit + BITS <= 32);
-                    // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
-                    let _ = Self::MAX;
-
-                    Self {
-                        value: ((value >> start_bit) as $type) & Self::MAX.value,
-                    }
-                }
-
-                /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
-                /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if `start_bit+<number of bits>` doesn't fit within a u64, e.g. `u60::extract_u64(8, 5)`;
-                #[inline]
-                pub const fn extract_u64(value: u64, start_bit: usize) -> Self {
-                    assert!(start_bit + BITS <= 64);
-                    // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
-                    let _ = Self::MAX;
-
-                    Self {
-                        value: ((value >> start_bit) as $type) & Self::MAX.value,
-                    }
-                }
-
-                /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
-                /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if `start_bit+<number of bits>` doesn't fit within a u128, e.g. `u120::extract_u64(8, 9)`;
-                #[inline]
-                pub const fn extract_u128(value: u128, start_bit: usize) -> Self {
-                    assert!(start_bit + BITS <= 128);
-                    // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
-                    let _ = Self::MAX;
-
-                    Self {
-                        value: ((value >> start_bit) as $type) & Self::MAX.value,
-                    }
-                }
+                    (8, (u8, extract_u8), (i8, extract_i8)),
+                    (16, (u16, extract_u16), (i16, extract_i16)),
+                    (32, (u32, extract_u32), (i32, extract_i32)),
+                    (64, (u64, extract_u64), (i64, extract_i64)),
+                    (128, (u128, extract_u128), (i128, extract_i128))
+                );
 
                 /// Returns a [`UInt`] with a wider bit depth but with the same base data type
                 #[inline]
