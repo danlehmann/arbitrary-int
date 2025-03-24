@@ -1025,6 +1025,21 @@ fn extract_typed_signed() {
 }
 
 #[test]
+fn extract_value_sign_extends() {
+    assert_eq!(-1, i5::extract_u64(0b0011_1110, 1).value());
+    assert_eq!(-1, i5::extract_i64(0b0011_1110, 1).value());
+
+    assert_eq!(-3, i5::extract_u32(0b0011_1010, 1).value());
+    assert_eq!(-3, i5::extract_i32(0b0011_1010, 1).value());
+
+    assert_eq!(-1, i3::extract_u8(0b0011_1000, 3).value());
+    assert_eq!(-1, i3::extract_i8(0b0011_1000, 3).value());
+
+    assert_eq!(-3, i3::extract_u8(0b0010_1000, 3).value());
+    assert_eq!(-3, i3::extract_i8(0b0010_1000, 3).value());
+}
+
+#[test]
 fn extract_full_width_typed_unsigned() {
     let (value_8, expected_8) = (0b1010_0011_u8, 0b1010_0011);
     assert_eq!(expected_8, UInt::<u8, 8>::extract_u8(value_8, 0).value());
