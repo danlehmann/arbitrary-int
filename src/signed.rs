@@ -1,5 +1,7 @@
 use crate::{
-    common::{from_arbitrary_int_impl, from_native_impl, impl_extract},
+    common::{
+        common_bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
+    },
     TryNewError,
 };
 use core::{
@@ -156,7 +158,7 @@ pub struct Int<T, const BITS: usize> {
 
 impl<T: Copy, const BITS: usize> Int<T, BITS> {
     /// The number of bits in the underlying type that are not present in this type.
-    const UNUSED_BITS: usize = ((core::mem::size_of::<T>() << 3) - Self::BITS);
+    const UNUSED_BITS: usize = (core::mem::size_of::<T>() << 3) - Self::BITS;
 
     pub const BITS: usize = BITS;
 
@@ -1393,6 +1395,58 @@ where
         }
     }
 }
+
+macro_rules! bytes_operation_impl {
+    ($base_data_type:ty, $bits:expr, [$($indices:expr),+]) => {
+        impl Int<$base_data_type, $bits>
+        {
+            pub const fn to_le_bytes(&self) -> [u8; $bits >> 3] {
+                let v = self.value();
+
+                [ $( (v >> ($indices << 3)) as u8, )+ ]
+            }
+
+            pub const fn from_le_bytes(from: [u8; $bits >> 3]) -> Self {
+                let value = { 0 $( | (from[$indices] as $base_data_type) << ($indices << 3))+ };
+                Self { value: (value << Self::UNUSED_BITS) >> Self::UNUSED_BITS }
+            }
+
+            pub const fn to_be_bytes(&self) -> [u8; $bits >> 3] {
+                 let v = self.value();
+
+                [ $( (v >> ($bits - 8 - ($indices << 3))) as u8, )+ ]
+            }
+
+            pub const fn from_be_bytes(from: [u8; $bits >> 3]) -> Self {
+                let value = { 0 $( | (from[$indices] as $base_data_type) << ($bits - 8 - ($indices << 3)))+ };
+                Self { value: (value << Self::UNUSED_BITS) >> Self::UNUSED_BITS }
+            }
+
+            common_bytes_operation_impl!($base_data_type, $bits);
+        }
+    };
+}
+
+bytes_operation_impl!(i32, 24, [0, 1, 2]);
+bytes_operation_impl!(i64, 24, [0, 1, 2]);
+bytes_operation_impl!(i128, 24, [0, 1, 2]);
+bytes_operation_impl!(i64, 40, [0, 1, 2, 3, 4]);
+bytes_operation_impl!(i128, 40, [0, 1, 2, 3, 4]);
+bytes_operation_impl!(i64, 48, [0, 1, 2, 3, 4, 5]);
+bytes_operation_impl!(i128, 48, [0, 1, 2, 3, 4, 5]);
+bytes_operation_impl!(i64, 56, [0, 1, 2, 3, 4, 5, 6]);
+bytes_operation_impl!(i128, 56, [0, 1, 2, 3, 4, 5, 6]);
+bytes_operation_impl!(i128, 72, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+bytes_operation_impl!(i128, 80, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+bytes_operation_impl!(i128, 88, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+bytes_operation_impl!(i128, 96, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+bytes_operation_impl!(i128, 104, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+bytes_operation_impl!(i128, 112, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+bytes_operation_impl!(
+    i128,
+    120,
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+);
 
 // Conversions
 from_arbitrary_int_impl!(Int(i8), [i16, i32, i64, i128]);
