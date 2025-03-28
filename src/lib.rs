@@ -17,6 +17,12 @@ mod unsigned;
 pub use signed::*;
 pub use unsigned::*;
 
+#[cfg(feature = "arbitrary")]
+mod arbitrary;
+
+#[cfg(feature = "quickcheck")]
+mod quickcheck;
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TryNewError;
 

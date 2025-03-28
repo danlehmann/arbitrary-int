@@ -11,6 +11,7 @@
     * Extract functions (`extract_i8`, ...)
     * Checked arithmetic functions (`checked_add`, ...)
     * Overflowing arithmetic functions (`overflowing_add`, ...)
+- Add `quickcheck` and `arbitrary` support
 
 ## arbitrary-int 1.3.0
 
