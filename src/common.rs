@@ -119,3 +119,76 @@ macro_rules! impl_extract {
 }
 
 pub(crate) use impl_extract;
+
+macro_rules! common_bytes_operation_impl {
+    ($base_data_type:ty, $bits:expr) => {
+        /// Reverses the byte order of the integer.
+        #[inline]
+        pub const fn swap_bytes(&self) -> Self {
+            // swap_bytes() of the underlying type does most of the work. Then, we just need to shift
+            Self {
+                value: self.value.swap_bytes() >> Self::UNUSED_BITS,
+            }
+        }
+
+        #[inline]
+        pub const fn to_ne_bytes(&self) -> [u8; $bits >> 3] {
+            #[cfg(target_endian = "little")]
+            {
+                self.to_le_bytes()
+            }
+            #[cfg(target_endian = "big")]
+            {
+                self.to_be_bytes()
+            }
+        }
+
+        #[inline]
+        pub const fn from_ne_bytes(bytes: [u8; $bits >> 3]) -> Self {
+            #[cfg(target_endian = "little")]
+            {
+                Self::from_le_bytes(bytes)
+            }
+            #[cfg(target_endian = "big")]
+            {
+                Self::from_be_bytes(bytes)
+            }
+        }
+
+        #[inline]
+        pub const fn to_le(self) -> Self {
+            #[cfg(target_endian = "little")]
+            {
+                self
+            }
+            #[cfg(target_endian = "big")]
+            {
+                self.swap_bytes()
+            }
+        }
+
+        #[inline]
+        pub const fn to_be(self) -> Self {
+            #[cfg(target_endian = "little")]
+            {
+                self.swap_bytes()
+            }
+            #[cfg(target_endian = "big")]
+            {
+                self
+            }
+        }
+
+        #[inline]
+        pub const fn from_le(value: Self) -> Self {
+            value.to_le()
+        }
+
+        #[inline]
+        pub const fn from_be(value: Self) -> Self {
+            value.to_be()
+        }
+    };
+}
+
+pub(crate) use common_bytes_operation_impl;
