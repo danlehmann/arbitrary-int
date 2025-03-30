@@ -1,5 +1,5 @@
 use crate::{
-    common::{from_arbitrary_int_impl, from_native_impl, impl_extract},
+    common::{from_arbitrary_int_impl, from_native_impl, impl_extract, impl_step},
     TryNewError,
 };
 use core::{
@@ -1517,6 +1517,8 @@ where
         }
     }
 }
+
+impl_step!(Int as SignedNumber);
 
 // Conversions
 from_arbitrary_int_impl!(Int(i8), [i16, i32, i64, i128]);

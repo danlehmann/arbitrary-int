@@ -119,3 +119,39 @@ macro_rules! impl_extract {
 }
 
 pub(crate) use impl_extract;
+
+macro_rules! impl_step {
+    ($type:tt as $number_or_signed_number_trait:tt) => {
+        #[cfg(feature = "step_trait")]
+        impl<T, const BITS: usize> core::iter::Step for $type<T, BITS>
+        where
+            Self: $number_or_signed_number_trait<UnderlyingType = T>,
+            T: Copy + core::iter::Step,
+        {
+            #[inline]
+            fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
+                core::iter::Step::steps_between(&start.value(), &end.value())
+            }
+
+            #[inline]
+            fn forward_checked(start: Self, count: usize) -> Option<Self> {
+                if let Some(res) = core::iter::Step::forward_checked(start.value(), count) {
+                    Self::try_new(res).ok()
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            fn backward_checked(start: Self, count: usize) -> Option<Self> {
+                if let Some(res) = core::iter::Step::backward_checked(start.value(), count) {
+                    Self::try_new(res).ok()
+                } else {
+                    None
+                }
+            }
+        }
+    };
+}
+
+pub(crate) use impl_step;
