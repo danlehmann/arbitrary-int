@@ -2429,7 +2429,7 @@ fn saturating_pow_signed() {
 }
 
 #[test]
-fn checked_add() {
+fn checked_add_unsigned() {
     assert_eq!(u7::new(120).checked_add(u7::new(1)), Some(u7::new(121)));
     assert_eq!(u7::new(120).checked_add(u7::new(7)), Some(u7::new(127)));
     assert_eq!(u7::new(120).checked_add(u7::new(10)), None);
@@ -2441,7 +2441,32 @@ fn checked_add() {
 }
 
 #[test]
-fn checked_sub() {
+fn checked_add_signed() {
+    assert_eq!(i7::new(60).checked_add(i7::new(1)), Some(i7::new(61)));
+    assert_eq!(i7::new(-60).checked_add(i7::new(-1)), Some(i7::new(-61)));
+
+    assert_eq!(i7::new(60).checked_add(i7::new(3)), Some(i7::new(63)));
+    assert_eq!(i7::new(-60).checked_add(i7::new(-4)), Some(i7::new(-64)));
+
+    assert_eq!(i7::new(60).checked_add(i7::new(10)), None);
+    assert_eq!(i7::new(-60).checked_add(i7::new(-10)), None);
+
+    assert_eq!(i7::new(63).checked_add(i7::new(63)), None);
+    assert_eq!(i7::new(-64).checked_add(i7::new(-64)), None);
+
+    assert_eq!(
+        Int::<i8, 8>::new(120).checked_add(Int::<i8, 8>::new(10)),
+        None
+    );
+
+    assert_eq!(
+        Int::<i8, 8>::new(-120).checked_add(Int::<i8, 8>::new(-10)),
+        None
+    );
+}
+
+#[test]
+fn checked_sub_unsigned() {
     assert_eq!(u7::new(120).checked_sub(u7::new(30)), Some(u7::new(90)));
     assert_eq!(u7::new(120).checked_sub(u7::new(119)), Some(u7::new(1)));
     assert_eq!(u7::new(120).checked_sub(u7::new(120)), Some(u7::new(0)));
@@ -2450,7 +2475,35 @@ fn checked_sub() {
 }
 
 #[test]
-fn checked_mul() {
+fn checked_sub_signed() {
+    assert_eq!(i7::new(60).checked_sub(i7::new(30)), Some(i7::new(30)));
+    assert_eq!(i7::new(-60).checked_sub(i7::new(-30)), Some(i7::new(-30)));
+
+    assert_eq!(i7::new(60).checked_sub(i7::new(59)), Some(i7::new(1)));
+    assert_eq!(i7::new(-60).checked_sub(i7::new(-59)), Some(i7::new(-1)));
+
+    assert_eq!(i7::new(60).checked_sub(i7::new(60)), Some(i7::new(0)));
+    assert_eq!(i7::new(-60).checked_sub(i7::new(-60)), Some(i7::new(0)));
+
+    assert_eq!(i7::new(60).checked_sub(i7::new(-4)), None);
+    assert_eq!(i7::new(-60).checked_sub(i7::new(5)), None);
+
+    assert_eq!(i7::new(63).checked_sub(i7::new(-63)), None);
+    assert_eq!(i7::new(-64).checked_sub(i7::new(63)), None);
+
+    assert_eq!(
+        Int::<i8, 8>::new(-2).checked_sub(Int::<i8, 8>::new(127)),
+        None
+    );
+
+    assert_eq!(
+        Int::<i8, 8>::new(-120).checked_sub(Int::<i8, 8>::new(10)),
+        None
+    );
+}
+
+#[test]
+fn checked_mul_unsigned() {
     // Fast-path: Only the arbitrary int is bounds checked
     assert_eq!(u4::new(5).checked_mul(u4::new(2)), Some(u4::new(10)));
     assert_eq!(u4::new(5).checked_mul(u4::new(3)), Some(u4::new(15)));
@@ -2472,7 +2525,49 @@ fn checked_mul() {
 }
 
 #[test]
-fn checked_div() {
+fn checked_mul_signed() {
+    // Fast-path: Only the arbitrary int is bounds checked
+    assert_eq!(i4::new(2).checked_mul(i4::new(2)), Some(i4::new(4)));
+    assert_eq!(i4::new(2).checked_mul(i4::new(-2)), Some(i4::new(-4)));
+
+    assert_eq!(i4::new(2).checked_mul(i4::new(3)), Some(i4::new(6)));
+    assert_eq!(i4::new(-2).checked_mul(i4::new(3)), Some(i4::new(-6)));
+
+    assert_eq!(i4::new(5).checked_mul(i4::new(4)), None);
+    assert_eq!(i4::new(-5).checked_mul(i4::new(4)), None);
+
+    assert_eq!(i4::new(5).checked_mul(i4::new(5)), None);
+    assert_eq!(i4::new(5).checked_mul(i4::new(-5)), None);
+
+    assert_eq!(i4::new(5).checked_mul(i4::new(6)), None);
+    assert_eq!(i4::new(-5).checked_mul(i4::new(-6)), None);
+
+    assert_eq!(i4::new(-8).checked_mul(i4::new(-8)), None);
+    assert_eq!(i4::new(7).checked_mul(i4::new(7)), None);
+
+    // Slow-path (well, one more comparison)
+    assert_eq!(i5::new(5).checked_mul(i5::new(2)), Some(i5::new(10)));
+    assert_eq!(i5::new(5).checked_mul(i5::new(-2)), Some(i5::new(-10)));
+
+    assert_eq!(i5::new(5).checked_mul(i5::new(3)), Some(i5::new(15)));
+    assert_eq!(i5::new(-5).checked_mul(i5::new(3)), Some(i5::new(-15)));
+
+    assert_eq!(i5::new(5).checked_mul(i5::new(4)), None);
+    assert_eq!(i5::new(5).checked_mul(i5::new(-4)), None);
+
+    assert_eq!(i5::new(5).checked_mul(i5::new(5)), None);
+    assert_eq!(i5::new(-5).checked_mul(i5::new(5)), None);
+
+    assert_eq!(i5::new(5).checked_mul(i5::new(6)), None);
+    assert_eq!(i5::new(5).checked_mul(i5::new(7)), None);
+
+    assert_eq!(i5::new(15).checked_mul(i5::new(1)), Some(i5::new(15)));
+    assert_eq!(i5::new(15).checked_mul(i5::new(2)), None);
+    assert_eq!(i5::new(15).checked_mul(i5::new(10)), None);
+}
+
+#[test]
+fn checked_div_unsigned() {
     // checked_div handles division by zero without exception, unlike saturating_div
     assert_eq!(u4::new(5).checked_div(u4::new(0)), None);
     assert_eq!(u4::new(5).checked_div(u4::new(1)), Some(u4::new(5)));
@@ -2483,7 +2578,39 @@ fn checked_div() {
 }
 
 #[test]
-fn checked_shl() {
+fn checked_div_signed() {
+    // checked_div handles division by zero without exception, unlike saturating_div
+    assert_eq!(i5::new(5).checked_div(i5::new(0)), None);
+    assert_eq!(i5::MIN.checked_div(i5::new(-1)), None);
+
+    assert_eq!(i5::new(5).checked_div(i5::new(1)), Some(i5::new(5)));
+    assert_eq!(i5::new(-5).checked_div(i5::new(1)), Some(i5::new(-5)));
+
+    assert_eq!(i5::new(5).checked_div(i5::new(2)), Some(i5::new(2)));
+    assert_eq!(i5::new(5).checked_div(i5::new(-2)), Some(i5::new(-2)));
+
+    assert_eq!(i5::new(5).checked_div(i5::new(3)), Some(i5::new(1)));
+    assert_eq!(i5::new(-5).checked_div(i5::new(-3)), Some(i5::new(1)));
+
+    assert_eq!(i5::new(5).checked_div(i5::new(4)), Some(i5::new(1)));
+    assert_eq!(i5::new(5).checked_div(i5::new(5)), Some(i5::new(1)));
+}
+
+#[test]
+fn checked_neg() {
+    assert_eq!(i17::new(0).checked_neg(), Some(i17::new(0)));
+    assert_eq!(i17::new(-1).checked_neg(), Some(i17::new(1)));
+    assert_eq!(i17::new(2).checked_neg(), Some(i17::new(-2)));
+    assert_eq!(i17::new(-3).checked_neg(), Some(i17::new(3)));
+    assert_eq!(i17::new(4).checked_neg(), Some(i17::new(-4)));
+    assert_eq!(i17::new(-5).checked_neg(), Some(i17::new(5)));
+
+    assert_eq!(i17::MAX.checked_neg(), Some(i17::MIN + i17::new(1)));
+    assert_eq!(i17::MIN.checked_neg(), None);
+}
+
+#[test]
+fn checked_shl_unsigned() {
     assert_eq!(
         u7::new(0b010_1101).checked_shl(0),
         Some(u7::new(0b010_1101))
@@ -2503,7 +2630,30 @@ fn checked_shl() {
 }
 
 #[test]
-fn checked_shr() {
+fn checked_shl_signed() {
+    assert_eq!(
+        i7::from_bits(0b010_1101).checked_shl(0),
+        Some(i7::from_bits(0b010_1101))
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).checked_shl(1),
+        Some(i7::from_bits(0b101_1010))
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).checked_shl(6),
+        Some(i7::from_bits(0b100_0000))
+    );
+    assert_eq!(i7::from_bits(0b010_1101).checked_shl(7), None);
+    assert_eq!(i7::from_bits(0b010_1101).checked_shl(8), None);
+    assert_eq!(i7::from_bits(0b010_1101).checked_shl(14), None);
+    assert_eq!(i7::from_bits(0b010_1101).checked_shl(15), None);
+
+    // Ensure the value is sign-extended.
+    assert_eq!(i7::from_bits(0b011_1111).checked_shl(1), Some(i7::new(-2)));
+}
+
+#[test]
+fn checked_shr_unsigned() {
     assert_eq!(
         u7::new(0b010_1101).checked_shr(0),
         Some(u7::new(0b010_1101))
@@ -2520,6 +2670,33 @@ fn checked_shr() {
     assert_eq!(u7::new(0b010_1101).checked_shr(8), None);
     assert_eq!(u7::new(0b010_1101).checked_shr(14), None);
     assert_eq!(u7::new(0b010_1101).checked_shr(15), None);
+}
+
+#[test]
+fn checked_shr_signed() {
+    assert_eq!(
+        i7::from_bits(0b010_1101).checked_shr(0),
+        Some(i7::from_bits(0b010_1101))
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).checked_shr(1),
+        Some(i7::from_bits(0b001_0110))
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).checked_shr(5),
+        Some(i7::from_bits(0b000_0001))
+    );
+    assert_eq!(i7::from_bits(0b010_1101).checked_shr(7), None);
+    assert_eq!(i7::from_bits(0b010_1101).checked_shr(8), None);
+    assert_eq!(i7::from_bits(0b010_1101).checked_shr(14), None);
+    assert_eq!(i7::from_bits(0b010_1101).checked_shr(15), None);
+
+    // Ensure the value is sign-extended.
+    assert_eq!(i7::from_bits(0b111_1110).checked_shr(1), Some(i7::new(-1)));
+    assert_eq!(
+        i7::from_bits(0b100_0000).checked_shr(1),
+        Some(i7::from_bits(0b110_0000))
+    );
 }
 
 #[test]

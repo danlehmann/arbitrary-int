@@ -637,7 +637,7 @@ macro_rules! uint_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_mul(self, rhs: Self) -> Self {
-                    let product = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                    let product = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
                         // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
                         // wrapping_mul likely provides the best performance on all cpus
                         self.value.wrapping_mul(rhs.value)
@@ -704,73 +704,150 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Checked integer addition. Computes `self + rhs`, returning `None` if overflow occurred.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!((u14::MAX - u14::new(2)).checked_add(u14::new(1)), Some(u14::MAX - u14::new(1)));
+                /// assert_eq!((u14::MAX - u14::new(2)).checked_add(u14::new(3)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_add(self, rhs: Self) -> Option<Self> {
                     if Self::UNUSED_BITS == 0 {
-                        // We are something like a UInt::<u8; 8>. We can fallback to the base implementation
-                        match self.value.checked_add(rhs.value) {
+                        // We are something like a UInt::<u8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_add` instead of `checked_add` in the common case, which is faster.
+                        match self.value().checked_add(rhs.value()) {
                             Some(value) => Some(Self { value }),
                             None => None
                         }
                     } else {
                         // We're dealing with fewer bits than the underlying type (e.g. u7).
                         // That means the addition can never overflow the underlying type
-                        let sum = self.value.wrapping_add(rhs.value);
+                        let sum = self.value().wrapping_add(rhs.value());
                         if sum > Self::MAX.value() { None } else { Some(Self { value: sum })}
                     }
                 }
 
+                /// Checked integer subtraction. Computes `self - rhs`, returning `None` if overflow occurred.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(1).checked_sub(u14::new(1)), Some(u14::new(0)));
+                /// assert_eq!(u14::new(0).checked_sub(u14::new(1)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_sub(self, rhs: Self) -> Option<Self> {
-                    match self.value.checked_sub(rhs.value) {
+                    match self.value().checked_sub(rhs.value()) {
                         Some(value) => Some(Self { value }),
                         None => None
                     }
                 }
 
+                /// Checked integer multiplication. Computes `self * rhs`, returning `None` if overflow occurred.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!(u14::new(5).checked_mul(u14::new(1)), Some(u14::new(5)));
+                /// assert_eq!(u14::MAX.checked_mul(u14::new(2)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_mul(self, rhs: Self) -> Option<Self> {
-                    let product = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
-                        // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
-                        // wrapping_mul likely provides the best performance on all cpus
-                        Some(self.value.wrapping_mul(rhs.value))
+                    let product = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
+                        // We have half the bits (e.g. `u4 * u4`) of the base type, so we can't overflow the base type.
+                        // `wrapping_mul` likely provides the best performance on all CPUs.
+                        Some(self.value().wrapping_mul(rhs.value()))
                     } else {
                         // We have more than half the bits (e.g. u6 * u6)
-                        self.value.checked_mul(rhs.value)
+                        self.value().checked_mul(rhs.value())
                     };
 
                     match product {
-                        Some(value) => {
-                            if value > Self::MAX.value() {
-                                None
-                            } else {
-                                Some(Self {value})
-                            }
-                        }
-                        None => None
+                        Some(value) if value <= Self::MAX.value() => Some(Self { value }),
+                        _ => None
                     }
                 }
 
+                /// Checked integer division. Computes `self / rhs`, returning `None` if `rhs == 0`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(128).checked_div(u14::new(2)), Some(u14::new(64)));
+                /// assert_eq!(u14::new(1).checked_div(u14::new(0)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_div(self, rhs: Self) -> Option<Self> {
-                    match self.value.checked_div(rhs.value) {
+                    match self.value().checked_div(rhs.value()) {
                         Some(value) => Some(Self { value }),
                         None => None
                     }
                 }
 
+                /// Checked shift left. Computes `self << rhs`, returning `None` if `rhs` is larger than
+                /// or equal to the number of bits in `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(0x1).checked_shl(4), Some(u14::new(0x10)));
+                /// assert_eq!(u14::new(0x10).checked_shl(129), None);
+                /// assert_eq!(u14::new(0x10).checked_shl(13), Some(u14::new(0)));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_shl(self, rhs: u32) -> Option<Self> {
                     if rhs >= (BITS as u32) {
                         None
                     } else {
                         Some(Self {
-                            value: (self.value << rhs) & Self::MASK,
+                            value: (self.value() << rhs) & Self::MASK,
                         })
                     }
                 }
 
+                /// Checked shift right. Computes `self >> rhs`, returning `None` if `rhs` is larger than
+                /// or equal to the number of bits in `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(0x10).checked_shr(4), Some(u14::new(0x1)));
+                /// assert_eq!(u14::new(0x10).checked_shr(129), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_shr(self, rhs: u32) -> Option<Self> {
                     if rhs >= (BITS as u32) {
                         None
                     } else {
                         Some(Self {
-                            value: (self.value >> rhs),
+                            value: self.value() >> rhs,
                         })
                     }
                 }
@@ -797,7 +874,7 @@ macro_rules! uint_impl {
                 }
 
                 pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
-                    let (wrapping_product, overflow) = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                    let (wrapping_product, overflow) = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
                         // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
                         // wrapping_mul likely provides the best performance on all cpus
                         self.value.overflowing_mul(rhs.value)

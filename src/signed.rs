@@ -597,7 +597,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(100).wrapping_neg(), i14::new(-100));
                 /// assert_eq!(i14::new(-100).wrapping_neg(), i14::new(100));
@@ -768,7 +768,7 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_mul(self, rhs: Self) -> Self {
-                    let value = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                    let value = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
                         // We have half the bits (e.g. i4 * i4) of the base type, so we can't overflow the base type
                         // `wrapping_mul` likely provides the best performance on all cpus
                         self.value.wrapping_mul(rhs.value)
@@ -825,7 +825,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(100).saturating_neg(), i14::new(-100));
                 /// assert_eq!(i14::new(-100).saturating_neg(), i14::new(100));
@@ -873,21 +873,196 @@ macro_rules! int_impl {
                     }
                 }
 
-                /// Returns `true` if `self` is negative and `false` if the number is zero or positive.
+                /// Checked integer addition. Computes `self + rhs`, returning `None` if overflow occurred.
                 ///
                 /// # Examples
                 ///
                 /// Basic usage:
                 ///
-                /// ```
-                /// # use arbitrary_int::i14;
-                /// assert!(i14::new(-10).is_negative());
-                /// assert!(!i14::new(10).is_negative());
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!((i14::MAX - i14::new(2)).checked_add(i14::new(1)), Some(i14::MAX - i14::new(1)));
+                /// assert_eq!((i14::MAX - i14::new(2)).checked_add(i14::new(3)), None);
                 /// ```
                 #[inline]
-                #[must_use]
-                pub const fn is_negative(self) -> bool {
-                    self.value() < 0
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn checked_add(self, rhs: Self) -> Option<Self> {
+                    if Self::UNUSED_BITS == 0 {
+                        // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_add` instead of `checked_add` in the common case, which is faster.
+                        match self.value().checked_add(rhs.value()) {
+                            Some(value) => Some(Self { value }),
+                            None => None
+                        }
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. i7).
+                        // That means the addition can never overflow the underlying type
+                        let value = self.value().wrapping_add(rhs.value());
+                        if value < Self::MIN.value() || value > Self::MAX.value() {
+                            None
+                        } else {
+                            Some(Self { value })
+                        }
+                    }
+                }
+
+                /// Checked integer subtraction. Computes `self - rhs`, returning `None` if overflow occurred.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!((i14::MIN + i14::new(2)).checked_sub(i14::new(1)), Some(i14::MIN + i14::new(1)));
+                /// assert_eq!((i14::MIN + i14::new(2)).checked_sub(i14::new(3)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn checked_sub(self, rhs: Self) -> Option<Self> {
+                    if Self::UNUSED_BITS == 0 {
+                        // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_sub` instead of `checked_sub` in the common case, which is faster.
+                        match self.value().checked_sub(rhs.value()) {
+                            Some(value) => Some(Self { value }),
+                            None => None
+                        }
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. i7).
+                        // That means the subtraction can never overflow the underlying type
+                        let value = self.value().wrapping_sub(rhs.value());
+                        if value < Self::MIN.value() || value > Self::MAX.value() {
+                            None
+                        } else {
+                            Some(Self { value })
+                        }
+                    }
+                }
+
+                /// Checked integer multiplication. Computes `self * rhs`, returning `None` if overflow occurred.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::MAX.checked_mul(i14::new(1)), Some(i14::MAX));
+                /// assert_eq!(i14::MAX.checked_mul(i14::new(2)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn checked_mul(self, rhs: Self) -> Option<Self> {
+                    let product = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
+                        // We have half the bits (e.g. `i4 * i4`) of the base type, so we can't overflow the base type.
+                        // `wrapping_mul` likely provides the best performance on all CPUs.
+                        Some(self.value().wrapping_mul(rhs.value()))
+                    } else {
+                        // We have more than half the bits (e.g. u6 * u6)
+                        self.value().checked_mul(rhs.value())
+                    };
+
+                    match product {
+                        Some(value) if value >= Self::MIN.value() && value <= Self::MAX.value() => {
+                            Some(Self { value })
+                        }
+                        _ => None
+                    }
+                }
+
+                /// Checked integer division. Computes `self / rhs`, returning `None` if `rhs == 0`
+                /// or the division results in overflow.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!((i14::MIN + i14::new(1)).checked_div(i14::new(-1)), Some(i14::new(8191)));
+                /// assert_eq!(i14::MIN.checked_div(i14::new(-1)), None);
+                /// assert_eq!((i14::new(1)).checked_div(i14::new(0)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn checked_div(self, rhs: Self) -> Option<Self> {
+                    // `checked_div` from the underlying type already catches division by zero,
+                    // and the only way this can overflow is with `MIN / -1` (which equals `MAX + 1`).
+                    // Because of this we only need to check if the value is larger than `MAX`.
+                    match self.value().checked_div(rhs.value()) {
+                        Some(value) if value <= Self::MAX.value() => Some(Self { value }),
+                        _ => None
+                    }
+                }
+
+                /// Checked negation. Computes `-self`, returning `None` if `self == MIN`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(5).checked_neg(), Some(i14::new(-5)));
+                /// assert_eq!(i14::MIN.checked_neg(), None);
+                /// ```
+                pub const fn checked_neg(self) -> Option<Self> {
+                    if self.value() == Self::MIN.value() {
+                        None
+                    } else {
+                        // It is not possible for this to wrap as we've already checked for `MIN`.
+                        let value = self.value().wrapping_neg();
+                        Some(Self { value })
+                    }
+                }
+
+                /// Checked shift left. Computes `self << rhs`, returning `None` if `rhs` is larger than or
+                /// equal to the number of bits in `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::i14;
+                /// assert_eq!(i14::new(0x1).checked_shl(4), Some(i14::new(0x10)));
+                /// assert_eq!(i14::new(0x1).checked_shl(129), None);
+                /// assert_eq!(i14::new(0x10).checked_shl(13), Some(i14::new(0)));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn checked_shl(self, rhs: u32) -> Option<Self> {
+                    if rhs >= (BITS as u32) {
+                        None
+                    } else {
+                        let value = ((self.value() << rhs) << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+                        Some(Self { value })
+                    }
+                }
+
+                /// Checked shift right. Computes `self >> rhs`, returning `None` if `rhs` is larger than
+                /// or equal to the number of bits in `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::i14;
+                /// assert_eq!(i14::new(0x10).checked_shr(4), Some(i14::new(0x1)));
+                /// assert_eq!(i14::new(0x10).checked_shr(129), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn checked_shr(self, rhs: u32) -> Option<Self> {
+                    if rhs >= (BITS as u32) {
+                        None
+                    } else {
+                        let value = ((self.value() >> rhs) << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+                        Some(Self { value })
+                    }
                 }
 
                 /// Returns `true` if `self` is positive and `false` if the number is zero or negative.
@@ -896,7 +1071,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i14;
                 /// assert!(i14::new(10).is_positive());
                 /// assert!(!i14::new(-10).is_positive());
@@ -905,6 +1080,23 @@ macro_rules! int_impl {
                 #[must_use]
                 pub const fn is_positive(self) -> bool {
                     self.value() > 0
+                }
+
+                /// Returns `true` if `self` is negative and `false` if the number is zero or positive.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::i14;
+                /// assert!(i14::new(-10).is_negative());
+                /// assert!(!i14::new(10).is_negative());
+                /// ```
+                #[inline]
+                #[must_use]
+                pub const fn is_negative(self) -> bool {
+                    self.value() < 0
                 }
 
                 /// Reverses the order of bits in the integer. The least significant bit becomes the most
