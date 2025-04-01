@@ -169,7 +169,7 @@ macro_rules! bytes_operation_impl {
             }
 
             pub const fn from_le_bytes(from: [u8; Self::BITS >> 3]) -> Self {
-                let mut bytes = [0_u8; size_of::<$base_data_type>()];
+                let mut bytes = [0_u8; core::mem::size_of::<$base_data_type>()];
                 const_byte_copy::<{ Self::BITS >> 3 }, { Self::UNUSED_BITS >> 3 }, 0>(
                     &mut bytes, &from,
                 );
@@ -179,7 +179,7 @@ macro_rules! bytes_operation_impl {
             }
 
             pub const fn from_be_bytes(from: [u8; Self::BITS >> 3]) -> Self {
-                let mut bytes = [0_u8; size_of::<$base_data_type>()];
+                let mut bytes = [0_u8; core::mem::size_of::<$base_data_type>()];
                 const_byte_copy::<{ Self::BITS >> 3 }, 0, 0>(&mut bytes, &from);
                 Self {
                     value: <$base_data_type>::from_be_bytes(bytes) >> Self::UNUSED_BITS,
