@@ -141,6 +141,7 @@ pub(crate) use impl_extract;
 
 macro_rules! bytes_operation_impl {
     ($target:ty, $base_data_type:ty) => {
+        #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
         impl $target {
             /// Reverses the byte order of the integer.
             #[inline]
