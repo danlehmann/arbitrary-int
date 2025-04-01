@@ -1,5 +1,5 @@
 use crate::common::{
-    bytes_operation_impl, const_byte_copy, from_arbitrary_int_impl, from_native_impl, impl_extract,
+    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
 };
 use crate::TryNewError;
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};

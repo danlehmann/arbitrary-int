@@ -3,6 +3,7 @@
 /// Copies LEN bytes from `from[FROM_OFFSET]` to `to[TO_OFFSET]`.
 ///
 /// Usable in const contexts and inlines for small arrays.
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[inline(always)]
 pub(crate) const fn const_byte_copy<
     const LEN: usize,
@@ -155,14 +156,14 @@ macro_rules! bytes_operation_impl {
             pub const fn to_le_bytes(&self) -> [u8; Self::BITS >> 3] {
                 let mut result = [0_u8; Self::BITS >> 3];
                 let be = self.value.to_le_bytes();
-                const_byte_copy::<{ Self::BITS >> 3 }, 0, 0>(&mut result, &be);
+                crate::common::const_byte_copy::<{ Self::BITS >> 3 }, 0, 0>(&mut result, &be);
                 result
             }
 
             pub const fn to_be_bytes(&self) -> [u8; Self::BITS >> 3] {
                 let mut result = [0_u8; Self::BITS >> 3];
                 let be = self.value.to_be_bytes();
-                const_byte_copy::<{ Self::BITS >> 3 }, 0, { Self::UNUSED_BITS >> 3 }>(
+                crate::common::const_byte_copy::<{ Self::BITS >> 3 }, 0, { Self::UNUSED_BITS >> 3 }>(
                     &mut result,
                     &be,
                 );
@@ -171,7 +172,7 @@ macro_rules! bytes_operation_impl {
 
             pub const fn from_le_bytes(from: [u8; Self::BITS >> 3]) -> Self {
                 let mut bytes = [0_u8; core::mem::size_of::<$base_data_type>()];
-                const_byte_copy::<{ Self::BITS >> 3 }, { Self::UNUSED_BITS >> 3 }, 0>(
+                crate::common::const_byte_copy::<{ Self::BITS >> 3 }, { Self::UNUSED_BITS >> 3 }, 0>(
                     &mut bytes, &from,
                 );
                 Self {
@@ -181,7 +182,7 @@ macro_rules! bytes_operation_impl {
 
             pub const fn from_be_bytes(from: [u8; Self::BITS >> 3]) -> Self {
                 let mut bytes = [0_u8; core::mem::size_of::<$base_data_type>()];
-                const_byte_copy::<{ Self::BITS >> 3 }, 0, 0>(&mut bytes, &from);
+                crate::common::const_byte_copy::<{ Self::BITS >> 3 }, 0, 0>(&mut bytes, &from);
                 Self {
                     value: <$base_data_type>::from_be_bytes(bytes) >> Self::UNUSED_BITS,
                 }

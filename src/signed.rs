@@ -1424,7 +1424,6 @@ from_native_impl!(Int(i32), [i8, i16, i32, i64, i128]);
 from_native_impl!(Int(i64), [i8, i16, i32, i64, i128]);
 from_native_impl!(Int(i128), [i8, i16, i32, i64, i128]);
 
-use crate::common::const_byte_copy;
 pub use aliases::*;
 
 #[allow(non_camel_case_types)]
