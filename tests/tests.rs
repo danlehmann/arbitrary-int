@@ -1525,6 +1525,7 @@ fn hash() {
     assert_eq!(None, hashmap.get(&u5::new(12)));
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn swap_bytes_unsigned() {
     assert_eq!(u24::new(0x12_34_56).swap_bytes(), u24::new(0x56_34_12));
@@ -1600,6 +1601,7 @@ fn swap_bytes_unsigned() {
     );
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn swap_bytes_signed() {
     // Signed numbers have to sign extended, so the following tests look less symmetrical than the
@@ -1677,6 +1679,7 @@ fn swap_bytes_signed() {
     );
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn to_le_and_be_bytes_unsigned() {
     assert_eq!(u24::new(0x12_34_56).to_le_bytes(), [0x56, 0x34, 0x12]);
@@ -1830,6 +1833,7 @@ fn to_le_and_be_bytes_unsigned() {
     );
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn to_le_and_be_bytes_signed() {
     assert_eq!(i24::new(0x12_34_56).to_le_bytes(), [0x56, 0x34, 0x12]);
@@ -1861,6 +1865,7 @@ fn to_le_and_be_bytes_signed() {
     );
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn from_le_and_be_bytes_unsigned() {
     assert_eq!(u24::from_le_bytes([0x56, 0x34, 0x12]), u24::new(0x12_34_56));
@@ -2026,6 +2031,7 @@ fn from_le_and_be_bytes_unsigned() {
     );
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn from_le_and_be_bytes_signed() {
     assert_eq!(
@@ -2083,6 +2089,7 @@ fn from_le_and_be_bytes_signed() {
     );
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn to_ne_bytes() {
     if cfg!(target_endian = "little") {
@@ -2114,6 +2121,7 @@ fn to_ne_bytes() {
     }
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn from_ne_bytes() {
     if cfg!(target_endian = "little") {
@@ -2145,6 +2153,7 @@ fn from_ne_bytes() {
     }
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn simple_le_be_unsigned() {
     const REGULAR: u40 = u40::new(0x12_34_56_78_9A);
@@ -2162,6 +2171,7 @@ fn simple_le_be_unsigned() {
     }
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn simple_le_be_signed() {
     const REGULAR: i40 = i40::new(0x12_34_56_78_9A);
