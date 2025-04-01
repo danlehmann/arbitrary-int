@@ -769,6 +769,33 @@ fn shrassign_signed() {
 }
 
 #[test]
+fn neg() {
+    assert_eq!(-i17::new(0), i17::new(0));
+    assert_eq!(-i17::new(-1), i17::new(1));
+    assert_eq!(-i17::new(2), i17::new(-2));
+    assert_eq!(-i17::new(-3), i17::new(3));
+    assert_eq!(-i17::new(4), i17::new(-4));
+    assert_eq!(-i17::new(-5), i17::new(5));
+
+    assert_eq!(-i17::MAX, i17::MIN + i17::new(1));
+    assert_eq!(-(i17::MIN + i17::new(1)), i17::MAX);
+}
+
+#[cfg(debug_assertions)]
+#[should_panic]
+#[test]
+fn neg_overflow_panics() {
+    let _ = -i17::MIN;
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn neg_overflow_truncates() {
+    // `-MIN` is equal to `MAX + 1`, which in turn is equal to `MIN` when truncated.
+    assert_eq!(-i17::MIN, i17::MIN);
+}
+
+#[test]
 #[allow(clippy::bool_assert_comparison)]
 fn compare() {
     assert_eq!(true, u4::new(0b1100) > u4::new(0b0011));
@@ -2056,6 +2083,19 @@ fn wrapping_div_by_zero_signed() {
 }
 
 #[test]
+fn wrapping_neg() {
+    assert_eq!(i17::new(0).wrapping_neg(), i17::new(0));
+    assert_eq!(i17::new(-1).wrapping_neg(), i17::new(1));
+    assert_eq!(i17::new(2).wrapping_neg(), i17::new(-2));
+    assert_eq!(i17::new(-3).wrapping_neg(), i17::new(3));
+    assert_eq!(i17::new(4).wrapping_neg(), i17::new(-4));
+    assert_eq!(i17::new(-5).wrapping_neg(), i17::new(5));
+
+    assert_eq!(i17::MAX.wrapping_neg(), i17::MIN + i17::new(1));
+    assert_eq!(i17::MIN.wrapping_neg(), i17::MIN);
+}
+
+#[test]
 fn wrapping_shl_unsigned() {
     assert_eq!(u7::new(0b010_1101).wrapping_shl(0), u7::new(0b010_1101));
     assert_eq!(u7::new(0b010_1101).wrapping_shl(1), u7::new(0b101_1010));
@@ -2346,6 +2386,19 @@ fn saturating_div_signed() {
 fn saturating_divby0_signed() {
     // saturating_div throws an exception on zero
     let _ = i4::new(5).saturating_div(i4::new(0));
+}
+
+#[test]
+fn saturating_neg() {
+    assert_eq!(i17::new(0).saturating_neg(), i17::new(0));
+    assert_eq!(i17::new(-1).saturating_neg(), i17::new(1));
+    assert_eq!(i17::new(2).saturating_neg(), i17::new(-2));
+    assert_eq!(i17::new(-3).saturating_neg(), i17::new(3));
+    assert_eq!(i17::new(4).saturating_neg(), i17::new(-4));
+    assert_eq!(i17::new(-5).saturating_neg(), i17::new(5));
+
+    assert_eq!(i17::MAX.saturating_neg(), i17::MIN + i17::new(1));
+    assert_eq!(i17::MIN.saturating_neg(), i17::MAX);
 }
 
 #[test]
@@ -3292,4 +3345,22 @@ pub fn const_constructors_signed() {
 
     const TOO_SMALL: Result<i4, TryNewError> = <i4 as SignedNumber>::try_new(-9);
     assert!(TOO_SMALL.is_err());
+}
+
+#[test]
+pub fn is_negative() {
+    assert!(!i4::new(1).is_negative());
+    assert!(i4::new(-1).is_negative());
+    assert!(!i4::new(0).is_negative());
+    assert!(i4::MIN.is_negative());
+    assert!(!i4::MAX.is_negative());
+}
+
+#[test]
+pub fn is_positive() {
+    assert!(i4::new(1).is_positive());
+    assert!(!i4::new(-1).is_positive());
+    assert!(!i4::new(0).is_positive());
+    assert!(!i4::MIN.is_positive());
+    assert!(i4::MAX.is_positive());
 }

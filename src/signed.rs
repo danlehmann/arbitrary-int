@@ -6,7 +6,7 @@ use core::{
     fmt::{self, Debug},
     ops::{
         Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
-        DivAssign, Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+        DivAssign, Mul, MulAssign, Neg, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
     },
 };
 
@@ -572,6 +572,29 @@ macro_rules! int_impl {
                     }
                 }
 
+                /// Wrapping (modular) negation. Computes `-self`, wrapping around at the boundary of the type.
+                ///
+                /// The only case where such wrapping can occur is when one negates `MIN` on a signed type
+                /// (where `MIN` is the negative minimal value for the type); this is a positive value that is
+                /// too large to represent in the type. In such a case, this function returns `MIN` itself.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(100).wrapping_neg(), i14::new(-100));
+                /// assert_eq!(i14::new(-100).wrapping_neg(), i14::new(100));
+                /// assert_eq!(i14::MIN.wrapping_neg(), i14::MIN);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn wrapping_neg(self) -> Self {
+                    let value = (self.value().wrapping_neg() << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+                    Self { value }
+                }
+
                 /// Panic-free bitwise shift-left; yields `self << mask(rhs)`, where mask removes any
                 /// high-order bits of `rhs` that would cause the shift to exceed the bitwidth of the type.
                 ///
@@ -780,6 +803,32 @@ macro_rules! int_impl {
                     }
                 }
 
+                /// Saturating integer negation. Computes `-self`, returning `MAX` if `self == MIN`
+                /// instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(100).saturating_neg(), i14::new(-100));
+                /// assert_eq!(i14::new(-100).saturating_neg(), i14::new(100));
+                /// assert_eq!(i14::MIN.saturating_neg(), i14::MAX);
+                /// assert_eq!(i14::MAX.saturating_neg(), i14::MIN + i14::new(1));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn saturating_neg(self) -> Self {
+                    if self.value() == Self::MIN.value() {
+                        Self::MAX
+                    } else {
+                        // It is not possible for this to wrap as we've already checked for `MIN`.
+                        let value = self.value().wrapping_neg();
+                        Self { value }
+                    }
+                }
+
                 /// Saturating integer exponentiation. Computes `self.pow(exp)`, saturating at the numeric
                 /// bounds instead of overflowing.
                 ///
@@ -807,6 +856,40 @@ macro_rules! int_impl {
                     } else {
                         Self { value }
                     }
+                }
+
+                /// Returns `true` if `self` is negative and `false` if the number is zero or positive.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::i14;
+                /// assert!(i14::new(-10).is_negative());
+                /// assert!(!i14::new(10).is_negative());
+                /// ```
+                #[inline]
+                #[must_use]
+                pub const fn is_negative(self) -> bool {
+                    self.value() < 0
+                }
+
+                /// Returns `true` if `self` is positive and `false` if the number is zero or negative.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                /// ```
+                /// # use arbitrary_int::i14;
+                /// assert!(i14::new(10).is_positive());
+                /// assert!(!i14::new(-10).is_positive());
+                /// ```
+                #[inline]
+                #[must_use]
+                pub const fn is_positive(self) -> bool {
+                    self.value() > 0
                 }
 
                 /// Reverses the order of bits in the integer. The least significant bit becomes the most
@@ -1106,6 +1189,22 @@ where
     fn div_assign(&mut self, rhs: Self) {
         // Delegate to the Div implementation above.
         *self = *self / rhs;
+    }
+}
+
+impl<T, const BITS: usize> Neg for Int<T, BITS>
+where
+    Self: SignedNumber<UnderlyingType = T>,
+    T: PartialEq + Copy + Neg<Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+{
+    type Output = Self;
+
+    #[inline]
+    fn neg(self) -> Self::Output {
+        let negated = -self.value();
+        let value = (negated << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+        debug_assert!(negated == value, "attempt to negate with overflow");
+        Self { value }
     }
 }
 
