@@ -286,7 +286,7 @@ uint_impl_num!(u8, u16, u32, u64, u128);
 uint_impl_num!(u8 as const, u16 as const, u32 as const, u64 as const, u128 as const);
 
 macro_rules! uint_impl {
-    ($($type:ident),+) => {
+    ($(($type:ident, doctest = $doctest_attr:literal)),+) => {
         $(
             impl<const BITS: usize> UInt<$type, BITS> {
                 /// Creates an instance. Panics if the given value is outside of the valid range
@@ -413,7 +413,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u14, Number};
                 /// assert_eq!(u14::new(200).wrapping_add(u14::new(55)), u14::new(255));
                 /// assert_eq!(u14::new(200).wrapping_add(u14::MAX), u14::new(199));
@@ -434,7 +434,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u14, Number};
                 /// assert_eq!(u14::new(100).wrapping_sub(u14::new(100)), u14::new(0));
                 /// assert_eq!(u14::new(100).wrapping_sub(u14::MAX), u14::new(101));
@@ -455,7 +455,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u7;
                 /// assert_eq!(u7::new(10).wrapping_mul(u7::new(12)), u7::new(120));
                 /// assert_eq!(u7::new(25).wrapping_mul(u7::new(12)), u7::new(44));
@@ -483,7 +483,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u14;
                 /// assert_eq!(u14::new(100).wrapping_div(u14::new(10)), u14::new(10));
                 /// ```
@@ -511,7 +511,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u14;
                 /// assert_eq!(u14::new(1).wrapping_shl(7), u14::new(128));
                 /// assert_eq!(u14::new(1).wrapping_shl(128), u14::new(4));
@@ -548,7 +548,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u14;
                 /// assert_eq!(u14::new(128).wrapping_shr(7), u14::new(1));
                 /// assert_eq!(u14::new(128).wrapping_shr(128), u14::new(32));
@@ -575,7 +575,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u14, Number};
                 /// assert_eq!(u14::new(100).saturating_add(u14::new(1)), u14::new(101));
                 /// assert_eq!(u14::MAX.saturating_add(u14::new(100)), u14::MAX);
@@ -607,7 +607,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u14;
                 /// assert_eq!(u14::new(100).saturating_sub(u14::new(27)), u14::new(73));
                 /// assert_eq!(u14::new(13).saturating_sub(u14::new(127)), u14::new(0));
@@ -629,7 +629,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u14, Number};
                 /// assert_eq!(u14::new(2).saturating_mul(u14::new(10)), u14::new(20));
                 /// assert_eq!(u14::MAX.saturating_mul(u14::new(10)), u14::MAX);
@@ -664,7 +664,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u14;
                 /// assert_eq!(u14::new(5).saturating_div(u14::new(2)), u14::new(2));
                 /// ```
@@ -686,7 +686,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u14, Number};
                 /// assert_eq!(u14::new(4).saturating_pow(3), u14::new(64));
                 /// assert_eq!(u14::MAX.saturating_pow(2), u14::MAX);
@@ -839,7 +839,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u6;
                 /// assert_eq!(u6::new(0b10_1010).reverse_bits(), u6::new(0b01_0101));
                 /// assert_eq!(u6::new(0), u6::new(0).reverse_bits());
@@ -856,7 +856,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u7, Number};
                 /// let n = u7::new(0b100_1100);
                 /// assert_eq!(n.count_ones(), 3);
@@ -879,7 +879,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u7, Number};
                 /// let zero = u7::new(0);
                 /// assert_eq!(zero.count_zeros(), 7);
@@ -900,7 +900,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u7, Number};
                 /// let n = !(u7::MAX >> 2);
                 /// assert_eq!(n.leading_ones(), 2);
@@ -922,7 +922,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u7, Number};
                 /// let n = u7::MAX >> 2;
                 /// assert_eq!(n.leading_zeros(), 2);
@@ -951,7 +951,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u7, Number};
                 /// let n = u7::new(0b1010111);
                 /// assert_eq!(n.trailing_ones(), 3);
@@ -973,7 +973,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u7, Number};
                 /// let n = u7::new(0b010_1000);
                 /// assert_eq!(n.trailing_zeros(), 3);
@@ -1000,7 +1000,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u6;
                 /// let n = u6::new(0b10_1010);
                 /// let m = u6::new(0b01_0101);
@@ -1027,7 +1027,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u6;
                 /// let n = u6::new(0b10_1010);
                 /// let m = u6::new(0b01_0101);
@@ -1049,7 +1049,17 @@ macro_rules! uint_impl {
     };
 }
 
-uint_impl!(u8, u16, u32, u64, u128);
+// Because the methods within this macro are effectively copy-pasted for each underlying integer type,
+// each documentation test gets executed five times (once for each underlying type), even though the
+// tests themselves aren't specific to said underlying type. This severely slows down `cargo test`,
+// so we ignore them for all but one (arbitrary) underlying type.
+uint_impl!(
+    (u8, doctest = "rust"),
+    (u16, doctest = "ignore"),
+    (u32, doctest = "ignore"),
+    (u64, doctest = "ignore"),
+    (u128, doctest = "ignore")
+);
 
 // Arithmetic implementations
 impl<T, const BITS: usize> Add for UInt<T, BITS>

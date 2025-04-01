@@ -36,16 +36,18 @@ pub trait SignedNumber: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq
     /// Creates a number from the given value, return None if the value is too large
     fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError>;
 
-    /// Returns the type as a fundamental data type
+    /// Returns the type as a fundamental data type.
     ///
-    /// Note that if negative, the returned value may span more bits than [`Self::BITS`],
+    /// Note that if negative, the returned value may span more bits than [`BITS`](Self::BITS),
     /// as it preserves the numeric value instead of the bitwise value:
+    ///
     /// ```
     /// # use arbitrary_int::i3;
     /// let value: i8 = i3::new(-1).value();
     /// assert_eq!(value, -1);
     /// assert_eq!(value.count_ones(), 8);
     /// ```
+    ///
     /// If you need a value within the specified bit range, use [`Int::to_bits`].
     fn value(self) -> Self::UnderlyingType;
 
@@ -160,16 +162,18 @@ impl<T: Copy, const BITS: usize> Int<T, BITS> {
 
     pub const BITS: usize = BITS;
 
-    /// Returns the type as a fundamental data type
+    /// Returns the type as a fundamental data type.
     ///
-    /// Note that if negative, the returned value may span more bits than [`Self::BITS`],
+    /// Note that if negative, the returned value may span more bits than [`BITS`](Self::BITS),
     /// as it preserves the numeric value instead of the bitwise value:
+    ///
     /// ```
     /// # use arbitrary_int::i3;
     /// let value: i8 = i3::new(-1).value();
     /// assert_eq!(value, -1);
     /// assert_eq!(value.count_ones(), 8);
     /// ```
+    ///
     /// If you need a value within the specified bit range, use [`Self::to_bits`].
     #[cfg(not(feature = "hint"))]
     #[inline]
@@ -180,6 +184,7 @@ impl<T: Copy, const BITS: usize> Int<T, BITS> {
     /// Initializes a new value without checking the bounds
     ///
     /// # Safety
+    ///
     /// Must only be called with a value bigger or equal to [`Self::MIN`] and less than or equal to [`Self::MAX`].
     #[inline]
     pub const unsafe fn new_unchecked(value: T) -> Self {
@@ -287,7 +292,7 @@ int_impl_num!(i8, i16, i32, i64, i128);
 int_impl_num!(i8 as const, i16 as const, i32 as const, i64 as const, i128 as const);
 
 macro_rules! int_impl {
-    ($(($type:ident, $unsigned_type:ident)),+) => {
+    ($(($type:ident, $unsigned_type:ident, doctest = $doctest_attr:literal)),+) => {
         $(
             impl<const BITS: usize> Int<$type, BITS> {
                 pub const MASK: $type = (Self::MAX.value << 1) | 1;
@@ -355,34 +360,38 @@ macro_rules! int_impl {
                     }
                 }
 
-                /// Returns the bitwise representation of the value
+                /// Returns the bitwise representation of the value.
                 ///
-                /// As the bit width is limited to [`Self::BITS`] the numeric value may differ from [`Self::value`]:
-                /// ```
+                /// As the bit width is limited to [`BITS`](Self::BITS) the numeric value may differ from [`value`](Self::value).
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i3;
                 /// let value = i3::new(-1);
                 /// assert_eq!(value.to_bits(), 0b111); // 7
                 /// assert_eq!(value.value(), -1);
                 /// ```
-                /// To convert from the bitwise representation back to an instance, use [`Self::from_bits`].
+                ///
+                /// To convert from the bitwise representation back to an instance, use [`from_bits`](Self::from_bits).
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn to_bits(self) -> $unsigned_type {
                     (self.value() & Self::MASK) as $unsigned_type
                 }
 
-                /// Convert the bitwise representation from [`Self::to_bits`] to an instance
+                /// Convert the bitwise representation from [`to_bits`](Self::to_bits) to an instance.
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i3;
                 /// let value = i3::from_bits(0b111);
                 /// assert_eq!(value.value(), -1);
                 /// assert_eq!(value.to_bits(), 0b111);
                 /// ```
-                /// If you want to convert a numeric value to an instance instead, use [`Self::new`].
+                ///
+                /// If you want to convert a numeric value to an instance instead, use [`new`](Self::new).
                 ///
                 /// # Panics
-                /// Panics if the given value exceeds the bit width specified by [`Self::BITS`].
+                ///
+                /// Panics if the given value exceeds the bit width specified by [`BITS`](Self::BITS).
                 #[inline]
                 pub const fn from_bits(value: $unsigned_type) -> Self {
                     assert!(value & (!Self::MASK as $unsigned_type) == 0);
@@ -392,19 +401,21 @@ macro_rules! int_impl {
                     Self { value: ((value << Self::UNUSED_BITS) as $type) >> Self::UNUSED_BITS }
                 }
 
-                /// Tries to convert the bitwise representation from [`Self::to_bits`] to an instance
+                /// Tries to convert the bitwise representation from [`to_bits`](Self::to_bits) to an instance.
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i3;
                 /// i3::try_from_bits(0b1111).expect_err("value is > 3 bits");
                 /// let value = i3::try_from_bits(0b111).expect("value is <= 3 bits");
                 /// assert_eq!(value.value(), -1);
                 /// assert_eq!(value.to_bits(), 0b111);
                 /// ```
-                /// If you want to convert a numeric value to an instance instead, use [`Self::try_new`].
+                ///
+                /// If you want to convert a numeric value to an instance instead, use [`try_new`](Self::try_new).
                 ///
                 /// # Errors
-                /// Returns an error if the given value exceeds the bit width specified by [`Self::BITS`].
+                ///
+                /// Returns an error if the given value exceeds the bit width specified by [`BITS`](Self::BITS).
                 #[inline]
                 pub const fn try_from_bits(value: $unsigned_type) -> Result<Self, TryNewError> {
                     if value & (!Self::MASK as $unsigned_type) == 0 {
@@ -416,9 +427,11 @@ macro_rules! int_impl {
                     }
                 }
 
-                /// Converts the bitwise representation from [`Self::to_bits`] to an instance, without checking the bounds
+                /// Converts the bitwise representation from [`to_bits`](Self::to_bits) to an instance,
+                /// without checking the bounds.
                 ///
                 /// # Safety
+                ///
                 /// The given value must not exceed the bit width specified by [`Self::BITS`].
                 #[inline]
                 pub const unsafe fn from_bits_unchecked(value: $unsigned_type) -> Self {
@@ -427,17 +440,19 @@ macro_rules! int_impl {
                     Self { value: ((value << Self::UNUSED_BITS) as $type) >> Self::UNUSED_BITS }
                 }
 
-                /// Returns the type as a fundamental data type
+                /// Returns the type as a fundamental data type.
                 ///
-                /// Note that if negative, the returned value may span more bits than [`Self::BITS`],
+                /// Note that if negative, the returned value may span more bits than [`BITS`](Self::BITS)
                 /// as it preserves the numeric value instead of the bitwise value:
-                /// ```
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i3;
                 /// let value: i8 = i3::new(-1).value();
                 /// assert_eq!(value, -1);
                 /// assert_eq!(value.count_ones(), 8);
                 /// ```
-                /// If you need a value within the specified bit range, use [`Self::to_bits`].
+                ///
+                /// If you need a value within the specified bit range, use [`to_bits`](Self::to_bits).
                 #[cfg(feature = "hint")]
                 #[inline]
                 pub const fn value(self) -> $type {
@@ -484,7 +499,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(100).wrapping_add(i14::new(27)), i14::new(127));
                 /// assert_eq!(i14::MAX.wrapping_add(i14::new(2)), i14::MIN + i14::new(1));
@@ -505,7 +520,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(0).wrapping_sub(i14::new(127)), i14::new(-127));
                 /// assert_eq!(i14::new(-2).wrapping_sub(i14::MAX), i14::MAX);
@@ -526,7 +541,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i14;
                 /// assert_eq!(i14::new(10).wrapping_mul(i14::new(12)), i14::new(120));
                 /// assert_eq!(i14::new(12).wrapping_mul(i14::new(1024)), i14::new(-4096));
@@ -556,7 +571,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(100).wrapping_div(i14::new(10)), i14::new(10));
                 /// assert_eq!(i14::MIN.wrapping_div(i14::new(-1)), i14::MIN);
@@ -585,7 +600,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i14;
                 /// assert_eq!(i14::new(-1).wrapping_shl(7), i14::new(-128));
                 /// assert_eq!(i14::new(-1).wrapping_shl(128), i14::new(-4));
@@ -622,7 +637,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i14;
                 /// assert_eq!(i14::new(-128).wrapping_shr(7), i14::new(-1));
                 /// assert_eq!(i14::new(-128).wrapping_shr(60), i14::new(-8));
@@ -649,7 +664,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(100).saturating_add(i14::new(1)), i14::new(101));
                 /// assert_eq!(i14::MAX.saturating_add(i14::new(100)), i14::MAX);
@@ -685,7 +700,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(100).saturating_sub(i14::new(127)), i14::new(-27));
                 /// assert_eq!(i14::MIN.saturating_sub(i14::new(100)), i14::MIN);
@@ -721,7 +736,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(10).saturating_mul(i14::new(12)), i14::new(120));
                 /// assert_eq!(i14::MAX.saturating_mul(i14::new(10)), i14::MAX);
@@ -759,7 +774,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(5).saturating_div(i14::new(2)), i14::new(2));
                 /// assert_eq!(i14::MAX.saturating_div(i14::new(-1)), i14::MIN + i14::new(1));
@@ -787,7 +802,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(-4).saturating_pow(3), i14::new(-64));
                 /// assert_eq!(i14::MIN.saturating_pow(2), i14::MAX);
@@ -816,7 +831,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i6;
                 /// assert_eq!(i6::from_bits(0b10_1010).reverse_bits(), i6::from_bits(0b01_0101));
                 /// assert_eq!(i6::new(0), i6::new(0).reverse_bits());
@@ -834,7 +849,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i6;
                 /// let n = i6::from_bits(0b00_1000);
                 /// assert_eq!(n.count_ones(), 1);
@@ -851,7 +866,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i6, SignedNumber};
                 /// assert_eq!(i6::MAX.count_zeros(), 1);
                 /// ```
@@ -869,7 +884,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i6;
                 /// let n = i6::new(-1);
                 /// assert_eq!(n.leading_ones(), 6);
@@ -885,7 +900,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i6;
                 /// let n = i6::new(-1);
                 /// assert_eq!(n.leading_zeros(), 0);
@@ -908,7 +923,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i6;
                 /// let n = i6::new(3);
                 /// assert_eq!(n.trailing_ones(), 2);
@@ -926,7 +941,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i6;
                 /// let n = i6::new(-4);
                 /// assert_eq!(n.trailing_zeros(), 2);
@@ -947,7 +962,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i6;
                 /// let n = i6::from_bits(0b10_1010);
                 /// let m = i6::from_bits(0b01_0101);
@@ -976,7 +991,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i6;
                 /// let n = i6::from_bits(0b10_1010);
                 /// let m = i6::from_bits(0b01_0101);
@@ -1000,7 +1015,17 @@ macro_rules! int_impl {
     };
 }
 
-int_impl!((i8, u8), (i16, u16), (i32, u32), (i64, u64), (i128, u128));
+// Because the methods within this macro are effectively copy-pasted for each underlying integer type,
+// each documentation test gets executed five times (once for each underlying type), even though the
+// tests themselves aren't specific to said underlying type. This severely slows down `cargo test`,
+// so we ignore them for all but one (arbitrary) underlying type.
+int_impl!(
+    (i8, u8, doctest = "rust"),
+    (i16, u16, doctest = "ignore"),
+    (i32, u32, doctest = "ignore"),
+    (i64, u64, doctest = "ignore"),
+    (i128, u128, doctest = "ignore")
+);
 
 // Arithmetic operator implementations
 impl<T, const BITS: usize> Add for Int<T, BITS>
