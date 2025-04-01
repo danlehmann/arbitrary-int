@@ -1849,6 +1849,16 @@ fn to_le_and_be_bytes_signed() {
         Int::<i128, 24>::new(0x12_34_56).to_le_bytes(),
         [0x56, 0x34, 0x12]
     );
+
+    assert_eq!(i24::new(0x12_34_56).to_be_bytes(), [0x12, 0x34, 0x56]);
+    assert_eq!(
+        i24::new(0xFF_F2_34_56u32 as i32).to_be_bytes(),
+        [0xF2, 0x34, 0x56]
+    );
+    assert_eq!(
+        Int::<i64, 24>::new(0xFF_FF_FF_FF_FF_F2_34_56u64 as i64).to_be_bytes(),
+        [0xF2, 0x34, 0x56]
+    );
 }
 
 #[test]

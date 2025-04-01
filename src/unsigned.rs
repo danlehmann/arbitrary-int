@@ -1,5 +1,5 @@
 use crate::common::{
-    common_bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
+    bytes_operation_impl, const_byte_copy, from_arbitrary_int_impl, from_native_impl, impl_extract,
 };
 use crate::TryNewError;
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
@@ -1695,57 +1695,22 @@ where
     }
 }
 
-macro_rules! bytes_operation_impl {
-    ($base_data_type:ty, $bits:expr, [$($indices:expr),+]) => {
-        impl UInt<$base_data_type, $bits>
-        {
-            pub const fn to_le_bytes(&self) -> [u8; $bits >> 3] {
-                let v = self.value();
-
-                [ $( (v >> ($indices << 3)) as u8, )+ ]
-            }
-
-            pub const fn from_le_bytes(from: [u8; $bits >> 3]) -> Self {
-                let value = { 0 $( | (from[$indices] as $base_data_type) << ($indices << 3))+ };
-                Self { value }
-            }
-
-            pub const fn to_be_bytes(&self) -> [u8; $bits >> 3] {
-                 let v = self.value();
-
-                [ $( (v >> ($bits - 8 - ($indices << 3))) as u8, )+ ]
-            }
-
-            pub const fn from_be_bytes(from: [u8; $bits >> 3]) -> Self {
-                let value = { 0 $( | (from[$indices] as $base_data_type) << ($bits - 8 - ($indices << 3)))+ };
-                Self { value }
-            }
-
-            common_bytes_operation_impl!($base_data_type, $bits);
-        }
-    };
-}
-
-bytes_operation_impl!(u32, 24, [0, 1, 2]);
-bytes_operation_impl!(u64, 24, [0, 1, 2]);
-bytes_operation_impl!(u128, 24, [0, 1, 2]);
-bytes_operation_impl!(u64, 40, [0, 1, 2, 3, 4]);
-bytes_operation_impl!(u128, 40, [0, 1, 2, 3, 4]);
-bytes_operation_impl!(u64, 48, [0, 1, 2, 3, 4, 5]);
-bytes_operation_impl!(u128, 48, [0, 1, 2, 3, 4, 5]);
-bytes_operation_impl!(u64, 56, [0, 1, 2, 3, 4, 5, 6]);
-bytes_operation_impl!(u128, 56, [0, 1, 2, 3, 4, 5, 6]);
-bytes_operation_impl!(u128, 72, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-bytes_operation_impl!(u128, 80, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-bytes_operation_impl!(u128, 88, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-bytes_operation_impl!(u128, 96, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-bytes_operation_impl!(u128, 104, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-bytes_operation_impl!(u128, 112, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
-bytes_operation_impl!(
-    u128,
-    120,
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-);
+bytes_operation_impl!(UInt<u32, 24>, u32);
+bytes_operation_impl!(UInt<u64, 24>, u64);
+bytes_operation_impl!(UInt<u128, 24>, u128);
+bytes_operation_impl!(UInt<u64, 40>, u64);
+bytes_operation_impl!(UInt<u128, 40>, u128);
+bytes_operation_impl!(UInt<u64, 48>, u64);
+bytes_operation_impl!(UInt<u128, 48>, u128);
+bytes_operation_impl!(UInt<u64, 56>, u64);
+bytes_operation_impl!(UInt<u128, 56>, u128);
+bytes_operation_impl!(UInt<u128, 72>, u128);
+bytes_operation_impl!(UInt<u128, 80>, u128);
+bytes_operation_impl!(UInt<u128, 88>, u128);
+bytes_operation_impl!(UInt<u128, 96>, u128);
+bytes_operation_impl!(UInt<u128, 104>, u128);
+bytes_operation_impl!(UInt<u128, 112>, u128);
+bytes_operation_impl!(UInt<u128, 120>, u128);
 
 // Conversions
 from_arbitrary_int_impl!(UInt(u8), [u16, u32, u64, u128]);

@@ -1,5 +1,24 @@
 //! This module contains the few bits of functionality that can be shared between Int's and UInt's.
 
+/// Copies LEN bytes from `from[FROM_OFFSET]` to `to[TO_OFFSET]`.
+///
+/// Usable in const contexts and inlines for small arrays.
+#[inline(always)]
+pub(crate) const fn const_byte_copy<
+    const LEN: usize,
+    const TO_OFFSET: usize,
+    const FROM_OFFSET: usize,
+>(
+    to: &mut [u8],
+    from: &[u8],
+) {
+    let mut i = 0;
+    while i < LEN {
+        to[TO_OFFSET + i] = from[FROM_OFFSET + i];
+        i += 1;
+    }
+}
+
 // Define type aliases like u1, u63 and u80 (and their signed equivalents) using the smallest possible underlying data type.
 // These are for convenience only - UInt<u32, 15> is still legal
 macro_rules! type_alias {
@@ -120,75 +139,112 @@ macro_rules! impl_extract {
 
 pub(crate) use impl_extract;
 
-macro_rules! common_bytes_operation_impl {
-    ($base_data_type:ty, $bits:expr) => {
-        /// Reverses the byte order of the integer.
-        #[inline]
-        pub const fn swap_bytes(&self) -> Self {
-            // swap_bytes() of the underlying type does most of the work. Then, we just need to shift
-            Self {
-                value: self.value.swap_bytes() >> Self::UNUSED_BITS,
+macro_rules! bytes_operation_impl {
+    ($target:ty, $base_data_type:ty) => {
+        impl $target {
+            /// Reverses the byte order of the integer.
+            #[inline]
+            pub const fn swap_bytes(&self) -> Self {
+                // swap_bytes() of the underlying type does most of the work. Then, we just need to shift
+                Self {
+                    value: self.value.swap_bytes() >> Self::UNUSED_BITS,
+                }
             }
-        }
 
-        #[inline]
-        pub const fn to_ne_bytes(&self) -> [u8; $bits >> 3] {
-            #[cfg(target_endian = "little")]
-            {
-                self.to_le_bytes()
+            pub const fn to_le_bytes(&self) -> [u8; Self::BITS >> 3] {
+                let mut result = [0_u8; Self::BITS >> 3];
+                let be = self.value.to_le_bytes();
+                const_byte_copy::<{ Self::BITS >> 3 }, 0, 0>(&mut result, &be);
+                result
             }
-            #[cfg(target_endian = "big")]
-            {
-                self.to_be_bytes()
-            }
-        }
 
-        #[inline]
-        pub const fn from_ne_bytes(bytes: [u8; $bits >> 3]) -> Self {
-            #[cfg(target_endian = "little")]
-            {
-                Self::from_le_bytes(bytes)
+            pub const fn to_be_bytes(&self) -> [u8; Self::BITS >> 3] {
+                let mut result = [0_u8; Self::BITS >> 3];
+                let be = self.value.to_be_bytes();
+                const_byte_copy::<{ Self::BITS >> 3 }, 0, { Self::UNUSED_BITS >> 3 }>(
+                    &mut result,
+                    &be,
+                );
+                result
             }
-            #[cfg(target_endian = "big")]
-            {
-                Self::from_be_bytes(bytes)
-            }
-        }
 
-        #[inline]
-        pub const fn to_le(self) -> Self {
-            #[cfg(target_endian = "little")]
-            {
-                self
+            pub const fn from_le_bytes(from: [u8; Self::BITS >> 3]) -> Self {
+                let mut bytes = [0_u8; size_of::<$base_data_type>()];
+                const_byte_copy::<{ Self::BITS >> 3 }, { Self::UNUSED_BITS >> 3 }, 0>(
+                    &mut bytes, &from,
+                );
+                Self {
+                    value: <$base_data_type>::from_le_bytes(bytes) >> Self::UNUSED_BITS,
+                }
             }
-            #[cfg(target_endian = "big")]
-            {
-                self.swap_bytes()
-            }
-        }
 
-        #[inline]
-        pub const fn to_be(self) -> Self {
-            #[cfg(target_endian = "little")]
-            {
-                self.swap_bytes()
+            pub const fn from_be_bytes(from: [u8; Self::BITS >> 3]) -> Self {
+                let mut bytes = [0_u8; size_of::<$base_data_type>()];
+                const_byte_copy::<{ Self::BITS >> 3 }, 0, 0>(&mut bytes, &from);
+                Self {
+                    value: <$base_data_type>::from_be_bytes(bytes) >> Self::UNUSED_BITS,
+                }
             }
-            #[cfg(target_endian = "big")]
-            {
-                self
+
+            #[inline]
+            pub const fn to_ne_bytes(&self) -> [u8; Self::BITS >> 3] {
+                #[cfg(target_endian = "little")]
+                {
+                    self.to_le_bytes()
+                }
+                #[cfg(target_endian = "big")]
+                {
+                    self.to_be_bytes()
+                }
             }
-        }
 
-        #[inline]
-        pub const fn from_le(value: Self) -> Self {
-            value.to_le()
-        }
+            #[inline]
+            pub const fn from_ne_bytes(bytes: [u8; Self::BITS >> 3]) -> Self {
+                #[cfg(target_endian = "little")]
+                {
+                    Self::from_le_bytes(bytes)
+                }
+                #[cfg(target_endian = "big")]
+                {
+                    Self::from_be_bytes(bytes)
+                }
+            }
 
-        #[inline]
-        pub const fn from_be(value: Self) -> Self {
-            value.to_be()
+            #[inline]
+            pub const fn to_le(self) -> Self {
+                #[cfg(target_endian = "little")]
+                {
+                    self
+                }
+                #[cfg(target_endian = "big")]
+                {
+                    self.swap_bytes()
+                }
+            }
+
+            #[inline]
+            pub const fn to_be(self) -> Self {
+                #[cfg(target_endian = "little")]
+                {
+                    self.swap_bytes()
+                }
+                #[cfg(target_endian = "big")]
+                {
+                    self
+                }
+            }
+
+            #[inline]
+            pub const fn from_le(value: Self) -> Self {
+                value.to_le()
+            }
+
+            #[inline]
+            pub const fn from_be(value: Self) -> Self {
+                value.to_be()
+            }
         }
     };
 }
 
-pub(crate) use common_bytes_operation_impl;
+pub(crate) use bytes_operation_impl;
