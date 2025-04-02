@@ -288,7 +288,7 @@ uint_impl_num!(u8, u16, u32, u64, u128);
 uint_impl_num!(u8 as const, u16 as const, u32 as const, u64 as const, u128 as const);
 
 macro_rules! uint_impl {
-    ($($type:ident),+) => {
+    ($(($type:ident, doctest = $doctest_attr:literal)),+) => {
         $(
             impl<const BITS: usize> UInt<$type, BITS> {
                 /// Creates an instance. Panics if the given value is outside of the valid range
@@ -415,7 +415,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u14, Number};
                 /// assert_eq!(u14::new(200).wrapping_add(u14::new(55)), u14::new(255));
                 /// assert_eq!(u14::new(200).wrapping_add(u14::MAX), u14::new(199));
@@ -436,7 +436,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u14, Number};
                 /// assert_eq!(u14::new(100).wrapping_sub(u14::new(100)), u14::new(0));
                 /// assert_eq!(u14::new(100).wrapping_sub(u14::MAX), u14::new(101));
@@ -457,7 +457,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u7;
                 /// assert_eq!(u7::new(10).wrapping_mul(u7::new(12)), u7::new(120));
                 /// assert_eq!(u7::new(25).wrapping_mul(u7::new(12)), u7::new(44));
@@ -485,7 +485,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u14;
                 /// assert_eq!(u14::new(100).wrapping_div(u14::new(10)), u14::new(10));
                 /// ```
@@ -513,7 +513,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u14;
                 /// assert_eq!(u14::new(1).wrapping_shl(7), u14::new(128));
                 /// assert_eq!(u14::new(1).wrapping_shl(128), u14::new(4));
@@ -550,7 +550,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u14;
                 /// assert_eq!(u14::new(128).wrapping_shr(7), u14::new(1));
                 /// assert_eq!(u14::new(128).wrapping_shr(128), u14::new(32));
@@ -577,7 +577,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u14, Number};
                 /// assert_eq!(u14::new(100).saturating_add(u14::new(1)), u14::new(101));
                 /// assert_eq!(u14::MAX.saturating_add(u14::new(100)), u14::MAX);
@@ -609,7 +609,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u14;
                 /// assert_eq!(u14::new(100).saturating_sub(u14::new(27)), u14::new(73));
                 /// assert_eq!(u14::new(13).saturating_sub(u14::new(127)), u14::new(0));
@@ -631,7 +631,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u14, Number};
                 /// assert_eq!(u14::new(2).saturating_mul(u14::new(10)), u14::new(20));
                 /// assert_eq!(u14::MAX.saturating_mul(u14::new(10)), u14::MAX);
@@ -639,7 +639,7 @@ macro_rules! uint_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_mul(self, rhs: Self) -> Self {
-                    let product = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                    let product = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
                         // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
                         // wrapping_mul likely provides the best performance on all cpus
                         self.value.wrapping_mul(rhs.value)
@@ -666,7 +666,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u14;
                 /// assert_eq!(u14::new(5).saturating_div(u14::new(2)), u14::new(2));
                 /// ```
@@ -688,7 +688,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u14, Number};
                 /// assert_eq!(u14::new(4).saturating_pow(3), u14::new(64));
                 /// assert_eq!(u14::MAX.saturating_pow(2), u14::MAX);
@@ -706,73 +706,150 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Checked integer addition. Computes `self + rhs`, returning `None` if overflow occurred.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!((u14::MAX - u14::new(2)).checked_add(u14::new(1)), Some(u14::MAX - u14::new(1)));
+                /// assert_eq!((u14::MAX - u14::new(2)).checked_add(u14::new(3)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_add(self, rhs: Self) -> Option<Self> {
                     if Self::UNUSED_BITS == 0 {
-                        // We are something like a UInt::<u8; 8>. We can fallback to the base implementation
-                        match self.value.checked_add(rhs.value) {
+                        // We are something like a UInt::<u8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_add` instead of `checked_add` in the common case, which is faster.
+                        match self.value().checked_add(rhs.value()) {
                             Some(value) => Some(Self { value }),
                             None => None
                         }
                     } else {
                         // We're dealing with fewer bits than the underlying type (e.g. u7).
                         // That means the addition can never overflow the underlying type
-                        let sum = self.value.wrapping_add(rhs.value);
+                        let sum = self.value().wrapping_add(rhs.value());
                         if sum > Self::MAX.value() { None } else { Some(Self { value: sum })}
                     }
                 }
 
+                /// Checked integer subtraction. Computes `self - rhs`, returning `None` if overflow occurred.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(1).checked_sub(u14::new(1)), Some(u14::new(0)));
+                /// assert_eq!(u14::new(0).checked_sub(u14::new(1)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_sub(self, rhs: Self) -> Option<Self> {
-                    match self.value.checked_sub(rhs.value) {
+                    match self.value().checked_sub(rhs.value()) {
                         Some(value) => Some(Self { value }),
                         None => None
                     }
                 }
 
+                /// Checked integer multiplication. Computes `self * rhs`, returning `None` if overflow occurred.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!(u14::new(5).checked_mul(u14::new(1)), Some(u14::new(5)));
+                /// assert_eq!(u14::MAX.checked_mul(u14::new(2)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_mul(self, rhs: Self) -> Option<Self> {
-                    let product = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
-                        // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
-                        // wrapping_mul likely provides the best performance on all cpus
-                        Some(self.value.wrapping_mul(rhs.value))
+                    let product = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
+                        // We have half the bits (e.g. `u4 * u4`) of the base type, so we can't overflow the base type.
+                        // `wrapping_mul` likely provides the best performance on all CPUs.
+                        Some(self.value().wrapping_mul(rhs.value()))
                     } else {
                         // We have more than half the bits (e.g. u6 * u6)
-                        self.value.checked_mul(rhs.value)
+                        self.value().checked_mul(rhs.value())
                     };
 
                     match product {
-                        Some(value) => {
-                            if value > Self::MAX.value() {
-                                None
-                            } else {
-                                Some(Self {value})
-                            }
-                        }
-                        None => None
+                        Some(value) if value <= Self::MAX.value() => Some(Self { value }),
+                        _ => None
                     }
                 }
 
+                /// Checked integer division. Computes `self / rhs`, returning `None` if `rhs == 0`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(128).checked_div(u14::new(2)), Some(u14::new(64)));
+                /// assert_eq!(u14::new(1).checked_div(u14::new(0)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_div(self, rhs: Self) -> Option<Self> {
-                    match self.value.checked_div(rhs.value) {
+                    match self.value().checked_div(rhs.value()) {
                         Some(value) => Some(Self { value }),
                         None => None
                     }
                 }
 
+                /// Checked shift left. Computes `self << rhs`, returning `None` if `rhs` is larger than
+                /// or equal to the number of bits in `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(0x1).checked_shl(4), Some(u14::new(0x10)));
+                /// assert_eq!(u14::new(0x10).checked_shl(129), None);
+                /// assert_eq!(u14::new(0x10).checked_shl(13), Some(u14::new(0)));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_shl(self, rhs: u32) -> Option<Self> {
                     if rhs >= (BITS as u32) {
                         None
                     } else {
                         Some(Self {
-                            value: (self.value << rhs) & Self::MASK,
+                            value: (self.value() << rhs) & Self::MASK,
                         })
                     }
                 }
 
+                /// Checked shift right. Computes `self >> rhs`, returning `None` if `rhs` is larger than
+                /// or equal to the number of bits in `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(0x10).checked_shr(4), Some(u14::new(0x1)));
+                /// assert_eq!(u14::new(0x10).checked_shr(129), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_shr(self, rhs: u32) -> Option<Self> {
                     if rhs >= (BITS as u32) {
                         None
                     } else {
                         Some(Self {
-                            value: (self.value >> rhs),
+                            value: self.value() >> rhs,
                         })
                     }
                 }
@@ -799,7 +876,7 @@ macro_rules! uint_impl {
                 }
 
                 pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
-                    let (wrapping_product, overflow) = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                    let (wrapping_product, overflow) = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
                         // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
                         // wrapping_mul likely provides the best performance on all cpus
                         self.value.overflowing_mul(rhs.value)
@@ -841,7 +918,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u6;
                 /// assert_eq!(u6::new(0b10_1010).reverse_bits(), u6::new(0b01_0101));
                 /// assert_eq!(u6::new(0), u6::new(0).reverse_bits());
@@ -858,7 +935,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u7, Number};
                 /// let n = u7::new(0b100_1100);
                 /// assert_eq!(n.count_ones(), 3);
@@ -881,7 +958,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u7, Number};
                 /// let zero = u7::new(0);
                 /// assert_eq!(zero.count_zeros(), 7);
@@ -902,7 +979,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u7, Number};
                 /// let n = !(u7::MAX >> 2);
                 /// assert_eq!(n.leading_ones(), 2);
@@ -924,7 +1001,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u7, Number};
                 /// let n = u7::MAX >> 2;
                 /// assert_eq!(n.leading_zeros(), 2);
@@ -953,7 +1030,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u7, Number};
                 /// let n = u7::new(0b1010111);
                 /// assert_eq!(n.trailing_ones(), 3);
@@ -975,7 +1052,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u7, Number};
                 /// let n = u7::new(0b010_1000);
                 /// assert_eq!(n.trailing_zeros(), 3);
@@ -1002,7 +1079,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u6;
                 /// let n = u6::new(0b10_1010);
                 /// let m = u6::new(0b01_0101);
@@ -1029,7 +1106,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u6;
                 /// let n = u6::new(0b10_1010);
                 /// let m = u6::new(0b01_0101);
@@ -1051,7 +1128,17 @@ macro_rules! uint_impl {
     };
 }
 
-uint_impl!(u8, u16, u32, u64, u128);
+// Because the methods within this macro are effectively copy-pasted for each underlying integer type,
+// each documentation test gets executed five times (once for each underlying type), even though the
+// tests themselves aren't specific to said underlying type. This severely slows down `cargo test`,
+// so we ignore them for all but one (arbitrary) underlying type.
+uint_impl!(
+    (u8, doctest = "rust"),
+    (u16, doctest = "ignore"),
+    (u32, doctest = "ignore"),
+    (u64, doctest = "ignore"),
+    (u128, doctest = "ignore")
+);
 
 // Arithmetic implementations
 impl<T, const BITS: usize> Add for UInt<T, BITS>
