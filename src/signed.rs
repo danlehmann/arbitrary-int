@@ -1,5 +1,5 @@
 use crate::{
-    common::{from_arbitrary_int_impl, from_native_impl, impl_extract},
+    common::{from_arbitrary_int_impl, from_native_impl, impl_extract, impl_step},
     TryNewError,
 };
 use core::{
@@ -151,7 +151,7 @@ impl_signed_number_native!(i8, i16, i32, i64, i128);
 #[cfg(feature = "const_convert_and_const_trait_impl")]
 impl_signed_number_native!(i8 as const, i16 as const, i32 as const, i64 as const, i128 as const);
 
-#[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
 pub struct Int<T, const BITS: usize> {
     value: T,
 }
@@ -1709,6 +1709,8 @@ where
         }
     }
 }
+
+impl_step!(Int as SignedNumber);
 
 // Conversions
 from_arbitrary_int_impl!(Int(i8), [i16, i32, i64, i128]);
