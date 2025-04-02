@@ -1552,8 +1552,9 @@ fn hash() {
     assert_eq!(None, hashmap.get(&u5::new(12)));
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
-fn swap_bytes() {
+fn swap_bytes_unsigned() {
     assert_eq!(u24::new(0x12_34_56).swap_bytes(), u24::new(0x56_34_12));
     assert_eq!(
         UInt::<u64, 24>::new(0x12_34_56).swap_bytes(),
@@ -1627,8 +1628,87 @@ fn swap_bytes() {
     );
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
-fn to_le_and_be_bytes() {
+fn swap_bytes_signed() {
+    // Signed numbers have to sign extended, so the following tests look less symmetrical than the
+    // unsigned tests
+    assert_eq!(i24::new(0x12_34_56).swap_bytes(), i24::new(0x56_34_12));
+    assert_eq!(
+        Int::<i64, 24>::new(0x12_34_56).swap_bytes(),
+        Int::<i64, 24>::new(0x56_34_12)
+    );
+    assert_eq!(
+        Int::<i128, 24>::new(0x12_34_56).swap_bytes(),
+        Int::<i128, 24>::new(0x56_34_12)
+    );
+
+    assert_eq!(
+        i40::new(0x12_34_56_78_9A).swap_bytes(),
+        i40::new(0xFF_FF_FF_9A_78_56_34_12u64 as i64)
+    );
+    assert_eq!(
+        Int::<i128, 40>::new(0x12_34_56_78_9A).swap_bytes(),
+        Int::<i128, 40>::new(0xFF_FF_FF_FF_FF_FF_FF_FF_FF_FF_FF_9A_78_56_34_12u128 as i128)
+    );
+
+    assert_eq!(
+        i48::new(0x12_34_56_78_9A_BC).swap_bytes(),
+        i48::new(0xFF_FF_BC_9A_78_56_34_12u64 as i64)
+    );
+    assert_eq!(
+        Int::<i128, 48>::new(0x12_34_56_78_9A_BC).swap_bytes(),
+        Int::<i128, 48>::new(0xFF_FF_FF_FF_FF_FF_FF_FF_FF_FF_BC_9A_78_56_34_12u128 as i128)
+    );
+
+    assert_eq!(
+        i56::new(0x12_34_56_78_9A_BC_DE).swap_bytes(),
+        i56::new(0xFF_DE_BC_9A_78_56_34_12u64 as i64)
+    );
+    assert_eq!(
+        Int::<i128, 56>::new(0x12_34_56_78_9A_BC_DE).swap_bytes(),
+        Int::<i128, 56>::new(0xFF_FF_FF_FF_FF_FF_FF_FF_FF_DE_BC_9A_78_56_34_12u128 as i128)
+    );
+
+    assert_eq!(
+        i72::new(0x12_34_56_78_9A_BC_DE_FE_DC).swap_bytes(),
+        i72::new(0xFF_FF_FF_FF_FF_FF_FF_DC_FE_DE_BC_9A_78_56_34_12u128 as i128)
+    );
+
+    assert_eq!(
+        i80::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA).swap_bytes(),
+        i80::new(0xFF_FF_FF_FF_FF_FF_BA_DC_FE_DE_BC_9A_78_56_34_12u128 as i128)
+    );
+
+    assert_eq!(
+        i88::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98).swap_bytes(),
+        i88::new(0xFF_FF_FF_FF_FF_98_BA_DC_FE_DE_BC_9A_78_56_34_12u128 as i128)
+    );
+
+    assert_eq!(
+        i96::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98_76).swap_bytes(),
+        i96::new(0x76_98_BA_DC_FE_DE_BC_9A_78_56_34_12)
+    );
+
+    assert_eq!(
+        i104::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98_76_54).swap_bytes(),
+        i104::new(0x54_76_98_BA_DC_FE_DE_BC_9A_78_56_34_12)
+    );
+
+    assert_eq!(
+        i112::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98_76_54_32).swap_bytes(),
+        i112::new(0x32_54_76_98_BA_DC_FE_DE_BC_9A_78_56_34_12)
+    );
+
+    assert_eq!(
+        i120::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98_76_54_32_10).swap_bytes(),
+        i120::new(0x10_32_54_76_98_BA_DC_FE_DE_BC_9A_78_56_34_12)
+    );
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+fn to_le_and_be_bytes_unsigned() {
     assert_eq!(u24::new(0x12_34_56).to_le_bytes(), [0x56, 0x34, 0x12]);
     assert_eq!(
         UInt::<u64, 24>::new(0x12_34_56).to_le_bytes(),
@@ -1780,8 +1860,41 @@ fn to_le_and_be_bytes() {
     );
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
-fn from_le_and_be_bytes() {
+fn to_le_and_be_bytes_signed() {
+    assert_eq!(i24::new(0x12_34_56).to_le_bytes(), [0x56, 0x34, 0x12]);
+    assert_eq!(
+        i24::new(0xFF_F2_34_56u32 as i32).to_le_bytes(),
+        [0x56, 0x34, 0xF2]
+    );
+    assert_eq!(
+        Int::<i64, 24>::new(0x12_34_56).to_le_bytes(),
+        [0x56, 0x34, 0x12]
+    );
+    assert_eq!(
+        Int::<i64, 24>::new(0xFF_FF_FF_FF_FF_F2_34_56u64 as i64).to_le_bytes(),
+        [0x56, 0x34, 0xF2]
+    );
+    assert_eq!(
+        Int::<i128, 24>::new(0x12_34_56).to_le_bytes(),
+        [0x56, 0x34, 0x12]
+    );
+
+    assert_eq!(i24::new(0x12_34_56).to_be_bytes(), [0x12, 0x34, 0x56]);
+    assert_eq!(
+        i24::new(0xFF_F2_34_56u32 as i32).to_be_bytes(),
+        [0xF2, 0x34, 0x56]
+    );
+    assert_eq!(
+        Int::<i64, 24>::new(0xFF_FF_FF_FF_FF_F2_34_56u64 as i64).to_be_bytes(),
+        [0xF2, 0x34, 0x56]
+    );
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+fn from_le_and_be_bytes_unsigned() {
     assert_eq!(u24::from_le_bytes([0x56, 0x34, 0x12]), u24::new(0x12_34_56));
     assert_eq!(
         UInt::<u64, 24>::from_le_bytes([0x56, 0x34, 0x12]),
@@ -1945,6 +2058,65 @@ fn from_le_and_be_bytes() {
     );
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+fn from_le_and_be_bytes_signed() {
+    assert_eq!(
+        i24::from_le_bytes([0x56, 0x34, 0xF2]),
+        i24::new(0xFF_F2_34_56u32 as i32)
+    );
+    assert_eq!(
+        Int::<i64, 24>::from_le_bytes([0x56, 0x34, 0xF2]),
+        Int::<i64, 24>::new(0xFF_FF_FF_FF_FF_F2_34_56u64 as i64)
+    );
+    assert_eq!(
+        Int::<i128, 24>::from_le_bytes([0x56, 0x34, 0xF2]),
+        Int::<i128, 24>::new(0xFF_FF_FF_FF_FF_FF_FF_FF_FF_FF_FF_FF_FF_F2_34_56u128 as i128)
+    );
+
+    assert_eq!(
+        i24::from_be_bytes([0xF2, 0x34, 0x56]),
+        i24::new(0xFF_F2_34_56u32 as i32)
+    );
+    assert_eq!(
+        Int::<i64, 24>::from_be_bytes([0xF2, 0x34, 0x56]),
+        Int::<i64, 24>::new(0xFF_FF_FF_FF_FF_F2_34_56u64 as i64)
+    );
+    assert_eq!(
+        Int::<i128, 24>::from_be_bytes([0x12, 0x34, 0x56]),
+        Int::<i128, 24>::new(0x12_34_56)
+    );
+    assert_eq!(
+        Int::<i128, 24>::from_be_bytes([0xF2, 0x34, 0x56]),
+        Int::<i128, 24>::new(0xFF_FF_FF_FF_FF_FF_FF_FF_FF_FF_FF_FF_FF_F2_34_56u128 as i128)
+    );
+
+    assert_eq!(
+        i120::from_le_bytes([
+            0x10, 0x32, 0x54, 0x76, 0x98, 0xBA, 0xDC, 0xFE, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34,
+            0x12
+        ]),
+        i120::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98_76_54_32_10)
+    );
+
+    assert_eq!(
+        i120::from_le_bytes([
+            0x10, 0x32, 0x54, 0x76, 0x98, 0xBA, 0xDC, 0xFE, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34,
+            0xF2
+        ]),
+        i120::new(0xFF_F2_34_56_78_9A_BC_DE_FE_DC_BA_98_76_54_32_10u128 as i128)
+    );
+
+    assert_eq!(
+        i120::from_be_bytes([
+            0xF2, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32,
+            0x10
+        ]),
+        i120::new(0xFF_F2_34_56_78_9A_BC_DE_FE_DC_BA_98_76_54_32_10u128 as i128)
+    );
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn to_ne_bytes() {
     if cfg!(target_endian = "little") {
@@ -1952,14 +2124,31 @@ fn to_ne_bytes() {
             u40::new(0x12_34_56_78_9A).to_ne_bytes(),
             [0x9A, 0x78, 0x56, 0x34, 0x12]
         );
+        assert_eq!(
+            i40::new(0x12_34_56_78_9A).to_ne_bytes(),
+            [0x9A, 0x78, 0x56, 0x34, 0x12]
+        );
+        assert_eq!(
+            i40::new(0xFF_FF_FF_F2_34_56_78_9Au64 as i64).to_ne_bytes(),
+            [0x9A, 0x78, 0x56, 0x34, 0xF2]
+        );
     } else {
         assert_eq!(
             u40::new(0x12_34_56_78_9A).to_ne_bytes(),
             [0x12, 0x34, 0x56, 0x78, 0x9A]
         );
+        assert_eq!(
+            i40::new(0x12_34_56_78_9A).to_ne_bytes(),
+            [0x12, 0x34, 0x56, 0x78, 0x9A]
+        );
+        assert_eq!(
+            i40::new(0xFF_FF_FF_F2_34_56_78_9Au64 as i64).to_ne_bytes(),
+            [0xF2, 0x34, 0x56, 0x78, 0x9A]
+        );
     }
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn from_ne_bytes() {
     if cfg!(target_endian = "little") {
@@ -1967,16 +2156,33 @@ fn from_ne_bytes() {
             u40::from_ne_bytes([0x9A, 0x78, 0x56, 0x34, 0x12]),
             u40::new(0x12_34_56_78_9A)
         );
+        assert_eq!(
+            i40::from_ne_bytes([0x9A, 0x78, 0x56, 0x34, 0x12]),
+            i40::new(0x12_34_56_78_9A)
+        );
+        assert_eq!(
+            i40::from_ne_bytes([0x12, 0x34, 0x56, 0x78, 0x9A]),
+            i40::new(0xFF_FF_FF_9A_78_56_34_12u64 as i64)
+        );
     } else {
         assert_eq!(
             u40::from_ne_bytes([0x12, 0x34, 0x56, 0x78, 0x9A]),
             u40::new(0x12_34_56_78_9A)
         );
+        assert_eq!(
+            i40::from_ne_bytes([0x12, 0x34, 0x56, 0x78, 0x9A]),
+            i40::new(0x12_34_56_78_9A)
+        );
+        assert_eq!(
+            i40::from_ne_bytes([0x9A, 0x78, 0x56, 0x34, 0x12]),
+            i40::new(0xFF_FF_FF_9A_78_56_34_12u64 as i64)
+        );
     }
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
-fn simple_le_be() {
+fn simple_le_be_unsigned() {
     const REGULAR: u40 = u40::new(0x12_34_56_78_9A);
     const SWAPPED: u40 = u40::new(0x9A_78_56_34_12);
     if cfg!(target_endian = "little") {
@@ -1989,6 +2195,24 @@ fn simple_le_be() {
         assert_eq!(REGULAR.to_be(), REGULAR);
         assert_eq!(u40::from_le(REGULAR), SWAPPED);
         assert_eq!(u40::from_be(REGULAR), REGULAR);
+    }
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+fn simple_le_be_signed() {
+    const REGULAR: i40 = i40::new(0x12_34_56_78_9A);
+    const SWAPPED: i40 = i40::new(0xFF_FF_FF_9A_78_56_34_12u64 as i64);
+    if cfg!(target_endian = "little") {
+        assert_eq!(REGULAR.to_le(), REGULAR);
+        assert_eq!(REGULAR.to_be(), SWAPPED);
+        assert_eq!(i40::from_le(REGULAR), REGULAR);
+        assert_eq!(i40::from_be(REGULAR), SWAPPED);
+    } else {
+        assert_eq!(REGULAR.to_le(), SWAPPED);
+        assert_eq!(REGULAR.to_be(), REGULAR);
+        assert_eq!(i40::from_le(REGULAR), SWAPPED);
+        assert_eq!(i40::from_be(REGULAR), REGULAR);
     }
 }
 

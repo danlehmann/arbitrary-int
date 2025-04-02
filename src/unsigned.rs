@@ -1,4 +1,6 @@
-use crate::common::{from_arbitrary_int_impl, from_native_impl, impl_extract};
+use crate::common::{
+    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
+};
 use crate::TryNewError;
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
 #[cfg(feature = "step_trait")]
@@ -157,7 +159,7 @@ pub struct UInt<T, const BITS: usize> {
 
 impl<T: Copy, const BITS: usize> UInt<T, BITS> {
     /// The number of bits in the underlying type that are not present in this type.
-    const UNUSED_BITS: usize = ((core::mem::size_of::<T>() << 3) - Self::BITS);
+    const UNUSED_BITS: usize = (core::mem::size_of::<T>() << 3) - Self::BITS;
 
     pub const BITS: usize = BITS;
 
@@ -1780,121 +1782,22 @@ where
     }
 }
 
-macro_rules! bytes_operation_impl {
-    ($base_data_type:ty, $bits:expr, [$($indices:expr),+]) => {
-        impl UInt<$base_data_type, $bits>
-        {
-            /// Reverses the byte order of the integer.
-            #[inline]
-            pub const fn swap_bytes(&self) -> Self {
-                // swap_bytes() of the underlying type does most of the work. Then, we just need to shift
-                const SHIFT_RIGHT: usize = (core::mem::size_of::<$base_data_type>() << 3) - $bits;
-                Self { value: self.value.swap_bytes() >> SHIFT_RIGHT }
-            }
-
-            pub const fn to_le_bytes(&self) -> [u8; $bits >> 3] {
-                let v = self.value();
-
-                [ $( (v >> ($indices << 3)) as u8, )+ ]
-            }
-
-            pub const fn from_le_bytes(from: [u8; $bits >> 3]) -> Self {
-                let value = { 0 $( | (from[$indices] as $base_data_type) << ($indices << 3))+ };
-                Self { value }
-            }
-
-            pub const fn to_be_bytes(&self) -> [u8; $bits >> 3] {
-                 let v = self.value();
-
-                [ $( (v >> ($bits - 8 - ($indices << 3))) as u8, )+ ]
-            }
-
-            pub const fn from_be_bytes(from: [u8; $bits >> 3]) -> Self {
-                let value = { 0 $( | (from[$indices] as $base_data_type) << ($bits - 8 - ($indices << 3)))+ };
-                Self { value }
-            }
-
-            #[inline]
-            pub const fn to_ne_bytes(&self) -> [u8; $bits >> 3] {
-                #[cfg(target_endian = "little")]
-                {
-                    self.to_le_bytes()
-                }
-                #[cfg(target_endian = "big")]
-                {
-                    self.to_be_bytes()
-                }
-            }
-
-            #[inline]
-            pub const fn from_ne_bytes(bytes: [u8; $bits >> 3]) -> Self {
-                #[cfg(target_endian = "little")]
-                {
-                    Self::from_le_bytes(bytes)
-                }
-                #[cfg(target_endian = "big")]
-                {
-                    Self::from_be_bytes(bytes)
-                }
-            }
-
-            #[inline]
-            pub const fn to_le(self) -> Self {
-                #[cfg(target_endian = "little")]
-                {
-                    self
-                }
-                #[cfg(target_endian = "big")]
-                {
-                    self.swap_bytes()
-                }
-            }
-
-            #[inline]
-            pub const fn to_be(self) -> Self {
-                #[cfg(target_endian = "little")]
-                {
-                    self.swap_bytes()
-                }
-                #[cfg(target_endian = "big")]
-                {
-                    self
-                }
-            }
-
-            #[inline]
-            pub const fn from_le(value: Self) -> Self {
-                value.to_le()
-            }
-
-            #[inline]
-            pub const fn from_be(value: Self) -> Self {
-                value.to_be()
-            }
-        }
-    };
-}
-
-bytes_operation_impl!(u32, 24, [0, 1, 2]);
-bytes_operation_impl!(u64, 24, [0, 1, 2]);
-bytes_operation_impl!(u128, 24, [0, 1, 2]);
-bytes_operation_impl!(u64, 40, [0, 1, 2, 3, 4]);
-bytes_operation_impl!(u128, 40, [0, 1, 2, 3, 4]);
-bytes_operation_impl!(u64, 48, [0, 1, 2, 3, 4, 5]);
-bytes_operation_impl!(u128, 48, [0, 1, 2, 3, 4, 5]);
-bytes_operation_impl!(u64, 56, [0, 1, 2, 3, 4, 5, 6]);
-bytes_operation_impl!(u128, 56, [0, 1, 2, 3, 4, 5, 6]);
-bytes_operation_impl!(u128, 72, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-bytes_operation_impl!(u128, 80, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-bytes_operation_impl!(u128, 88, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-bytes_operation_impl!(u128, 96, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-bytes_operation_impl!(u128, 104, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-bytes_operation_impl!(u128, 112, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
-bytes_operation_impl!(
-    u128,
-    120,
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-);
+bytes_operation_impl!(UInt<u32, 24>, u32);
+bytes_operation_impl!(UInt<u64, 24>, u64);
+bytes_operation_impl!(UInt<u128, 24>, u128);
+bytes_operation_impl!(UInt<u64, 40>, u64);
+bytes_operation_impl!(UInt<u128, 40>, u128);
+bytes_operation_impl!(UInt<u64, 48>, u64);
+bytes_operation_impl!(UInt<u128, 48>, u128);
+bytes_operation_impl!(UInt<u64, 56>, u64);
+bytes_operation_impl!(UInt<u128, 56>, u128);
+bytes_operation_impl!(UInt<u128, 72>, u128);
+bytes_operation_impl!(UInt<u128, 80>, u128);
+bytes_operation_impl!(UInt<u128, 88>, u128);
+bytes_operation_impl!(UInt<u128, 96>, u128);
+bytes_operation_impl!(UInt<u128, 104>, u128);
+bytes_operation_impl!(UInt<u128, 112>, u128);
+bytes_operation_impl!(UInt<u128, 120>, u128);
 
 // Conversions
 from_arbitrary_int_impl!(UInt(u8), [u16, u32, u64, u128]);

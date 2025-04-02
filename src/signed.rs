@@ -1,5 +1,5 @@
 use crate::{
-    common::{from_arbitrary_int_impl, from_native_impl, impl_extract},
+    common::{bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract},
     TryNewError,
 };
 use core::{
@@ -158,7 +158,7 @@ pub struct Int<T, const BITS: usize> {
 
 impl<T: Copy, const BITS: usize> Int<T, BITS> {
     /// The number of bits in the underlying type that are not present in this type.
-    const UNUSED_BITS: usize = ((core::mem::size_of::<T>() << 3) - Self::BITS);
+    const UNUSED_BITS: usize = (core::mem::size_of::<T>() << 3) - Self::BITS;
 
     pub const BITS: usize = BITS;
 
@@ -1709,6 +1709,23 @@ where
         }
     }
 }
+
+bytes_operation_impl!(Int<i32, 24>, i32);
+bytes_operation_impl!(Int<i64, 24>, i64);
+bytes_operation_impl!(Int<i128, 24>, i128);
+bytes_operation_impl!(Int<i64, 40>, i64);
+bytes_operation_impl!(Int<i128, 40>, i128);
+bytes_operation_impl!(Int<i64, 48>, i64);
+bytes_operation_impl!(Int<i128, 48>, i128);
+bytes_operation_impl!(Int<i64, 56>, i64);
+bytes_operation_impl!(Int<i128, 56>, i128);
+bytes_operation_impl!(Int<i128, 72>, i128);
+bytes_operation_impl!(Int<i128, 80>, i128);
+bytes_operation_impl!(Int<i128, 88>, i128);
+bytes_operation_impl!(Int<i128, 96>, i128);
+bytes_operation_impl!(Int<i128, 104>, i128);
+bytes_operation_impl!(Int<i128, 112>, i128);
+bytes_operation_impl!(Int<i128, 120>, i128);
 
 // Conversions
 from_arbitrary_int_impl!(Int(i8), [i16, i32, i64, i128]);
