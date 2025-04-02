@@ -16,7 +16,11 @@
 
 ### Fixed
 
-- `leading_zeros` and `trailing_zeros` now report the correct number of bits when a value of `MIN` is passed.
+- `leading_zeros` and `trailing_zeros` now report the correct number of bits for integers with a value of zero.
+- The implementation of `BorshSerialize` and `BorshDeserialize` now correctly handle writers/readers that can only
+  partially write/read all data after a single call to `borsh::io::Write::write()`/`borsh::io::Read::read()`.
+  This can happen if for example an `TcpStream` is waiting on the other end to send more data. The value would previously
+  be truncated, now it blocks until enough data is available.
 
 ## arbitrary-int 1.3.0
 

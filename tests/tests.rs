@@ -3846,14 +3846,80 @@ mod num_traits {
 #[cfg(feature = "borsh")]
 mod borsh_tests {
     use arbitrary_int::prelude::*;
+    use borsh::io::{Read, Write};
     use borsh::schema::BorshSchemaContainer;
     use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
     use std::fmt::Debug;
 
-    fn test_roundtrip<T: Integer + BorshSerialize + BorshDeserialize + PartialEq + Eq + Debug>(
-        input: T,
-        expected_buffer: &[u8],
-    ) {
+    // `borsh::io::Read`/`borsh::io::Write` can read/write fewer bytes than requested per call.
+    // (This happens for example if a `TcpStream` is waiting on the other end to send more data).
+    // Simulate that behavior by reading 1 byte at a time and periodically returning `Interrupted`.
+    #[derive(Default)]
+    struct SlowReaderWriter {
+        data: [u8; 16],
+        pos: usize,
+        interrupt: bool,
+    }
+
+    impl SlowReaderWriter {
+        fn maybe_interrupt(&mut self) -> borsh::io::Result<()> {
+            if self.interrupt {
+                // This error should be ignored. From the `Read` documentation (also applies to `Write`):
+                //
+                // > An error of the ErrorKind::Interrupted kind is non-fatal and the read operation should
+                // > be retried if there is nothing else to do.
+                //
+                // Since neither `Read` nor `Write` are asynchronous or buffer any data for future calls,
+                // `Int`/`UInt` need to block until enough data is available / all data has been written.
+                self.interrupt = false;
+                Err(borsh::io::Error::new(borsh::io::ErrorKind::Interrupted, ""))
+            } else {
+                self.interrupt = true;
+                Ok(())
+            }
+        }
+    }
+
+    impl Read for SlowReaderWriter {
+        fn read(&mut self, buf: &mut [u8]) -> borsh::io::Result<usize> {
+            self.maybe_interrupt()?;
+            let Some(dst) = buf.first_mut() else {
+                return Ok(0);
+            };
+            let Some(byte) = self.data.get(self.pos).copied() else {
+                return Ok(0);
+            };
+
+            *dst = byte;
+            self.pos += 1;
+            Ok(1)
+        }
+    }
+
+    impl Write for SlowReaderWriter {
+        fn write(&mut self, buf: &[u8]) -> borsh::io::Result<usize> {
+            self.maybe_interrupt()?;
+            let Some(byte) = buf.first().copied() else {
+                return Ok(0);
+            };
+            let Some(dst) = self.data.get_mut(self.pos) else {
+                return Ok(0);
+            };
+
+            *dst = byte;
+            self.pos += 1;
+            Ok(1)
+        }
+
+        fn flush(&mut self) -> borsh::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn test_roundtrip<T>(input: T, expected_buffer: &[u8])
+    where
+        T: BorshSerialize + BorshDeserialize + PartialEq + Debug,
+    {
         let mut buf = Vec::new();
 
         // Serialize and compare against expected
@@ -3869,10 +3935,25 @@ mod borsh_tests {
         let output2 = T::deserialize(&mut &buf[buf.len() / 2..]).unwrap();
         assert_eq!(input, output);
         assert_eq!(input, output2);
+
+        // Serialize the input into a writer that only accepts 1 byte at a time and may return `Interrupted`
+        let mut reader_writer = SlowReaderWriter::default();
+        input.serialize(&mut reader_writer).unwrap();
+        assert_eq!(
+            &reader_writer.data[..expected_buffer.len()],
+            expected_buffer
+        );
+
+        // Deserializing it using the data we've just written, using a reader with the same behavior
+        reader_writer.pos = 0;
+        let output3 = T::deserialize_reader(&mut reader_writer).unwrap();
+        assert_eq!(output3, input);
     }
 
     #[test]
     fn test_serialize_deserialize() {
+        // Note that Borsh specifies that all integers are little-endian: https://github.com/near/borsh/tree/v0.4.0#specification
+
         // Run against plain u64 first (not an arbitrary_int)
         test_roundtrip(
             0x12345678_9ABCDEF0u64,
@@ -3888,6 +3969,10 @@ mod borsh_tests {
             u72::new(0x36_01234567_89ABCDEF),
             &[0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01, 0x36],
         );
+        test_roundtrip(u24::MAX, &u24::MAX.to_le_bytes());
+        test_roundtrip(u24::MIN, &u24::MIN.to_le_bytes());
+        test_roundtrip(u24::new(0xAB_CD_EF), &u24::new(0xAB_CD_EF).to_le_bytes());
+        test_roundtrip(u24::new(0x12_34_56), &u24::new(0x12_34_56).to_le_bytes());
 
         // Pick a byte boundary (80; test one below and one above to ensure we get the right number
         // of bytes)
