@@ -1,9 +1,11 @@
 use crate::{
-    common::{bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract},
+    common::{
+        bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, Number,
+    },
     TryNewError,
 };
 use core::{
-    fmt::{self, Debug},
+    fmt::{self},
     ops::{
         Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
         DivAssign, Mul, MulAssign, Neg, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
@@ -11,74 +13,7 @@ use core::{
 };
 
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
-pub trait SignedNumber: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
-    type UnderlyingType: SignedNumber
-        + Debug
-        + From<i8>
-        + TryFrom<i16>
-        + TryFrom<i32>
-        + TryFrom<i64>
-        + TryFrom<i128>;
-
-    /// Number of bits that can fit in this type
-    const BITS: usize;
-
-    /// Minimum value that can be represented by this type
-    const MIN: Self;
-
-    /// Maximum value that can be represented by this type
-    const MAX: Self;
-
-    /// Creates a number from the given value, throwing an error if the value is too large.
-    /// This constructor is useful when creating a value from a literal.
-    fn new(value: Self::UnderlyingType) -> Self;
-
-    /// Creates a number from the given value, return None if the value is too large
-    fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError>;
-
-    /// Returns the type as a fundamental data type.
-    ///
-    /// Note that if negative, the returned value may span more bits than [`BITS`](Self::BITS),
-    /// as it preserves the numeric value instead of the bitwise value:
-    ///
-    /// ```
-    /// # use arbitrary_int::i3;
-    /// let value: i8 = i3::new(-1).value();
-    /// assert_eq!(value, -1);
-    /// assert_eq!(value.count_ones(), 8);
-    /// ```
-    ///
-    /// If you need a value within the specified bit range, use [`Int::to_bits`].
-    fn value(self) -> Self::UnderlyingType;
-
-    /// Creates a number from the given value, throwing an error if the value is too large.
-    /// This constructor is useful when the value is convertible to T. Use [`Self::new`] for literals.
-    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-    fn from_<T: SignedNumber>(value: T) -> Self;
-
-    /// Creates an instance from the given `value`. Unlike the various `new...` functions, this
-    /// will never fail as the value is masked to the result size.
-    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-    fn masked_new<T: SignedNumber>(value: T) -> Self;
-
-    fn as_i8(&self) -> i8;
-
-    fn as_i16(&self) -> i16;
-
-    fn as_i32(&self) -> i32;
-
-    fn as_i64(&self) -> i64;
-
-    fn as_i128(&self) -> i128;
-
-    fn as_isize(&self) -> isize;
-
-    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-    #[inline]
-    fn as_<T: SignedNumber>(self) -> T {
-        T::masked_new(self)
-    }
-}
+pub trait SignedNumber: Number {}
 
 macro_rules! impl_signed_number_native {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
@@ -86,6 +21,10 @@ macro_rules! impl_signed_number_native {
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
             impl $($const_keyword)? SignedNumber for $type {
+
+            }
+
+            impl $($const_keyword)? Number for $type {
                 type UnderlyingType = $type;
                 const BITS: usize = Self::BITS as usize;
                 const MIN: Self = Self::MIN;
@@ -102,7 +41,7 @@ macro_rules! impl_signed_number_native {
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
-                fn from_<T: SignedNumber>(value: T) -> Self {
+                fn from_<T: Number>(value: T) -> Self {
                     if T::BITS > Self::BITS as usize {
                         assert!(value >= T::masked_new(Self::MIN) && value <= T::masked_new(Self::MAX));
                     }
@@ -111,7 +50,7 @@ macro_rules! impl_signed_number_native {
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
-                fn masked_new<T: SignedNumber>(value: T) -> Self {
+                fn masked_new<T: Number>(value: T) -> Self {
                     // Primitive types don't need masking
                     match Self::BITS {
                         8 => value.as_i8() as Self,
@@ -122,6 +61,24 @@ macro_rules! impl_signed_number_native {
                         _ => panic!("Unhandled Number type")
                     }
                 }
+
+                #[inline]
+                fn as_u8(&self) -> u8 { *self as u8 }
+
+                #[inline]
+                fn as_u16(&self) -> u16 { *self as u16 }
+
+                #[inline]
+                fn as_u32(&self) -> u32 { *self as u32 }
+
+                #[inline]
+                fn as_u64(&self) -> u64 { *self as u64 }
+
+                #[inline]
+                fn as_u128(&self) -> u128 { *self as u128 }
+
+                #[inline]
+                fn as_usize(&self) -> usize { *self as usize }
 
                 #[inline]
                 fn as_i8(&self) -> i8 { *self as i8 }
@@ -198,6 +155,10 @@ macro_rules! int_impl_num {
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
             impl<const BITS: usize> $($const_keyword)? SignedNumber for Int<$type, BITS> {
+
+            }
+
+            impl<const BITS: usize> $($const_keyword)? Number for Int<$type, BITS> {
                 type UnderlyingType = $type;
 
                 const BITS: usize = BITS;
@@ -208,7 +169,7 @@ macro_rules! int_impl_num {
                 // we will get a compiler error right here
                 const MAX: Self = Self {
                     // MAX is always positive so we don't have to worry about the sign
-                    value: (<$type as SignedNumber>::MAX >> (<$type as SignedNumber>::BITS - Self::BITS)),
+                    value: (<$type as Number>::MAX >> (<$type as Number>::BITS - Self::BITS)),
                 };
 
                 #[inline]
@@ -229,7 +190,7 @@ macro_rules! int_impl_num {
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
-                fn from_<T: SignedNumber>(value: T) -> Self {
+                fn from_<T: Number>(value: T) -> Self {
                     if Self::BITS < T::BITS {
                         assert!(value >= Self::MIN.value.as_() && value <= Self::MAX.value.as_());
                     }
@@ -237,13 +198,37 @@ macro_rules! int_impl_num {
                 }
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-                fn masked_new<T: SignedNumber>(value: T) -> Self {
+                fn masked_new<T: Number>(value: T) -> Self {
                     if Self::BITS < T::BITS {
                         let value = (value.as_::<Self::UnderlyingType>() << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
                         Self { value: Self::UnderlyingType::masked_new(value) }
                     } else {
                         Self { value: Self::UnderlyingType::masked_new(value) }
                     }
+                }
+
+                fn as_u8(&self) -> u8 {
+                    self.value() as _
+                }
+
+                fn as_u16(&self) -> u16 {
+                    self.value() as _
+                }
+
+                fn as_u32(&self) -> u32 {
+                    self.value() as _
+                }
+
+                fn as_u64(&self) -> u64 {
+                    self.value() as _
+                }
+
+                fn as_u128(&self) -> u128 {
+                    self.value() as _
+                }
+
+                fn as_usize(&self) -> usize {
+                    self.value() as _
                 }
 
                 fn as_i8(&self) -> i8 {
@@ -500,7 +485,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, SignedNumber};
+                /// # use arbitrary_int::{i14, Number};
                 /// assert_eq!(i14::new(100).wrapping_add(i14::new(27)), i14::new(127));
                 /// assert_eq!(i14::MAX.wrapping_add(i14::new(2)), i14::MIN + i14::new(1));
                 /// ```
@@ -521,7 +506,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, SignedNumber};
+                /// # use arbitrary_int::{i14, Number};
                 /// assert_eq!(i14::new(0).wrapping_sub(i14::new(127)), i14::new(-127));
                 /// assert_eq!(i14::new(-2).wrapping_sub(i14::MAX), i14::MAX);
                 /// ```
@@ -572,7 +557,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, SignedNumber};
+                /// # use arbitrary_int::{i14, Number};
                 /// assert_eq!(i14::new(100).wrapping_div(i14::new(10)), i14::new(10));
                 /// assert_eq!(i14::MIN.wrapping_div(i14::new(-1)), i14::MIN);
                 /// ```
@@ -598,7 +583,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, SignedNumber};
+                /// # use arbitrary_int::{i14, Number};
                 /// assert_eq!(i14::new(100).wrapping_neg(), i14::new(-100));
                 /// assert_eq!(i14::new(-100).wrapping_neg(), i14::new(100));
                 /// assert_eq!(i14::MIN.wrapping_neg(), i14::MIN);
@@ -688,7 +673,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, SignedNumber};
+                /// # use arbitrary_int::{i14, Number};
                 /// assert_eq!(i14::new(100).saturating_add(i14::new(1)), i14::new(101));
                 /// assert_eq!(i14::MAX.saturating_add(i14::new(100)), i14::MAX);
                 /// assert_eq!(i14::MIN.saturating_add(i14::new(-1)), i14::MIN);
@@ -724,7 +709,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, SignedNumber};
+                /// # use arbitrary_int::{i14, Number};
                 /// assert_eq!(i14::new(100).saturating_sub(i14::new(127)), i14::new(-27));
                 /// assert_eq!(i14::MIN.saturating_sub(i14::new(100)), i14::MIN);
                 /// assert_eq!(i14::MAX.saturating_sub(i14::new(-1)), i14::MAX);
@@ -760,7 +745,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, SignedNumber};
+                /// # use arbitrary_int::{i14, Number};
                 /// assert_eq!(i14::new(10).saturating_mul(i14::new(12)), i14::new(120));
                 /// assert_eq!(i14::MAX.saturating_mul(i14::new(10)), i14::MAX);
                 /// assert_eq!(i14::MIN.saturating_mul(i14::new(10)), i14::MIN);
@@ -798,7 +783,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, SignedNumber};
+                /// # use arbitrary_int::{i14, Number};
                 /// assert_eq!(i14::new(5).saturating_div(i14::new(2)), i14::new(2));
                 /// assert_eq!(i14::MAX.saturating_div(i14::new(-1)), i14::MIN + i14::new(1));
                 /// assert_eq!(i14::MIN.saturating_div(i14::new(-1)), i14::MAX);
@@ -826,7 +811,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, SignedNumber};
+                /// # use arbitrary_int::{i14, Number};
                 /// assert_eq!(i14::new(100).saturating_neg(), i14::new(-100));
                 /// assert_eq!(i14::new(-100).saturating_neg(), i14::new(100));
                 /// assert_eq!(i14::MIN.saturating_neg(), i14::MAX);
@@ -852,7 +837,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, SignedNumber};
+                /// # use arbitrary_int::{i14, Number};
                 /// assert_eq!(i14::new(-4).saturating_pow(3), i14::new(-64));
                 /// assert_eq!(i14::MIN.saturating_pow(2), i14::MAX);
                 /// assert_eq!(i14::MIN.saturating_pow(3), i14::MIN);
@@ -880,7 +865,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, SignedNumber};
+                /// # use arbitrary_int::{i14, Number};
                 /// assert_eq!((i14::MAX - i14::new(2)).checked_add(i14::new(1)), Some(i14::MAX - i14::new(1)));
                 /// assert_eq!((i14::MAX - i14::new(2)).checked_add(i14::new(3)), None);
                 /// ```
@@ -914,7 +899,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, SignedNumber};
+                /// # use arbitrary_int::{i14, Number};
                 /// assert_eq!((i14::MIN + i14::new(2)).checked_sub(i14::new(1)), Some(i14::MIN + i14::new(1)));
                 /// assert_eq!((i14::MIN + i14::new(2)).checked_sub(i14::new(3)), None);
                 /// ```
@@ -948,7 +933,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, SignedNumber};
+                /// # use arbitrary_int::{i14, Number};
                 /// assert_eq!(i14::MAX.checked_mul(i14::new(1)), Some(i14::MAX));
                 /// assert_eq!(i14::MAX.checked_mul(i14::new(2)), None);
                 /// ```
@@ -980,7 +965,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, SignedNumber};
+                /// # use arbitrary_int::{i14, Number};
                 /// assert_eq!((i14::MIN + i14::new(1)).checked_div(i14::new(-1)), Some(i14::new(8191)));
                 /// assert_eq!(i14::MIN.checked_div(i14::new(-1)), None);
                 /// assert_eq!((i14::new(1)).checked_div(i14::new(0)), None);
@@ -1004,7 +989,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, SignedNumber};
+                /// # use arbitrary_int::{i14, Number};
                 /// assert_eq!(i14::new(5).checked_neg(), Some(i14::new(-5)));
                 /// assert_eq!(i14::MIN.checked_neg(), None);
                 /// ```
@@ -1142,7 +1127,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i6, SignedNumber};
+                /// # use arbitrary_int::{i6, Number};
                 /// assert_eq!(i6::MAX.count_zeros(), 1);
                 /// ```
                 #[inline]
@@ -1305,7 +1290,7 @@ int_impl!(
 // Arithmetic operator implementations
 impl<T, const BITS: usize> Add for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: PartialEq + Copy + Add<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     type Output = Self;
@@ -1320,7 +1305,7 @@ where
 
 impl<T, const BITS: usize> AddAssign for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: PartialEq + Copy + Add<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     fn add_assign(&mut self, rhs: Self) {
@@ -1331,7 +1316,7 @@ where
 
 impl<T, const BITS: usize> Sub for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: PartialEq + Copy + Sub<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     type Output = Self;
@@ -1346,7 +1331,7 @@ where
 
 impl<T, const BITS: usize> SubAssign for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: PartialEq + Copy + Sub<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     fn sub_assign(&mut self, rhs: Self) {
@@ -1357,7 +1342,7 @@ where
 
 impl<T, const BITS: usize> Mul for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: PartialEq + Copy + Mul<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     type Output = Self;
@@ -1372,7 +1357,7 @@ where
 
 impl<T, const BITS: usize> MulAssign for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: PartialEq + Copy + Mul<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     fn mul_assign(&mut self, rhs: Self) {
@@ -1383,7 +1368,7 @@ where
 
 impl<T, const BITS: usize> Div for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: PartialEq + Copy + Div<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     type Output = Self;
@@ -1400,7 +1385,7 @@ where
 
 impl<T, const BITS: usize> DivAssign for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: PartialEq + Copy + Div<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     fn div_assign(&mut self, rhs: Self) {
@@ -1411,7 +1396,7 @@ where
 
 impl<T, const BITS: usize> Neg for Int<T, BITS>
 where
-    Self: SignedNumber<UnderlyingType = T>,
+    Self: Number<UnderlyingType = T>,
     T: PartialEq + Copy + Neg<Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     type Output = Self;
@@ -1428,7 +1413,7 @@ where
 // Bitwise operator implementations
 impl<T, const BITS: usize> BitAnd for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: PartialEq + Copy + BitAnd<T, Output = T>,
 {
     type Output = Self;
@@ -1441,7 +1426,7 @@ where
 
 impl<T, const BITS: usize> BitAndAssign for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: PartialEq + Copy + BitAndAssign<T>,
 {
     fn bitand_assign(&mut self, rhs: Self) {
@@ -1451,7 +1436,7 @@ where
 
 impl<T, const BITS: usize> BitOr for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: PartialEq + Copy + BitOr<T, Output = T>,
 {
     type Output = Self;
@@ -1464,7 +1449,7 @@ where
 
 impl<T, const BITS: usize> BitOrAssign for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: PartialEq + Copy + BitOrAssign<T>,
 {
     fn bitor_assign(&mut self, rhs: Self) {
@@ -1474,7 +1459,7 @@ where
 
 impl<T, const BITS: usize> BitXor for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: PartialEq + Copy + BitXor<T, Output = T>,
 {
     type Output = Self;
@@ -1487,7 +1472,7 @@ where
 
 impl<T, const BITS: usize> BitXorAssign for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: PartialEq + Copy + BitXorAssign<T>,
 {
     fn bitxor_assign(&mut self, rhs: Self) {
@@ -1497,7 +1482,7 @@ where
 
 impl<T, const BITS: usize> Not for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: PartialEq + Copy + Not<Output = T>,
 {
     type Output = Self;
@@ -1510,7 +1495,7 @@ where
 
 impl<T, TSHIFTBITS, const BITS: usize> Shl<TSHIFTBITS> for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: Copy + Shl<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
     TSHIFTBITS: TryInto<usize> + Copy,
 {
@@ -1533,7 +1518,7 @@ where
 
 impl<T, TSHIFTBITS, const BITS: usize> ShlAssign<TSHIFTBITS> for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: Copy + Shl<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
     TSHIFTBITS: TryInto<usize> + Copy,
 {
@@ -1545,7 +1530,7 @@ where
 
 impl<T, TSHIFTBITS, const BITS: usize> Shr<TSHIFTBITS> for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: Copy + Shr<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
     TSHIFTBITS: TryInto<usize> + Copy,
 {
@@ -1569,7 +1554,7 @@ where
 
 impl<T, TSHIFTBITS, const BITS: usize> ShrAssign<TSHIFTBITS> for Int<T, BITS>
 where
-    Self: SignedNumber,
+    Self: Number,
     T: Copy + Shr<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
     TSHIFTBITS: TryInto<usize> + Copy,
 {
@@ -1659,7 +1644,7 @@ where
 #[cfg(feature = "serde")]
 struct InvalidIntValueError<T>
 where
-    T: SignedNumber,
+    T: Number,
     T::UnderlyingType: fmt::Display,
 {
     value: T::UnderlyingType,
@@ -1668,7 +1653,7 @@ where
 #[cfg(feature = "serde")]
 impl<T> fmt::Display for InvalidIntValueError<T>
 where
-    T: SignedNumber,
+    T: Number,
     T::UnderlyingType: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1695,7 +1680,7 @@ where
 #[cfg(feature = "serde")]
 impl<'de, T, const BITS: usize> serde::Deserialize<'de> for Int<T, BITS>
 where
-    Self: SignedNumber<UnderlyingType = T>,
+    Self: Number<UnderlyingType = T>,
     T: fmt::Display + PartialOrd + serde::Deserialize<'de>,
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {

@@ -1265,7 +1265,7 @@ fn from_same_bit_widths() {
 #[test]
 fn calculation_with_number_trait() {
     fn increment_by_1<T: num_traits::WrappingAdd + Number>(foo: T) -> T {
-        foo.wrapping_add(&T::new(1.into()))
+        foo.wrapping_add(&T::from_(1u8))
     }
 
     fn increment_by_512<T: num_traits::WrappingAdd + Number>(
@@ -3732,19 +3732,19 @@ pub fn const_constructors_unsigned() {
 #[cfg(feature = "const_convert_and_const_trait_impl")]
 #[test]
 pub fn const_constructors_signed() {
-    const IN_BETWEEN: i4 = <i4 as SignedNumber>::new(4);
+    const IN_BETWEEN: i4 = <i4 as Number>::new(4);
     assert_eq!(IN_BETWEEN.value(), 4);
 
-    const MAX: i4 = <i4 as SignedNumber>::new(7);
+    const MAX: i4 = <i4 as Number>::new(7);
     assert_eq!(MAX.value(), 7);
 
-    const MIN: i4 = <i4 as SignedNumber>::new(-8);
+    const MIN: i4 = <i4 as Number>::new(-8);
     assert_eq!(MIN.value(), -8);
 
-    const TOO_BIG: Result<i4, TryNewError> = <i4 as SignedNumber>::try_new(8);
+    const TOO_BIG: Result<i4, TryNewError> = <i4 as Number>::try_new(8);
     assert!(TOO_BIG.is_err());
 
-    const TOO_SMALL: Result<i4, TryNewError> = <i4 as SignedNumber>::try_new(-9);
+    const TOO_SMALL: Result<i4, TryNewError> = <i4 as Number>::try_new(-9);
     assert!(TOO_SMALL.is_err());
 }
 

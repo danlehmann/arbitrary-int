@@ -7,6 +7,7 @@
 
 #[cfg(all(feature = "borsh", not(feature = "std")))]
 extern crate alloc;
+extern crate core;
 
 use core::fmt;
 
@@ -14,6 +15,7 @@ mod common;
 mod signed;
 mod unsigned;
 
+pub use common::Number;
 pub use signed::*;
 pub use unsigned::*;
 

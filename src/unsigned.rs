@@ -1,5 +1,5 @@
 use crate::common::{
-    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
+    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, Number,
 };
 use crate::TryNewError;
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
@@ -25,67 +25,17 @@ use std::{collections::BTreeMap, string::ToString};
 use schemars::JsonSchema;
 
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
-pub trait Number: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
-    type UnderlyingType: Number
-        + Debug
-        + From<u8>
-        + TryFrom<u16>
-        + TryFrom<u32>
-        + TryFrom<u64>
-        + TryFrom<u128>;
-
-    /// Number of bits that can fit in this type
-    const BITS: usize;
-
-    /// Minimum value that can be represented by this type
-    const MIN: Self;
-
-    /// Maximum value that can be represented by this type
-    const MAX: Self;
-
-    /// Creates a number from the given value, throwing an error if the value is too large.
-    /// This constructor is useful when creating a value from a literal.
-    fn new(value: Self::UnderlyingType) -> Self;
-
-    /// Creates a number from the given value, return None if the value is too large
-    fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError>;
-
-    fn value(self) -> Self::UnderlyingType;
-
-    /// Creates a number from the given value, throwing an error if the value is too large.
-    /// This constructor is useful when the value is convertible to T. Use [`Self::new`] for literals.
-    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-    fn from_<T: Number>(value: T) -> Self;
-
-    /// Creates an instance from the given `value`. Unlike the various `new...` functions, this
-    /// will never fail as the value is masked to the result size.
-    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-    fn masked_new<T: Number>(value: T) -> Self;
-
-    fn as_u8(&self) -> u8;
-
-    fn as_u16(&self) -> u16;
-
-    fn as_u32(&self) -> u32;
-
-    fn as_u64(&self) -> u64;
-
-    fn as_u128(&self) -> u128;
-
-    fn as_usize(&self) -> usize;
-
-    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-    #[inline]
-    fn as_<T: Number>(self) -> T {
-        T::masked_new(self)
-    }
-}
+pub trait UnsignedNumber: Number {}
 
 macro_rules! impl_number_native {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
     // This macro will be invoked with `u8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
+            impl $($const_keyword)? UnsignedNumber for $type {
+
+            }
+
             impl $($const_keyword)? Number for $type {
                 type UnderlyingType = $type;
                 const BITS: usize = Self::BITS as usize;
@@ -141,6 +91,24 @@ macro_rules! impl_number_native {
 
                 #[inline]
                 fn as_usize(&self) -> usize { *self as usize }
+
+                #[inline]
+                fn as_i8(&self) -> i8 { *self as i8 }
+
+                #[inline]
+                fn as_i16(&self) -> i16 { *self as i16 }
+
+                #[inline]
+                fn as_i32(&self) -> i32 { *self as i32 }
+
+                #[inline]
+                fn as_i64(&self) -> i64 { *self as i64 }
+
+                #[inline]
+                fn as_i128(&self) -> i128 { *self as i128 }
+
+                #[inline]
+                fn as_isize(&self) -> isize { *self as isize }
             }
         )+
     };
@@ -264,6 +232,30 @@ macro_rules! uint_impl_num {
                 }
 
                 fn as_usize(&self) -> usize {
+                    self.value() as _
+                }
+
+                fn as_i8(&self) -> i8 {
+                    self.value() as _
+                }
+
+                fn as_i16(&self) -> i16 {
+                    self.value() as _
+                }
+
+                fn as_i32(&self) -> i32 {
+                    self.value() as _
+                }
+
+                fn as_i64(&self) -> i64 {
+                    self.value() as _
+                }
+
+                fn as_i128(&self) -> i128 {
+                    self.value() as _
+                }
+
+                fn as_isize(&self) -> isize {
                     self.value() as _
                 }
 
