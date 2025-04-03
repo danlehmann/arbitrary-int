@@ -769,6 +769,33 @@ fn shrassign_signed() {
 }
 
 #[test]
+fn neg() {
+    assert_eq!(-i17::new(0), i17::new(0));
+    assert_eq!(-i17::new(-1), i17::new(1));
+    assert_eq!(-i17::new(2), i17::new(-2));
+    assert_eq!(-i17::new(-3), i17::new(3));
+    assert_eq!(-i17::new(4), i17::new(-4));
+    assert_eq!(-i17::new(-5), i17::new(5));
+
+    assert_eq!(-i17::MAX, i17::MIN + i17::new(1));
+    assert_eq!(-(i17::MIN + i17::new(1)), i17::MAX);
+}
+
+#[cfg(debug_assertions)]
+#[should_panic]
+#[test]
+fn neg_overflow_panics() {
+    let _ = -i17::MIN;
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+fn neg_overflow_truncates() {
+    // `-MIN` is equal to `MAX + 1`, which in turn is equal to `MIN` when truncated.
+    assert_eq!(-i17::MIN, i17::MIN);
+}
+
+#[test]
 #[allow(clippy::bool_assert_comparison)]
 fn compare() {
     assert_eq!(true, u4::new(0b1100) > u4::new(0b0011));
@@ -948,69 +975,219 @@ fn extract() {
 }
 
 #[test]
-fn extract_typed() {
-    assert_eq!(u5::new(0b10000), u5::extract_u8(0b11110000, 0));
-    assert_eq!(u5::new(0b00011), u5::extract_u16(0b11110000_11110110, 6));
-    assert_eq!(
-        u5::new(0b01011),
-        u5::extract_u32(0b11110010_11110110_00000000_00000000, 22)
+fn extract_typed_unsigned() {
+    let (value_8, expected_8) = (0b11110000_u8, 0b10000);
+    assert_eq!(u5::new(expected_8), u5::extract_u8(value_8, 0));
+    assert_eq!(u5::new(expected_8), u5::extract_i8(value_8 as i8, 0));
+
+    let (value_16, expected_16) = (0b11110000_11110110_u16, 0b00011);
+    assert_eq!(u5::new(expected_16), u5::extract_u16(value_16, 6));
+    assert_eq!(u5::new(expected_16), u5::extract_i16(value_16 as i16, 6));
+
+    let (value_32, expected_32) = (0b11110010_11110110_00000000_00000000_u32, 0b01011);
+    assert_eq!(u5::new(expected_32), u5::extract_u32(value_32, 22));
+    assert_eq!(u5::new(expected_32), u5::extract_i32(value_32 as i32, 22));
+
+    let (value_64, expected_64) = (
+        0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_u64,
+        0b01011,
     );
-    assert_eq!(
-        u5::new(0b01011),
-        u5::extract_u64(
-            0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000,
-            54
-        )
+    assert_eq!(u5::new(expected_64), u5::extract_u64(value_64, 54));
+    assert_eq!(u5::new(expected_64), u5::extract_i64(value_64 as i64, 54));
+
+    let (value_128, expected_128) = (
+        0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_u128,
+        0b01011,
     );
-    assert_eq!(u5::new(0b01011), u5::extract_u128(0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000, 118));
+    assert_eq!(u5::new(expected_128), u5::extract_u128(value_128, 118));
+    assert_eq!(
+        u5::new(expected_128),
+        u5::extract_i128(value_128 as i128, 118)
+    );
 }
 
 #[test]
-fn extract_full_width_typed() {
+fn extract_typed_signed() {
+    // Note that binary literals cannot produce negative values, hence the `0b..._u8 as i8` casts.
+    let (value_8, expected_8) = (0b11110000_u8, 0b10000);
+    assert_eq!(i5::from_bits(expected_8), i5::extract_i8(value_8 as i8, 0));
+    assert_eq!(i5::from_bits(expected_8), i5::extract_u8(value_8, 0));
+
+    let (value_16, expected_16) = (0b11110000_11110110_u16, 0b00011);
     assert_eq!(
-        0b1010_0011,
-        UInt::<u8, 8>::extract_u8(0b1010_0011, 0).value()
+        i5::from_bits(expected_16),
+        i5::extract_i16(value_16 as i16, 6)
+    );
+    assert_eq!(i5::from_bits(expected_16), i5::extract_u16(value_16, 6));
+
+    let (value_32, expected_32) = (0b11110010_11110110_00000000_00000000_u32, 0b01011);
+    assert_eq!(
+        i5::from_bits(expected_32),
+        i5::extract_i32(value_32 as i32, 22)
+    );
+    assert_eq!(i5::from_bits(expected_32), i5::extract_u32(value_32, 22));
+
+    let (value_64, expected_64) = (
+        0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_u64,
+        0b01011,
     );
     assert_eq!(
-        0b1010_0011,
-        UInt::<u8, 8>::extract_u16(0b1111_1111_1010_0011, 0).value()
+        i5::from_bits(expected_64),
+        i5::extract_i64(value_64 as i64, 54)
+    );
+    assert_eq!(i5::from_bits(expected_64), i5::extract_u64(value_64, 54));
+
+    let (value_128, expected_128) = (
+        0b11110010_11110110_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_u128,
+        0b01011,
+    );
+    assert_eq!(
+        i5::from_bits(expected_128),
+        i5::extract_i128(value_128 as i128, 118)
+    );
+    assert_eq!(
+        i5::from_bits(expected_128),
+        i5::extract_u128(value_128, 118)
+    );
+}
+
+#[test]
+fn extract_value_sign_extends() {
+    assert_eq!(-1, i5::extract_u64(0b0011_1110, 1).value());
+    assert_eq!(-1, i5::extract_i64(0b0011_1110, 1).value());
+
+    assert_eq!(-3, i5::extract_u32(0b0011_1010, 1).value());
+    assert_eq!(-3, i5::extract_i32(0b0011_1010, 1).value());
+
+    assert_eq!(-1, i3::extract_u8(0b0011_1000, 3).value());
+    assert_eq!(-1, i3::extract_i8(0b0011_1000, 3).value());
+
+    assert_eq!(-3, i3::extract_u8(0b0010_1000, 3).value());
+    assert_eq!(-3, i3::extract_i8(0b0010_1000, 3).value());
+}
+
+#[test]
+fn extract_full_width_typed_unsigned() {
+    let (value_8, expected_8) = (0b1010_0011_u8, 0b1010_0011);
+    assert_eq!(expected_8, UInt::<u8, 8>::extract_u8(value_8, 0).value());
+    assert_eq!(
+        expected_8,
+        UInt::<u8, 8>::extract_i8(value_8 as i8, 0).value()
+    );
+
+    let (value_16, expected_16) = (0b1111_1111_1010_0011_u16, 0b1010_0011);
+    assert_eq!(expected_16, UInt::<u8, 8>::extract_u16(value_16, 0).value());
+    assert_eq!(
+        expected_16,
+        UInt::<u8, 8>::extract_i16(value_16 as i16, 0).value()
+    );
+}
+
+#[test]
+fn extract_full_width_typed_signed() {
+    // Note that binary literals cannot produce negative values, hence the `0b..._u8 as i8` casts.
+    let (value_8, expected_8) = (0b1010_0011_u8, 0b1010_0011);
+    assert_eq!(
+        expected_8,
+        Int::<i8, 8>::extract_i8(value_8 as i8, 0).to_bits()
+    );
+    assert_eq!(expected_8, Int::<i8, 8>::extract_u8(value_8, 0).to_bits());
+
+    let (value_16, expected_16) = (0b1111_1111_1010_0011_u16, 0b1010_0011);
+    assert_eq!(
+        expected_16,
+        Int::<i8, 8>::extract_i16(value_16 as i16, 0).to_bits()
+    );
+    assert_eq!(
+        expected_16,
+        Int::<i8, 8>::extract_u16(value_16, 0).to_bits()
     );
 }
 
 #[test]
 #[should_panic]
-fn extract_not_enough_bits_8() {
+fn extract_not_enough_bits_unsigned_with_signed_value() {
+    let _ = u5::extract_i8(0b11110000_u8 as i8, 4);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_signed_with_unsigned_value() {
+    let _ = i5::extract_u8(0b11110000, 4);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_8_unsigned() {
     let _ = u5::extract_u8(0b11110000, 4);
 }
 
 #[test]
 #[should_panic]
-fn extract_not_enough_bits_8_full_width() {
+fn extract_not_enough_bits_8_signed() {
+    // Note that binary literals cannot produce negative values, hence `as` cast.
+    let _ = i5::extract_i8(0b11110000_u8 as i8, 4);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_8_full_width_unsigned() {
     let _ = UInt::<u8, 8>::extract_u8(0b11110000, 1);
 }
 
 #[test]
 #[should_panic]
-fn extract_not_enough_bits_16() {
+fn extract_not_enough_bits_8_full_width_signed() {
+    // Note that binary literals cannot produce negative values, hence `as` cast.
+    let _ = Int::<i8, 8>::extract_i8(0b11110000_u8 as i8, 1);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_16_unsigned() {
     let _ = u5::extract_u16(0b11110000, 12);
 }
 
 #[test]
 #[should_panic]
-fn extract_not_enough_bits_32() {
+fn extract_not_enough_bits_16_signed() {
+    let _ = i5::extract_i16(0b11110000, 12);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_32_unsigned() {
     let _ = u5::extract_u32(0b11110000, 28);
 }
 
 #[test]
 #[should_panic]
-fn extract_not_enough_bits_64() {
+fn extract_not_enough_bits_32_signed() {
+    let _ = i5::extract_i32(0b11110000, 28);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_64_unsigned() {
     let _ = u5::extract_u64(0b11110000, 60);
 }
 
 #[test]
 #[should_panic]
-fn extract_not_enough_bits_128() {
+fn extract_not_enough_bits_64_signed() {
+    let _ = i5::extract_i64(0b11110000, 60);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_128_unsigned() {
     let _ = u5::extract_u128(0b11110000, 124);
+}
+
+#[test]
+#[should_panic]
+fn extract_not_enough_bits_128_signed() {
+    let _ = i5::extract_i128(0b11110000, 124);
 }
 
 #[test]
@@ -1375,8 +1552,9 @@ fn hash() {
     assert_eq!(None, hashmap.get(&u5::new(12)));
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
-fn swap_bytes() {
+fn swap_bytes_unsigned() {
     assert_eq!(u24::new(0x12_34_56).swap_bytes(), u24::new(0x56_34_12));
     assert_eq!(
         UInt::<u64, 24>::new(0x12_34_56).swap_bytes(),
@@ -1450,8 +1628,87 @@ fn swap_bytes() {
     );
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
-fn to_le_and_be_bytes() {
+fn swap_bytes_signed() {
+    // Signed numbers have to sign extended, so the following tests look less symmetrical than the
+    // unsigned tests
+    assert_eq!(i24::new(0x12_34_56).swap_bytes(), i24::new(0x56_34_12));
+    assert_eq!(
+        Int::<i64, 24>::new(0x12_34_56).swap_bytes(),
+        Int::<i64, 24>::new(0x56_34_12)
+    );
+    assert_eq!(
+        Int::<i128, 24>::new(0x12_34_56).swap_bytes(),
+        Int::<i128, 24>::new(0x56_34_12)
+    );
+
+    assert_eq!(
+        i40::new(0x12_34_56_78_9A).swap_bytes(),
+        i40::new(0xFF_FF_FF_9A_78_56_34_12u64 as i64)
+    );
+    assert_eq!(
+        Int::<i128, 40>::new(0x12_34_56_78_9A).swap_bytes(),
+        Int::<i128, 40>::new(0xFF_FF_FF_FF_FF_FF_FF_FF_FF_FF_FF_9A_78_56_34_12u128 as i128)
+    );
+
+    assert_eq!(
+        i48::new(0x12_34_56_78_9A_BC).swap_bytes(),
+        i48::new(0xFF_FF_BC_9A_78_56_34_12u64 as i64)
+    );
+    assert_eq!(
+        Int::<i128, 48>::new(0x12_34_56_78_9A_BC).swap_bytes(),
+        Int::<i128, 48>::new(0xFF_FF_FF_FF_FF_FF_FF_FF_FF_FF_BC_9A_78_56_34_12u128 as i128)
+    );
+
+    assert_eq!(
+        i56::new(0x12_34_56_78_9A_BC_DE).swap_bytes(),
+        i56::new(0xFF_DE_BC_9A_78_56_34_12u64 as i64)
+    );
+    assert_eq!(
+        Int::<i128, 56>::new(0x12_34_56_78_9A_BC_DE).swap_bytes(),
+        Int::<i128, 56>::new(0xFF_FF_FF_FF_FF_FF_FF_FF_FF_DE_BC_9A_78_56_34_12u128 as i128)
+    );
+
+    assert_eq!(
+        i72::new(0x12_34_56_78_9A_BC_DE_FE_DC).swap_bytes(),
+        i72::new(0xFF_FF_FF_FF_FF_FF_FF_DC_FE_DE_BC_9A_78_56_34_12u128 as i128)
+    );
+
+    assert_eq!(
+        i80::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA).swap_bytes(),
+        i80::new(0xFF_FF_FF_FF_FF_FF_BA_DC_FE_DE_BC_9A_78_56_34_12u128 as i128)
+    );
+
+    assert_eq!(
+        i88::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98).swap_bytes(),
+        i88::new(0xFF_FF_FF_FF_FF_98_BA_DC_FE_DE_BC_9A_78_56_34_12u128 as i128)
+    );
+
+    assert_eq!(
+        i96::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98_76).swap_bytes(),
+        i96::new(0x76_98_BA_DC_FE_DE_BC_9A_78_56_34_12)
+    );
+
+    assert_eq!(
+        i104::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98_76_54).swap_bytes(),
+        i104::new(0x54_76_98_BA_DC_FE_DE_BC_9A_78_56_34_12)
+    );
+
+    assert_eq!(
+        i112::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98_76_54_32).swap_bytes(),
+        i112::new(0x32_54_76_98_BA_DC_FE_DE_BC_9A_78_56_34_12)
+    );
+
+    assert_eq!(
+        i120::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98_76_54_32_10).swap_bytes(),
+        i120::new(0x10_32_54_76_98_BA_DC_FE_DE_BC_9A_78_56_34_12)
+    );
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+fn to_le_and_be_bytes_unsigned() {
     assert_eq!(u24::new(0x12_34_56).to_le_bytes(), [0x56, 0x34, 0x12]);
     assert_eq!(
         UInt::<u64, 24>::new(0x12_34_56).to_le_bytes(),
@@ -1603,8 +1860,41 @@ fn to_le_and_be_bytes() {
     );
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
-fn from_le_and_be_bytes() {
+fn to_le_and_be_bytes_signed() {
+    assert_eq!(i24::new(0x12_34_56).to_le_bytes(), [0x56, 0x34, 0x12]);
+    assert_eq!(
+        i24::new(0xFF_F2_34_56u32 as i32).to_le_bytes(),
+        [0x56, 0x34, 0xF2]
+    );
+    assert_eq!(
+        Int::<i64, 24>::new(0x12_34_56).to_le_bytes(),
+        [0x56, 0x34, 0x12]
+    );
+    assert_eq!(
+        Int::<i64, 24>::new(0xFF_FF_FF_FF_FF_F2_34_56u64 as i64).to_le_bytes(),
+        [0x56, 0x34, 0xF2]
+    );
+    assert_eq!(
+        Int::<i128, 24>::new(0x12_34_56).to_le_bytes(),
+        [0x56, 0x34, 0x12]
+    );
+
+    assert_eq!(i24::new(0x12_34_56).to_be_bytes(), [0x12, 0x34, 0x56]);
+    assert_eq!(
+        i24::new(0xFF_F2_34_56u32 as i32).to_be_bytes(),
+        [0xF2, 0x34, 0x56]
+    );
+    assert_eq!(
+        Int::<i64, 24>::new(0xFF_FF_FF_FF_FF_F2_34_56u64 as i64).to_be_bytes(),
+        [0xF2, 0x34, 0x56]
+    );
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+fn from_le_and_be_bytes_unsigned() {
     assert_eq!(u24::from_le_bytes([0x56, 0x34, 0x12]), u24::new(0x12_34_56));
     assert_eq!(
         UInt::<u64, 24>::from_le_bytes([0x56, 0x34, 0x12]),
@@ -1768,6 +2058,65 @@ fn from_le_and_be_bytes() {
     );
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+fn from_le_and_be_bytes_signed() {
+    assert_eq!(
+        i24::from_le_bytes([0x56, 0x34, 0xF2]),
+        i24::new(0xFF_F2_34_56u32 as i32)
+    );
+    assert_eq!(
+        Int::<i64, 24>::from_le_bytes([0x56, 0x34, 0xF2]),
+        Int::<i64, 24>::new(0xFF_FF_FF_FF_FF_F2_34_56u64 as i64)
+    );
+    assert_eq!(
+        Int::<i128, 24>::from_le_bytes([0x56, 0x34, 0xF2]),
+        Int::<i128, 24>::new(0xFF_FF_FF_FF_FF_FF_FF_FF_FF_FF_FF_FF_FF_F2_34_56u128 as i128)
+    );
+
+    assert_eq!(
+        i24::from_be_bytes([0xF2, 0x34, 0x56]),
+        i24::new(0xFF_F2_34_56u32 as i32)
+    );
+    assert_eq!(
+        Int::<i64, 24>::from_be_bytes([0xF2, 0x34, 0x56]),
+        Int::<i64, 24>::new(0xFF_FF_FF_FF_FF_F2_34_56u64 as i64)
+    );
+    assert_eq!(
+        Int::<i128, 24>::from_be_bytes([0x12, 0x34, 0x56]),
+        Int::<i128, 24>::new(0x12_34_56)
+    );
+    assert_eq!(
+        Int::<i128, 24>::from_be_bytes([0xF2, 0x34, 0x56]),
+        Int::<i128, 24>::new(0xFF_FF_FF_FF_FF_FF_FF_FF_FF_FF_FF_FF_FF_F2_34_56u128 as i128)
+    );
+
+    assert_eq!(
+        i120::from_le_bytes([
+            0x10, 0x32, 0x54, 0x76, 0x98, 0xBA, 0xDC, 0xFE, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34,
+            0x12
+        ]),
+        i120::new(0x12_34_56_78_9A_BC_DE_FE_DC_BA_98_76_54_32_10)
+    );
+
+    assert_eq!(
+        i120::from_le_bytes([
+            0x10, 0x32, 0x54, 0x76, 0x98, 0xBA, 0xDC, 0xFE, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34,
+            0xF2
+        ]),
+        i120::new(0xFF_F2_34_56_78_9A_BC_DE_FE_DC_BA_98_76_54_32_10u128 as i128)
+    );
+
+    assert_eq!(
+        i120::from_be_bytes([
+            0xF2, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32,
+            0x10
+        ]),
+        i120::new(0xFF_F2_34_56_78_9A_BC_DE_FE_DC_BA_98_76_54_32_10u128 as i128)
+    );
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn to_ne_bytes() {
     if cfg!(target_endian = "little") {
@@ -1775,14 +2124,31 @@ fn to_ne_bytes() {
             u40::new(0x12_34_56_78_9A).to_ne_bytes(),
             [0x9A, 0x78, 0x56, 0x34, 0x12]
         );
+        assert_eq!(
+            i40::new(0x12_34_56_78_9A).to_ne_bytes(),
+            [0x9A, 0x78, 0x56, 0x34, 0x12]
+        );
+        assert_eq!(
+            i40::new(0xFF_FF_FF_F2_34_56_78_9Au64 as i64).to_ne_bytes(),
+            [0x9A, 0x78, 0x56, 0x34, 0xF2]
+        );
     } else {
         assert_eq!(
             u40::new(0x12_34_56_78_9A).to_ne_bytes(),
             [0x12, 0x34, 0x56, 0x78, 0x9A]
         );
+        assert_eq!(
+            i40::new(0x12_34_56_78_9A).to_ne_bytes(),
+            [0x12, 0x34, 0x56, 0x78, 0x9A]
+        );
+        assert_eq!(
+            i40::new(0xFF_FF_FF_F2_34_56_78_9Au64 as i64).to_ne_bytes(),
+            [0xF2, 0x34, 0x56, 0x78, 0x9A]
+        );
     }
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn from_ne_bytes() {
     if cfg!(target_endian = "little") {
@@ -1790,16 +2156,33 @@ fn from_ne_bytes() {
             u40::from_ne_bytes([0x9A, 0x78, 0x56, 0x34, 0x12]),
             u40::new(0x12_34_56_78_9A)
         );
+        assert_eq!(
+            i40::from_ne_bytes([0x9A, 0x78, 0x56, 0x34, 0x12]),
+            i40::new(0x12_34_56_78_9A)
+        );
+        assert_eq!(
+            i40::from_ne_bytes([0x12, 0x34, 0x56, 0x78, 0x9A]),
+            i40::new(0xFF_FF_FF_9A_78_56_34_12u64 as i64)
+        );
     } else {
         assert_eq!(
             u40::from_ne_bytes([0x12, 0x34, 0x56, 0x78, 0x9A]),
             u40::new(0x12_34_56_78_9A)
         );
+        assert_eq!(
+            i40::from_ne_bytes([0x12, 0x34, 0x56, 0x78, 0x9A]),
+            i40::new(0x12_34_56_78_9A)
+        );
+        assert_eq!(
+            i40::from_ne_bytes([0x9A, 0x78, 0x56, 0x34, 0x12]),
+            i40::new(0xFF_FF_FF_9A_78_56_34_12u64 as i64)
+        );
     }
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
-fn simple_le_be() {
+fn simple_le_be_unsigned() {
     const REGULAR: u40 = u40::new(0x12_34_56_78_9A);
     const SWAPPED: u40 = u40::new(0x9A_78_56_34_12);
     if cfg!(target_endian = "little") {
@@ -1812,6 +2195,24 @@ fn simple_le_be() {
         assert_eq!(REGULAR.to_be(), REGULAR);
         assert_eq!(u40::from_le(REGULAR), SWAPPED);
         assert_eq!(u40::from_be(REGULAR), REGULAR);
+    }
+}
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+fn simple_le_be_signed() {
+    const REGULAR: i40 = i40::new(0x12_34_56_78_9A);
+    const SWAPPED: i40 = i40::new(0xFF_FF_FF_9A_78_56_34_12u64 as i64);
+    if cfg!(target_endian = "little") {
+        assert_eq!(REGULAR.to_le(), REGULAR);
+        assert_eq!(REGULAR.to_be(), SWAPPED);
+        assert_eq!(i40::from_le(REGULAR), REGULAR);
+        assert_eq!(i40::from_be(REGULAR), SWAPPED);
+    } else {
+        assert_eq!(REGULAR.to_le(), SWAPPED);
+        assert_eq!(REGULAR.to_be(), REGULAR);
+        assert_eq!(i40::from_le(REGULAR), SWAPPED);
+        assert_eq!(i40::from_be(REGULAR), REGULAR);
     }
 }
 
@@ -1903,6 +2304,19 @@ fn wrapping_div_by_zero_unsigned() {
 #[test]
 fn wrapping_div_by_zero_signed() {
     let _ = i7::new(60).wrapping_div(i7::new(0));
+}
+
+#[test]
+fn wrapping_neg() {
+    assert_eq!(i17::new(0).wrapping_neg(), i17::new(0));
+    assert_eq!(i17::new(-1).wrapping_neg(), i17::new(1));
+    assert_eq!(i17::new(2).wrapping_neg(), i17::new(-2));
+    assert_eq!(i17::new(-3).wrapping_neg(), i17::new(3));
+    assert_eq!(i17::new(4).wrapping_neg(), i17::new(-4));
+    assert_eq!(i17::new(-5).wrapping_neg(), i17::new(5));
+
+    assert_eq!(i17::MAX.wrapping_neg(), i17::MIN + i17::new(1));
+    assert_eq!(i17::MIN.wrapping_neg(), i17::MIN);
 }
 
 #[test]
@@ -2199,6 +2613,19 @@ fn saturating_divby0_signed() {
 }
 
 #[test]
+fn saturating_neg() {
+    assert_eq!(i17::new(0).saturating_neg(), i17::new(0));
+    assert_eq!(i17::new(-1).saturating_neg(), i17::new(1));
+    assert_eq!(i17::new(2).saturating_neg(), i17::new(-2));
+    assert_eq!(i17::new(-3).saturating_neg(), i17::new(3));
+    assert_eq!(i17::new(4).saturating_neg(), i17::new(-4));
+    assert_eq!(i17::new(-5).saturating_neg(), i17::new(5));
+
+    assert_eq!(i17::MAX.saturating_neg(), i17::MIN + i17::new(1));
+    assert_eq!(i17::MIN.saturating_neg(), i17::MAX);
+}
+
+#[test]
 fn saturating_pow_unsigned() {
     assert_eq!(u7::new(5).saturating_pow(0), u7::new(1));
     assert_eq!(u7::new(5).saturating_pow(1), u7::new(5));
@@ -2226,7 +2653,7 @@ fn saturating_pow_signed() {
 }
 
 #[test]
-fn checked_add() {
+fn checked_add_unsigned() {
     assert_eq!(u7::new(120).checked_add(u7::new(1)), Some(u7::new(121)));
     assert_eq!(u7::new(120).checked_add(u7::new(7)), Some(u7::new(127)));
     assert_eq!(u7::new(120).checked_add(u7::new(10)), None);
@@ -2238,7 +2665,32 @@ fn checked_add() {
 }
 
 #[test]
-fn checked_sub() {
+fn checked_add_signed() {
+    assert_eq!(i7::new(60).checked_add(i7::new(1)), Some(i7::new(61)));
+    assert_eq!(i7::new(-60).checked_add(i7::new(-1)), Some(i7::new(-61)));
+
+    assert_eq!(i7::new(60).checked_add(i7::new(3)), Some(i7::new(63)));
+    assert_eq!(i7::new(-60).checked_add(i7::new(-4)), Some(i7::new(-64)));
+
+    assert_eq!(i7::new(60).checked_add(i7::new(10)), None);
+    assert_eq!(i7::new(-60).checked_add(i7::new(-10)), None);
+
+    assert_eq!(i7::new(63).checked_add(i7::new(63)), None);
+    assert_eq!(i7::new(-64).checked_add(i7::new(-64)), None);
+
+    assert_eq!(
+        Int::<i8, 8>::new(120).checked_add(Int::<i8, 8>::new(10)),
+        None
+    );
+
+    assert_eq!(
+        Int::<i8, 8>::new(-120).checked_add(Int::<i8, 8>::new(-10)),
+        None
+    );
+}
+
+#[test]
+fn checked_sub_unsigned() {
     assert_eq!(u7::new(120).checked_sub(u7::new(30)), Some(u7::new(90)));
     assert_eq!(u7::new(120).checked_sub(u7::new(119)), Some(u7::new(1)));
     assert_eq!(u7::new(120).checked_sub(u7::new(120)), Some(u7::new(0)));
@@ -2247,7 +2699,35 @@ fn checked_sub() {
 }
 
 #[test]
-fn checked_mul() {
+fn checked_sub_signed() {
+    assert_eq!(i7::new(60).checked_sub(i7::new(30)), Some(i7::new(30)));
+    assert_eq!(i7::new(-60).checked_sub(i7::new(-30)), Some(i7::new(-30)));
+
+    assert_eq!(i7::new(60).checked_sub(i7::new(59)), Some(i7::new(1)));
+    assert_eq!(i7::new(-60).checked_sub(i7::new(-59)), Some(i7::new(-1)));
+
+    assert_eq!(i7::new(60).checked_sub(i7::new(60)), Some(i7::new(0)));
+    assert_eq!(i7::new(-60).checked_sub(i7::new(-60)), Some(i7::new(0)));
+
+    assert_eq!(i7::new(60).checked_sub(i7::new(-4)), None);
+    assert_eq!(i7::new(-60).checked_sub(i7::new(5)), None);
+
+    assert_eq!(i7::new(63).checked_sub(i7::new(-63)), None);
+    assert_eq!(i7::new(-64).checked_sub(i7::new(63)), None);
+
+    assert_eq!(
+        Int::<i8, 8>::new(-2).checked_sub(Int::<i8, 8>::new(127)),
+        None
+    );
+
+    assert_eq!(
+        Int::<i8, 8>::new(-120).checked_sub(Int::<i8, 8>::new(10)),
+        None
+    );
+}
+
+#[test]
+fn checked_mul_unsigned() {
     // Fast-path: Only the arbitrary int is bounds checked
     assert_eq!(u4::new(5).checked_mul(u4::new(2)), Some(u4::new(10)));
     assert_eq!(u4::new(5).checked_mul(u4::new(3)), Some(u4::new(15)));
@@ -2269,7 +2749,49 @@ fn checked_mul() {
 }
 
 #[test]
-fn checked_div() {
+fn checked_mul_signed() {
+    // Fast-path: Only the arbitrary int is bounds checked
+    assert_eq!(i4::new(2).checked_mul(i4::new(2)), Some(i4::new(4)));
+    assert_eq!(i4::new(2).checked_mul(i4::new(-2)), Some(i4::new(-4)));
+
+    assert_eq!(i4::new(2).checked_mul(i4::new(3)), Some(i4::new(6)));
+    assert_eq!(i4::new(-2).checked_mul(i4::new(3)), Some(i4::new(-6)));
+
+    assert_eq!(i4::new(5).checked_mul(i4::new(4)), None);
+    assert_eq!(i4::new(-5).checked_mul(i4::new(4)), None);
+
+    assert_eq!(i4::new(5).checked_mul(i4::new(5)), None);
+    assert_eq!(i4::new(5).checked_mul(i4::new(-5)), None);
+
+    assert_eq!(i4::new(5).checked_mul(i4::new(6)), None);
+    assert_eq!(i4::new(-5).checked_mul(i4::new(-6)), None);
+
+    assert_eq!(i4::new(-8).checked_mul(i4::new(-8)), None);
+    assert_eq!(i4::new(7).checked_mul(i4::new(7)), None);
+
+    // Slow-path (well, one more comparison)
+    assert_eq!(i5::new(5).checked_mul(i5::new(2)), Some(i5::new(10)));
+    assert_eq!(i5::new(5).checked_mul(i5::new(-2)), Some(i5::new(-10)));
+
+    assert_eq!(i5::new(5).checked_mul(i5::new(3)), Some(i5::new(15)));
+    assert_eq!(i5::new(-5).checked_mul(i5::new(3)), Some(i5::new(-15)));
+
+    assert_eq!(i5::new(5).checked_mul(i5::new(4)), None);
+    assert_eq!(i5::new(5).checked_mul(i5::new(-4)), None);
+
+    assert_eq!(i5::new(5).checked_mul(i5::new(5)), None);
+    assert_eq!(i5::new(-5).checked_mul(i5::new(5)), None);
+
+    assert_eq!(i5::new(5).checked_mul(i5::new(6)), None);
+    assert_eq!(i5::new(5).checked_mul(i5::new(7)), None);
+
+    assert_eq!(i5::new(15).checked_mul(i5::new(1)), Some(i5::new(15)));
+    assert_eq!(i5::new(15).checked_mul(i5::new(2)), None);
+    assert_eq!(i5::new(15).checked_mul(i5::new(10)), None);
+}
+
+#[test]
+fn checked_div_unsigned() {
     // checked_div handles division by zero without exception, unlike saturating_div
     assert_eq!(u4::new(5).checked_div(u4::new(0)), None);
     assert_eq!(u4::new(5).checked_div(u4::new(1)), Some(u4::new(5)));
@@ -2280,7 +2802,39 @@ fn checked_div() {
 }
 
 #[test]
-fn checked_shl() {
+fn checked_div_signed() {
+    // checked_div handles division by zero without exception, unlike saturating_div
+    assert_eq!(i5::new(5).checked_div(i5::new(0)), None);
+    assert_eq!(i5::MIN.checked_div(i5::new(-1)), None);
+
+    assert_eq!(i5::new(5).checked_div(i5::new(1)), Some(i5::new(5)));
+    assert_eq!(i5::new(-5).checked_div(i5::new(1)), Some(i5::new(-5)));
+
+    assert_eq!(i5::new(5).checked_div(i5::new(2)), Some(i5::new(2)));
+    assert_eq!(i5::new(5).checked_div(i5::new(-2)), Some(i5::new(-2)));
+
+    assert_eq!(i5::new(5).checked_div(i5::new(3)), Some(i5::new(1)));
+    assert_eq!(i5::new(-5).checked_div(i5::new(-3)), Some(i5::new(1)));
+
+    assert_eq!(i5::new(5).checked_div(i5::new(4)), Some(i5::new(1)));
+    assert_eq!(i5::new(5).checked_div(i5::new(5)), Some(i5::new(1)));
+}
+
+#[test]
+fn checked_neg() {
+    assert_eq!(i17::new(0).checked_neg(), Some(i17::new(0)));
+    assert_eq!(i17::new(-1).checked_neg(), Some(i17::new(1)));
+    assert_eq!(i17::new(2).checked_neg(), Some(i17::new(-2)));
+    assert_eq!(i17::new(-3).checked_neg(), Some(i17::new(3)));
+    assert_eq!(i17::new(4).checked_neg(), Some(i17::new(-4)));
+    assert_eq!(i17::new(-5).checked_neg(), Some(i17::new(5)));
+
+    assert_eq!(i17::MAX.checked_neg(), Some(i17::MIN + i17::new(1)));
+    assert_eq!(i17::MIN.checked_neg(), None);
+}
+
+#[test]
+fn checked_shl_unsigned() {
     assert_eq!(
         u7::new(0b010_1101).checked_shl(0),
         Some(u7::new(0b010_1101))
@@ -2300,7 +2854,30 @@ fn checked_shl() {
 }
 
 #[test]
-fn checked_shr() {
+fn checked_shl_signed() {
+    assert_eq!(
+        i7::from_bits(0b010_1101).checked_shl(0),
+        Some(i7::from_bits(0b010_1101))
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).checked_shl(1),
+        Some(i7::from_bits(0b101_1010))
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).checked_shl(6),
+        Some(i7::from_bits(0b100_0000))
+    );
+    assert_eq!(i7::from_bits(0b010_1101).checked_shl(7), None);
+    assert_eq!(i7::from_bits(0b010_1101).checked_shl(8), None);
+    assert_eq!(i7::from_bits(0b010_1101).checked_shl(14), None);
+    assert_eq!(i7::from_bits(0b010_1101).checked_shl(15), None);
+
+    // Ensure the value is sign-extended.
+    assert_eq!(i7::from_bits(0b011_1111).checked_shl(1), Some(i7::new(-2)));
+}
+
+#[test]
+fn checked_shr_unsigned() {
     assert_eq!(
         u7::new(0b010_1101).checked_shr(0),
         Some(u7::new(0b010_1101))
@@ -2317,6 +2894,33 @@ fn checked_shr() {
     assert_eq!(u7::new(0b010_1101).checked_shr(8), None);
     assert_eq!(u7::new(0b010_1101).checked_shr(14), None);
     assert_eq!(u7::new(0b010_1101).checked_shr(15), None);
+}
+
+#[test]
+fn checked_shr_signed() {
+    assert_eq!(
+        i7::from_bits(0b010_1101).checked_shr(0),
+        Some(i7::from_bits(0b010_1101))
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).checked_shr(1),
+        Some(i7::from_bits(0b001_0110))
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).checked_shr(5),
+        Some(i7::from_bits(0b000_0001))
+    );
+    assert_eq!(i7::from_bits(0b010_1101).checked_shr(7), None);
+    assert_eq!(i7::from_bits(0b010_1101).checked_shr(8), None);
+    assert_eq!(i7::from_bits(0b010_1101).checked_shr(14), None);
+    assert_eq!(i7::from_bits(0b010_1101).checked_shr(15), None);
+
+    // Ensure the value is sign-extended.
+    assert_eq!(i7::from_bits(0b111_1110).checked_shr(1), Some(i7::new(-1)));
+    assert_eq!(
+        i7::from_bits(0b100_0000).checked_shr(1),
+        Some(i7::from_bits(0b110_0000))
+    );
 }
 
 #[test]
@@ -2476,7 +3080,7 @@ fn overflowing_shr() {
 }
 
 #[test]
-fn reverse_bits() {
+fn reverse_bits_unsigned() {
     const A: u5 = u5::new(0b11101);
     const B: u5 = A.reverse_bits();
     assert_eq!(B, u5::new(0b10111));
@@ -2491,7 +3095,22 @@ fn reverse_bits() {
 }
 
 #[test]
-fn count_ones_and_zeros() {
+fn reverse_bits_signed() {
+    const A: i5 = i5::from_bits(0b11101);
+    const B: i5 = A.reverse_bits();
+    assert_eq!(B, i5::from_bits(0b10111));
+
+    assert_eq!(
+        Int::<i128, 6>::from_bits(0b101011),
+        Int::<i128, 6>::from_bits(0b110101).reverse_bits()
+    );
+
+    assert_eq!(i1::new(0).reverse_bits().value(), 0);
+    assert_eq!(i1::new(-1).reverse_bits().value(), -1);
+}
+
+#[test]
+fn count_ones_and_zeros_unsigned() {
     assert_eq!(4, u5::new(0b10111).count_ones());
     assert_eq!(1, u5::new(0b10111).count_zeros());
     assert_eq!(1, u5::new(0b10111).leading_ones());
@@ -2504,16 +3123,54 @@ fn count_ones_and_zeros() {
 
     assert_eq!(0, u5::new(0b00000).count_ones());
     assert_eq!(5, u5::new(0b00000).count_zeros());
+    assert_eq!(0, u5::new(0b00000).leading_ones());
+    assert_eq!(5, u5::new(0b00000).leading_zeros());
+    assert_eq!(0, u5::new(0b00000).trailing_ones());
+    assert_eq!(5, u5::new(0b00000).trailing_zeros());
 
     assert_eq!(5, u5::new(0b11111).count_ones());
     assert_eq!(0, u5::new(0b11111).count_zeros());
+    assert_eq!(5, u5::new(0b11111).leading_ones());
+    assert_eq!(0, u5::new(0b11111).leading_zeros());
+    assert_eq!(5, u5::new(0b11111).trailing_ones());
+    assert_eq!(0, u5::new(0b11111).trailing_zeros());
 
     assert_eq!(3, u127::new(0b111).count_ones());
     assert_eq!(124, u127::new(0b111).count_zeros());
 }
 
 #[test]
-fn rotate_left() {
+fn count_ones_and_zeros_signed() {
+    assert_eq!(4, i5::from_bits(0b10111).count_ones());
+    assert_eq!(1, i5::from_bits(0b10111).count_zeros());
+    assert_eq!(1, i5::from_bits(0b10111).leading_ones());
+    assert_eq!(0, i5::from_bits(0b10111).leading_zeros());
+    assert_eq!(3, i5::from_bits(0b10111).trailing_ones());
+    assert_eq!(0, i5::from_bits(0b10111).trailing_zeros());
+
+    assert_eq!(2, i5::from_bits(0b10100).trailing_zeros());
+    assert_eq!(3, i5::from_bits(0b00011).leading_zeros());
+
+    assert_eq!(0, i5::from_bits(0b00000).count_ones());
+    assert_eq!(5, i5::from_bits(0b00000).count_zeros());
+    assert_eq!(0, i5::from_bits(0b00000).leading_ones());
+    assert_eq!(5, i5::from_bits(0b00000).leading_zeros());
+    assert_eq!(0, i5::from_bits(0b00000).trailing_ones());
+    assert_eq!(5, i5::from_bits(0b00000).trailing_zeros());
+
+    assert_eq!(5, i5::from_bits(0b11111).count_ones());
+    assert_eq!(0, i5::from_bits(0b11111).count_zeros());
+    assert_eq!(5, i5::from_bits(0b11111).leading_ones());
+    assert_eq!(0, i5::from_bits(0b11111).leading_zeros());
+    assert_eq!(5, i5::from_bits(0b11111).trailing_ones());
+    assert_eq!(0, i5::from_bits(0b11111).trailing_zeros());
+
+    assert_eq!(3, i127::new(0b111).count_ones());
+    assert_eq!(124, i127::new(0b111).count_zeros());
+}
+
+#[test]
+fn rotate_left_unsigned() {
     assert_eq!(u1::new(0b1), u1::new(0b1).rotate_left(1));
     assert_eq!(u2::new(0b01), u2::new(0b10).rotate_left(1));
 
@@ -2530,7 +3187,56 @@ fn rotate_left() {
 }
 
 #[test]
-fn rotate_right() {
+fn rotate_left_signed() {
+    assert_eq!(i1::from_bits(0b1), i1::from_bits(0b1).rotate_left(1));
+    assert_eq!(i2::from_bits(0b01), i2::from_bits(0b10).rotate_left(1));
+
+    assert_eq!(
+        i5::from_bits(0b10111),
+        i5::from_bits(0b10111).rotate_left(0)
+    );
+    assert_eq!(
+        i5::from_bits(0b01111),
+        i5::from_bits(0b10111).rotate_left(1)
+    );
+    assert_eq!(
+        i5::from_bits(0b11110),
+        i5::from_bits(0b10111).rotate_left(2)
+    );
+    assert_eq!(
+        i5::from_bits(0b11101),
+        i5::from_bits(0b10111).rotate_left(3)
+    );
+    assert_eq!(
+        i5::from_bits(0b11011),
+        i5::from_bits(0b10111).rotate_left(4)
+    );
+    assert_eq!(
+        i5::from_bits(0b10111),
+        i5::from_bits(0b10111).rotate_left(5)
+    );
+    assert_eq!(
+        i5::from_bits(0b01111),
+        i5::from_bits(0b10111).rotate_left(6)
+    );
+    assert_eq!(
+        i5::from_bits(0b01111),
+        i5::from_bits(0b10111).rotate_left(556)
+    );
+
+    assert_eq!(
+        i24::from_bits(0x0FFEEC),
+        i24::from_bits(0xC0FFEE).rotate_left(4)
+    );
+
+    assert_eq!(
+        Int::<i8, 8>::from_bits(0b1010_0001),
+        Int::<i8, 8>::from_bits(0b1101_0000).rotate_left(1)
+    );
+}
+
+#[test]
+fn rotate_right_unsigned() {
     assert_eq!(u1::new(0b1), u1::new(0b1).rotate_right(1));
     assert_eq!(u2::new(0b01), u2::new(0b10).rotate_right(1));
 
@@ -2543,6 +3249,51 @@ fn rotate_right() {
     assert_eq!(u5::new(0b11001), u5::new(0b10011).rotate_right(6));
 
     assert_eq!(u24::new(0xEC0FFE), u24::new(0xC0FFEE).rotate_right(4));
+}
+
+#[test]
+fn rotate_right_signed() {
+    assert_eq!(i1::from_bits(0b1), i1::from_bits(0b1).rotate_right(1));
+    assert_eq!(i2::from_bits(0b01), i2::from_bits(0b10).rotate_right(1));
+
+    assert_eq!(
+        i5::from_bits(0b10011),
+        i5::from_bits(0b10011).rotate_right(0)
+    );
+    assert_eq!(
+        i5::from_bits(0b11001),
+        i5::from_bits(0b10011).rotate_right(1)
+    );
+    assert_eq!(
+        i5::from_bits(0b11100),
+        i5::from_bits(0b10011).rotate_right(2)
+    );
+    assert_eq!(
+        i5::from_bits(0b01110),
+        i5::from_bits(0b10011).rotate_right(3)
+    );
+    assert_eq!(
+        i5::from_bits(0b00111),
+        i5::from_bits(0b10011).rotate_right(4)
+    );
+    assert_eq!(
+        i5::from_bits(0b10011),
+        i5::from_bits(0b10011).rotate_right(5)
+    );
+    assert_eq!(
+        i5::from_bits(0b11001),
+        i5::from_bits(0b10011).rotate_right(6)
+    );
+
+    assert_eq!(
+        i24::from_bits(0xEC0FFE),
+        i24::from_bits(0xC0FFEE).rotate_right(4)
+    );
+
+    assert_eq!(
+        Int::<i8, 8>::from_bits(0b0110_1000),
+        Int::<i8, 8>::from_bits(0b1101_0000).rotate_right(1)
+    );
 }
 
 #[cfg(feature = "step_trait")]
@@ -2995,4 +3746,22 @@ pub fn const_constructors_signed() {
 
     const TOO_SMALL: Result<i4, TryNewError> = <i4 as SignedNumber>::try_new(-9);
     assert!(TOO_SMALL.is_err());
+}
+
+#[test]
+pub fn is_negative() {
+    assert!(!i4::new(1).is_negative());
+    assert!(i4::new(-1).is_negative());
+    assert!(!i4::new(0).is_negative());
+    assert!(i4::MIN.is_negative());
+    assert!(!i4::MAX.is_negative());
+}
+
+#[test]
+pub fn is_positive() {
+    assert!(i4::new(1).is_positive());
+    assert!(!i4::new(-1).is_positive());
+    assert!(!i4::new(0).is_positive());
+    assert!(!i4::MIN.is_positive());
+    assert!(i4::MAX.is_positive());
 }

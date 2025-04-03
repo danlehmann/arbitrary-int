@@ -1,13 +1,12 @@
 use crate::{
-    common::{from_arbitrary_int_impl, from_native_impl},
+    common::{bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract},
     TryNewError,
 };
 use core::{
     fmt::{self, Debug},
-    hash::{Hash, Hasher},
     ops::{
         Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
-        DivAssign, Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+        DivAssign, Mul, MulAssign, Neg, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
     },
 };
 
@@ -37,16 +36,18 @@ pub trait SignedNumber: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq
     /// Creates a number from the given value, return None if the value is too large
     fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError>;
 
-    /// Returns the type as a fundamental data type
+    /// Returns the type as a fundamental data type.
     ///
-    /// Note that if negative, the returned value may span more bits than [`Self::BITS`],
+    /// Note that if negative, the returned value may span more bits than [`BITS`](Self::BITS),
     /// as it preserves the numeric value instead of the bitwise value:
+    ///
     /// ```
     /// # use arbitrary_int::i3;
     /// let value: i8 = i3::new(-1).value();
     /// assert_eq!(value, -1);
     /// assert_eq!(value.count_ones(), 8);
     /// ```
+    ///
     /// If you need a value within the specified bit range, use [`Int::to_bits`].
     fn value(self) -> Self::UnderlyingType;
 
@@ -156,19 +157,23 @@ pub struct Int<T, const BITS: usize> {
 }
 
 impl<T: Copy, const BITS: usize> Int<T, BITS> {
-    pub const BITS: usize = BITS;
-    const UNUSED_BITS: usize = ((core::mem::size_of::<T>() << 3) - Self::BITS);
+    /// The number of bits in the underlying type that are not present in this type.
+    const UNUSED_BITS: usize = (core::mem::size_of::<T>() << 3) - Self::BITS;
 
-    /// Returns the type as a fundamental data type
+    pub const BITS: usize = BITS;
+
+    /// Returns the type as a fundamental data type.
     ///
-    /// Note that if negative, the returned value may span more bits than [`Self::BITS`],
+    /// Note that if negative, the returned value may span more bits than [`BITS`](Self::BITS),
     /// as it preserves the numeric value instead of the bitwise value:
+    ///
     /// ```
     /// # use arbitrary_int::i3;
     /// let value: i8 = i3::new(-1).value();
     /// assert_eq!(value, -1);
     /// assert_eq!(value.count_ones(), 8);
     /// ```
+    ///
     /// If you need a value within the specified bit range, use [`Self::to_bits`].
     #[cfg(not(feature = "hint"))]
     #[inline]
@@ -179,6 +184,7 @@ impl<T: Copy, const BITS: usize> Int<T, BITS> {
     /// Initializes a new value without checking the bounds
     ///
     /// # Safety
+    ///
     /// Must only be called with a value bigger or equal to [`Self::MIN`] and less than or equal to [`Self::MAX`].
     #[inline]
     pub const unsafe fn new_unchecked(value: T) -> Self {
@@ -286,7 +292,7 @@ int_impl_num!(i8, i16, i32, i64, i128);
 int_impl_num!(i8 as const, i16 as const, i32 as const, i64 as const, i128 as const);
 
 macro_rules! int_impl {
-    ($(($type:ident, $unsigned_type:ident)),+) => {
+    ($(($type:ident, $unsigned_type:ident, doctest = $doctest_attr:literal)),+) => {
         $(
             impl<const BITS: usize> Int<$type, BITS> {
                 pub const MASK: $type = (Self::MAX.value << 1) | 1;
@@ -354,34 +360,38 @@ macro_rules! int_impl {
                     }
                 }
 
-                /// Returns the bitwise representation of the value
+                /// Returns the bitwise representation of the value.
                 ///
-                /// As the bit width is limited to [`Self::BITS`] the numeric value may differ from [`Self::value`]:
-                /// ```
+                /// As the bit width is limited to [`BITS`](Self::BITS) the numeric value may differ from [`value`](Self::value).
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i3;
                 /// let value = i3::new(-1);
                 /// assert_eq!(value.to_bits(), 0b111); // 7
                 /// assert_eq!(value.value(), -1);
                 /// ```
-                /// To convert from the bitwise representation back to an instance, use [`Self::from_bits`].
+                ///
+                /// To convert from the bitwise representation back to an instance, use [`from_bits`](Self::from_bits).
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn to_bits(self) -> $unsigned_type {
                     (self.value() & Self::MASK) as $unsigned_type
                 }
 
-                /// Convert the bitwise representation from [`Self::to_bits`] to an instance
+                /// Convert the bitwise representation from [`to_bits`](Self::to_bits) to an instance.
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i3;
                 /// let value = i3::from_bits(0b111);
                 /// assert_eq!(value.value(), -1);
                 /// assert_eq!(value.to_bits(), 0b111);
                 /// ```
-                /// If you want to convert a numeric value to an instance instead, use [`Self::new`].
+                ///
+                /// If you want to convert a numeric value to an instance instead, use [`new`](Self::new).
                 ///
                 /// # Panics
-                /// Panics if the given value exceeds the bit width specified by [`Self::BITS`].
+                ///
+                /// Panics if the given value exceeds the bit width specified by [`BITS`](Self::BITS).
                 #[inline]
                 pub const fn from_bits(value: $unsigned_type) -> Self {
                     assert!(value & (!Self::MASK as $unsigned_type) == 0);
@@ -391,19 +401,21 @@ macro_rules! int_impl {
                     Self { value: ((value << Self::UNUSED_BITS) as $type) >> Self::UNUSED_BITS }
                 }
 
-                /// Tries to convert the bitwise representation from [`Self::to_bits`] to an instance
+                /// Tries to convert the bitwise representation from [`to_bits`](Self::to_bits) to an instance.
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i3;
                 /// i3::try_from_bits(0b1111).expect_err("value is > 3 bits");
                 /// let value = i3::try_from_bits(0b111).expect("value is <= 3 bits");
                 /// assert_eq!(value.value(), -1);
                 /// assert_eq!(value.to_bits(), 0b111);
                 /// ```
-                /// If you want to convert a numeric value to an instance instead, use [`Self::try_new`].
+                ///
+                /// If you want to convert a numeric value to an instance instead, use [`try_new`](Self::try_new).
                 ///
                 /// # Errors
-                /// Returns an error if the given value exceeds the bit width specified by [`Self::BITS`].
+                ///
+                /// Returns an error if the given value exceeds the bit width specified by [`BITS`](Self::BITS).
                 #[inline]
                 pub const fn try_from_bits(value: $unsigned_type) -> Result<Self, TryNewError> {
                     if value & (!Self::MASK as $unsigned_type) == 0 {
@@ -415,9 +427,11 @@ macro_rules! int_impl {
                     }
                 }
 
-                /// Converts the bitwise representation from [`Self::to_bits`] to an instance, without checking the bounds
+                /// Converts the bitwise representation from [`to_bits`](Self::to_bits) to an instance,
+                /// without checking the bounds.
                 ///
                 /// # Safety
+                ///
                 /// The given value must not exceed the bit width specified by [`Self::BITS`].
                 #[inline]
                 pub const unsafe fn from_bits_unchecked(value: $unsigned_type) -> Self {
@@ -426,17 +440,19 @@ macro_rules! int_impl {
                     Self { value: ((value << Self::UNUSED_BITS) as $type) >> Self::UNUSED_BITS }
                 }
 
-                /// Returns the type as a fundamental data type
+                /// Returns the type as a fundamental data type.
                 ///
-                /// Note that if negative, the returned value may span more bits than [`Self::BITS`],
+                /// Note that if negative, the returned value may span more bits than [`BITS`](Self::BITS)
                 /// as it preserves the numeric value instead of the bitwise value:
-                /// ```
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i3;
                 /// let value: i8 = i3::new(-1).value();
                 /// assert_eq!(value, -1);
                 /// assert_eq!(value.count_ones(), 8);
                 /// ```
-                /// If you need a value within the specified bit range, use [`Self::to_bits`].
+                ///
+                /// If you need a value within the specified bit range, use [`to_bits`](Self::to_bits).
                 #[cfg(feature = "hint")]
                 #[inline]
                 pub const fn value(self) -> $type {
@@ -451,6 +467,19 @@ macro_rules! int_impl {
                     }
                     self.value
                 }
+
+                // Generate the `extract_{i,u}{8,16,32,64,128}` functions.
+                impl_extract!(
+                    $type,
+                    "from_bits(value >> start_bit)",
+                    |value| (value << Self::UNUSED_BITS) >> Self::UNUSED_BITS,
+
+                    (8, (i8, extract_i8), (u8, extract_u8)),
+                    (16, (i16, extract_i16), (u16, extract_u16)),
+                    (32, (i32, extract_i32), (u32, extract_u32)),
+                    (64, (i64, extract_i64), (u64, extract_u64)),
+                    (128, (i128, extract_i128), (u128, extract_u128))
+                );
 
                 /// Returns an [`Int`] with a wider bit depth but with the same base data type
                 #[inline]
@@ -470,7 +499,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(100).wrapping_add(i14::new(27)), i14::new(127));
                 /// assert_eq!(i14::MAX.wrapping_add(i14::new(2)), i14::MIN + i14::new(1));
@@ -491,7 +520,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(0).wrapping_sub(i14::new(127)), i14::new(-127));
                 /// assert_eq!(i14::new(-2).wrapping_sub(i14::MAX), i14::MAX);
@@ -512,7 +541,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i14;
                 /// assert_eq!(i14::new(10).wrapping_mul(i14::new(12)), i14::new(120));
                 /// assert_eq!(i14::new(12).wrapping_mul(i14::new(1024)), i14::new(-4096));
@@ -542,7 +571,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(100).wrapping_div(i14::new(10)), i14::new(10));
                 /// assert_eq!(i14::MIN.wrapping_div(i14::new(-1)), i14::MIN);
@@ -558,18 +587,43 @@ macro_rules! int_impl {
                     }
                 }
 
+                /// Wrapping (modular) negation. Computes `-self`, wrapping around at the boundary of the type.
+                ///
+                /// The only case where such wrapping can occur is when one negates `MIN` on a signed type
+                /// (where `MIN` is the negative minimal value for the type); this is a positive value that is
+                /// too large to represent in the type. In such a case, this function returns `MIN` itself.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(100).wrapping_neg(), i14::new(-100));
+                /// assert_eq!(i14::new(-100).wrapping_neg(), i14::new(100));
+                /// assert_eq!(i14::MIN.wrapping_neg(), i14::MIN);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn wrapping_neg(self) -> Self {
+                    let value = (self.value().wrapping_neg() << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+                    Self { value }
+                }
+
                 /// Panic-free bitwise shift-left; yields `self << mask(rhs)`, where mask removes any
                 /// high-order bits of `rhs` that would cause the shift to exceed the bitwidth of the type.
                 ///
                 /// Note that this is not the same as a rotate-left; the RHS of a wrapping shift-left is
                 /// restricted to the range of the type, rather than the bits shifted out of the LHS being
                 /// returned to the other end.
+                /// A [`rotate_left`](Self::rotate_left) function exists as well, which may be what you
+                /// want instead.
                 ///
                 /// # Examples
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i14;
                 /// assert_eq!(i14::new(-1).wrapping_shl(7), i14::new(-128));
                 /// assert_eq!(i14::new(-1).wrapping_shl(128), i14::new(-4));
@@ -599,12 +653,14 @@ macro_rules! int_impl {
                 /// Note that this is not the same as a rotate-right; the RHS of a wrapping shift-right is
                 /// restricted to the range of the type, rather than the bits shifted out of the LHS being
                 /// returned to the other end.
+                /// A [`rotate_right`](Self::rotate_right) function exists as well, which may be what you
+                /// want instead.
                 ///
                 /// # Examples
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::i14;
                 /// assert_eq!(i14::new(-128).wrapping_shr(7), i14::new(-1));
                 /// assert_eq!(i14::new(-128).wrapping_shr(60), i14::new(-8));
@@ -631,7 +687,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(100).saturating_add(i14::new(1)), i14::new(101));
                 /// assert_eq!(i14::MAX.saturating_add(i14::new(100)), i14::MAX);
@@ -667,7 +723,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(100).saturating_sub(i14::new(127)), i14::new(-27));
                 /// assert_eq!(i14::MIN.saturating_sub(i14::new(100)), i14::MIN);
@@ -703,7 +759,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(10).saturating_mul(i14::new(12)), i14::new(120));
                 /// assert_eq!(i14::MAX.saturating_mul(i14::new(10)), i14::MAX);
@@ -712,7 +768,7 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_mul(self, rhs: Self) -> Self {
-                    let value = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                    let value = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
                         // We have half the bits (e.g. i4 * i4) of the base type, so we can't overflow the base type
                         // `wrapping_mul` likely provides the best performance on all cpus
                         self.value.wrapping_mul(rhs.value)
@@ -741,7 +797,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(5).saturating_div(i14::new(2)), i14::new(2));
                 /// assert_eq!(i14::MAX.saturating_div(i14::new(-1)), i14::MIN + i14::new(1));
@@ -762,6 +818,32 @@ macro_rules! int_impl {
                     }
                 }
 
+                /// Saturating integer negation. Computes `-self`, returning `MAX` if `self == MIN`
+                /// instead of overflowing.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(100).saturating_neg(), i14::new(-100));
+                /// assert_eq!(i14::new(-100).saturating_neg(), i14::new(100));
+                /// assert_eq!(i14::MIN.saturating_neg(), i14::MAX);
+                /// assert_eq!(i14::MAX.saturating_neg(), i14::MIN + i14::new(1));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn saturating_neg(self) -> Self {
+                    if self.value() == Self::MIN.value() {
+                        Self::MAX
+                    } else {
+                        // It is not possible for this to wrap as we've already checked for `MIN`.
+                        let value = self.value().wrapping_neg();
+                        Self { value }
+                    }
+                }
+
                 /// Saturating integer exponentiation. Computes `self.pow(exp)`, saturating at the numeric
                 /// bounds instead of overflowing.
                 ///
@@ -769,7 +851,7 @@ macro_rules! int_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{i14, SignedNumber};
                 /// assert_eq!(i14::new(-4).saturating_pow(3), i14::new(-64));
                 /// assert_eq!(i14::MIN.saturating_pow(2), i14::MAX);
@@ -790,12 +872,435 @@ macro_rules! int_impl {
                         Self { value }
                     }
                 }
+
+                /// Checked integer addition. Computes `self + rhs`, returning `None` if overflow occurred.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!((i14::MAX - i14::new(2)).checked_add(i14::new(1)), Some(i14::MAX - i14::new(1)));
+                /// assert_eq!((i14::MAX - i14::new(2)).checked_add(i14::new(3)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn checked_add(self, rhs: Self) -> Option<Self> {
+                    if Self::UNUSED_BITS == 0 {
+                        // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_add` instead of `checked_add` in the common case, which is faster.
+                        match self.value().checked_add(rhs.value()) {
+                            Some(value) => Some(Self { value }),
+                            None => None
+                        }
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. i7).
+                        // That means the addition can never overflow the underlying type
+                        let value = self.value().wrapping_add(rhs.value());
+                        if value < Self::MIN.value() || value > Self::MAX.value() {
+                            None
+                        } else {
+                            Some(Self { value })
+                        }
+                    }
+                }
+
+                /// Checked integer subtraction. Computes `self - rhs`, returning `None` if overflow occurred.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!((i14::MIN + i14::new(2)).checked_sub(i14::new(1)), Some(i14::MIN + i14::new(1)));
+                /// assert_eq!((i14::MIN + i14::new(2)).checked_sub(i14::new(3)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn checked_sub(self, rhs: Self) -> Option<Self> {
+                    if Self::UNUSED_BITS == 0 {
+                        // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_sub` instead of `checked_sub` in the common case, which is faster.
+                        match self.value().checked_sub(rhs.value()) {
+                            Some(value) => Some(Self { value }),
+                            None => None
+                        }
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. i7).
+                        // That means the subtraction can never overflow the underlying type
+                        let value = self.value().wrapping_sub(rhs.value());
+                        if value < Self::MIN.value() || value > Self::MAX.value() {
+                            None
+                        } else {
+                            Some(Self { value })
+                        }
+                    }
+                }
+
+                /// Checked integer multiplication. Computes `self * rhs`, returning `None` if overflow occurred.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::MAX.checked_mul(i14::new(1)), Some(i14::MAX));
+                /// assert_eq!(i14::MAX.checked_mul(i14::new(2)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn checked_mul(self, rhs: Self) -> Option<Self> {
+                    let product = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
+                        // We have half the bits (e.g. `i4 * i4`) of the base type, so we can't overflow the base type.
+                        // `wrapping_mul` likely provides the best performance on all CPUs.
+                        Some(self.value().wrapping_mul(rhs.value()))
+                    } else {
+                        // We have more than half the bits (e.g. u6 * u6)
+                        self.value().checked_mul(rhs.value())
+                    };
+
+                    match product {
+                        Some(value) if value >= Self::MIN.value() && value <= Self::MAX.value() => {
+                            Some(Self { value })
+                        }
+                        _ => None
+                    }
+                }
+
+                /// Checked integer division. Computes `self / rhs`, returning `None` if `rhs == 0`
+                /// or the division results in overflow.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!((i14::MIN + i14::new(1)).checked_div(i14::new(-1)), Some(i14::new(8191)));
+                /// assert_eq!(i14::MIN.checked_div(i14::new(-1)), None);
+                /// assert_eq!((i14::new(1)).checked_div(i14::new(0)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn checked_div(self, rhs: Self) -> Option<Self> {
+                    // `checked_div` from the underlying type already catches division by zero,
+                    // and the only way this can overflow is with `MIN / -1` (which equals `MAX + 1`).
+                    // Because of this we only need to check if the value is larger than `MAX`.
+                    match self.value().checked_div(rhs.value()) {
+                        Some(value) if value <= Self::MAX.value() => Some(Self { value }),
+                        _ => None
+                    }
+                }
+
+                /// Checked negation. Computes `-self`, returning `None` if `self == MIN`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{i14, SignedNumber};
+                /// assert_eq!(i14::new(5).checked_neg(), Some(i14::new(-5)));
+                /// assert_eq!(i14::MIN.checked_neg(), None);
+                /// ```
+                pub const fn checked_neg(self) -> Option<Self> {
+                    if self.value() == Self::MIN.value() {
+                        None
+                    } else {
+                        // It is not possible for this to wrap as we've already checked for `MIN`.
+                        let value = self.value().wrapping_neg();
+                        Some(Self { value })
+                    }
+                }
+
+                /// Checked shift left. Computes `self << rhs`, returning `None` if `rhs` is larger than or
+                /// equal to the number of bits in `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::i14;
+                /// assert_eq!(i14::new(0x1).checked_shl(4), Some(i14::new(0x10)));
+                /// assert_eq!(i14::new(0x1).checked_shl(129), None);
+                /// assert_eq!(i14::new(0x10).checked_shl(13), Some(i14::new(0)));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn checked_shl(self, rhs: u32) -> Option<Self> {
+                    if rhs >= (BITS as u32) {
+                        None
+                    } else {
+                        let value = ((self.value() << rhs) << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+                        Some(Self { value })
+                    }
+                }
+
+                /// Checked shift right. Computes `self >> rhs`, returning `None` if `rhs` is larger than
+                /// or equal to the number of bits in `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::i14;
+                /// assert_eq!(i14::new(0x10).checked_shr(4), Some(i14::new(0x1)));
+                /// assert_eq!(i14::new(0x10).checked_shr(129), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn checked_shr(self, rhs: u32) -> Option<Self> {
+                    if rhs >= (BITS as u32) {
+                        None
+                    } else {
+                        let value = ((self.value() >> rhs) << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+                        Some(Self { value })
+                    }
+                }
+
+                /// Returns `true` if `self` is positive and `false` if the number is zero or negative.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::i14;
+                /// assert!(i14::new(10).is_positive());
+                /// assert!(!i14::new(-10).is_positive());
+                /// ```
+                #[inline]
+                #[must_use]
+                pub const fn is_positive(self) -> bool {
+                    self.value() > 0
+                }
+
+                /// Returns `true` if `self` is negative and `false` if the number is zero or positive.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::i14;
+                /// assert!(i14::new(-10).is_negative());
+                /// assert!(!i14::new(10).is_negative());
+                /// ```
+                #[inline]
+                #[must_use]
+                pub const fn is_negative(self) -> bool {
+                    self.value() < 0
+                }
+
+                /// Reverses the order of bits in the integer. The least significant bit becomes the most
+                /// significant bit, second least-significant bit becomes second most-significant bit, etc.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::i6;
+                /// assert_eq!(i6::from_bits(0b10_1010).reverse_bits(), i6::from_bits(0b01_0101));
+                /// assert_eq!(i6::new(0), i6::new(0).reverse_bits());
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn reverse_bits(self) -> Self {
+                    let value = self.value().reverse_bits() >> Self::UNUSED_BITS;
+                    Self { value }
+                }
+
+                /// Returns the number of ones in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::i6;
+                /// let n = i6::from_bits(0b00_1000);
+                /// assert_eq!(n.count_ones(), 1);
+                /// ```
+                #[inline]
+                pub const fn count_ones(self) -> u32 {
+                    // Due to sign-extension the unused bits may be either all ones or zeros, so we need to mask them off.
+                    (self.value() & Self::MASK).count_ones()
+                }
+
+                /// Returns the number of zeros in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{i6, SignedNumber};
+                /// assert_eq!(i6::MAX.count_zeros(), 1);
+                /// ```
+                #[inline]
+                pub const fn count_zeros(self) -> u32 {
+                    // Due to sign-extension the unused bits may be either all ones or zeros, so we need to mask them off.
+                    // Afterwards the unused bits are all zero, so we can subtract them from the result.
+                    // We can avoid a bounds check in debug builds with `wrapping_sub` since this cannot overflow.
+                    (self.value() & Self::MASK).count_zeros().wrapping_sub(Self::UNUSED_BITS as u32)
+                }
+
+                /// Returns the number of leading ones in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::i6;
+                /// let n = i6::new(-1);
+                /// assert_eq!(n.leading_ones(), 6);
+                /// ```
+                #[inline]
+                pub const fn leading_ones(self) -> u32 {
+                    (self.value() << Self::UNUSED_BITS).leading_ones()
+                }
+
+                /// Returns the number of leading zeros in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::i6;
+                /// let n = i6::new(-1);
+                /// assert_eq!(n.leading_zeros(), 0);
+                /// ```
+                #[inline]
+                pub const fn leading_zeros(self) -> u32 {
+                    if Self::UNUSED_BITS == 0 {
+                        self.value().leading_zeros()
+                    } else {
+                        // Prevent an all-zero value reporting the underlying type's entire bit width by setting
+                        // the first unused bit to one, causing `leading_zeros()` to ignore all unused bits.
+                        let first_unused_bit_set = const { 1 << (Self::UNUSED_BITS - 1) };
+                        ((self.value() << Self::UNUSED_BITS) | first_unused_bit_set).leading_zeros()
+                    }
+                }
+
+                /// Returns the number of trailing ones in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::i6;
+                /// let n = i6::new(3);
+                /// assert_eq!(n.trailing_ones(), 2);
+                /// ```
+                #[inline]
+                pub const fn trailing_ones(self) -> u32 {
+                    // Prevent an all-ones value reporting the underlying type's entire bit width by masking
+                    // off all the unused bits.
+                    (self.value() & Self::MASK).trailing_ones()
+                }
+
+                /// Returns the number of trailing zeros in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::i6;
+                /// let n = i6::new(-4);
+                /// assert_eq!(n.trailing_zeros(), 2);
+                /// ```
+                #[inline]
+                pub const fn trailing_zeros(self) -> u32 {
+                    // Prevent an all-ones value reporting the underlying type's entire bit width by setting
+                    // all the unused bits.
+                    (self.value() | !Self::MASK).trailing_zeros()
+                }
+
+                /// Shifts the bits to the left by a specified amount, `n`, wrapping the truncated bits
+                /// to the end of the resulting integer.
+                ///
+                /// Please note this isn’t the same operation as the `<<` shifting operator!
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::i6;
+                /// let n = i6::from_bits(0b10_1010);
+                /// let m = i6::from_bits(0b01_0101);
+                ///
+                /// assert_eq!(n.rotate_left(1), m);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn rotate_left(self, n: u32) -> Self {
+                    let b = BITS as u32;
+                    let n = if n >= b { n % b } else { n };
+
+                    // Temporarily switch to an unsigned type to prevent sign-extension with `>>`.
+                    let moved_bits = ((self.value() << n) & Self::MASK) as $unsigned_type;
+                    let truncated_bits = ((self.value() & Self::MASK) as $unsigned_type) >> (b - n);
+                    let value = (((moved_bits | truncated_bits) << Self::UNUSED_BITS) as $type) >> Self::UNUSED_BITS;
+                    Self { value }
+                }
+
+                /// Shifts the bits to the right by a specified amount, `n`, wrapping the truncated bits
+                /// to the beginning of the resulting integer.
+                ///
+                /// Please note this isn’t the same operation as the `>>` shifting operator!
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::i6;
+                /// let n = i6::from_bits(0b10_1010);
+                /// let m = i6::from_bits(0b01_0101);
+                ///
+                /// assert_eq!(n.rotate_right(1), m);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn rotate_right(self, n: u32) -> Self {
+                    let b = BITS as u32;
+                    let n = if n >= b { n % b } else { n };
+
+                    // Temporarily switch to an unsigned type to prevent sign-extension with `>>`.
+                    let moved_bits = (self.value() & Self::MASK) as $unsigned_type >> n;
+                    let truncated_bits = ((self.value() << (b - n)) & Self::MASK) as $unsigned_type;
+                    let value = (((moved_bits | truncated_bits) << Self::UNUSED_BITS) as $type) >> Self::UNUSED_BITS;
+                    Self { value }
+                }
             }
         )+
     };
 }
 
-int_impl!((i8, u8), (i16, u16), (i32, u32), (i64, u64), (i128, u128));
+// Because the methods within this macro are effectively copy-pasted for each underlying integer type,
+// each documentation test gets executed five times (once for each underlying type), even though the
+// tests themselves aren't specific to said underlying type. This severely slows down `cargo test`,
+// so we ignore them for all but one (arbitrary) underlying type.
+int_impl!(
+    (i8, u8, doctest = "rust"),
+    (i16, u16, doctest = "ignore"),
+    (i32, u32, doctest = "ignore"),
+    (i64, u64, doctest = "ignore"),
+    (i128, u128, doctest = "ignore")
+);
 
 // Arithmetic operator implementations
 impl<T, const BITS: usize> Add for Int<T, BITS>
@@ -901,6 +1406,22 @@ where
     fn div_assign(&mut self, rhs: Self) {
         // Delegate to the Div implementation above.
         *self = *self / rhs;
+    }
+}
+
+impl<T, const BITS: usize> Neg for Int<T, BITS>
+where
+    Self: SignedNumber<UnderlyingType = T>,
+    T: PartialEq + Copy + Neg<Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+{
+    type Output = Self;
+
+    #[inline]
+    fn neg(self) -> Self::Output {
+        let negated = -self.value();
+        let value = (negated << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+        debug_assert!(negated == value, "attempt to negate with overflow");
+        Self { value }
     }
 }
 
@@ -1119,13 +1640,14 @@ where
     }
 }
 
-impl<T, const BITS: usize> Hash for Int<T, BITS>
+#[cfg(feature = "defmt")]
+impl<T, const BITS: usize> defmt::Format for Int<T, BITS>
 where
-    T: Hash,
+    T: defmt::Format,
 {
     #[inline]
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.value.hash(state)
+    fn format(&self, f: defmt::Formatter) {
+        self.value.format(f)
     }
 }
 
@@ -1187,6 +1709,23 @@ where
         }
     }
 }
+
+bytes_operation_impl!(Int<i32, 24>, i32);
+bytes_operation_impl!(Int<i64, 24>, i64);
+bytes_operation_impl!(Int<i128, 24>, i128);
+bytes_operation_impl!(Int<i64, 40>, i64);
+bytes_operation_impl!(Int<i128, 40>, i128);
+bytes_operation_impl!(Int<i64, 48>, i64);
+bytes_operation_impl!(Int<i128, 48>, i128);
+bytes_operation_impl!(Int<i64, 56>, i64);
+bytes_operation_impl!(Int<i128, 56>, i128);
+bytes_operation_impl!(Int<i128, 72>, i128);
+bytes_operation_impl!(Int<i128, 80>, i128);
+bytes_operation_impl!(Int<i128, 88>, i128);
+bytes_operation_impl!(Int<i128, 96>, i128);
+bytes_operation_impl!(Int<i128, 104>, i128);
+bytes_operation_impl!(Int<i128, 112>, i128);
+bytes_operation_impl!(Int<i128, 120>, i128);
 
 // Conversions
 from_arbitrary_int_impl!(Int(i8), [i16, i32, i64, i128]);

@@ -1,7 +1,8 @@
-use crate::common::{from_arbitrary_int_impl, from_native_impl};
+use crate::common::{
+    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
+};
 use crate::TryNewError;
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
-use core::hash::{Hash, Hasher};
 #[cfg(feature = "step_trait")]
 use core::iter::Step;
 #[cfg(feature = "num-traits")]
@@ -151,12 +152,15 @@ impl_number_native!(u8, u16, u32, u64, u128);
 #[cfg(feature = "const_convert_and_const_trait_impl")]
 impl_number_native!(u8 as const, u16 as const, u32 as const, u64 as const, u128 as const);
 
-#[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
 pub struct UInt<T, const BITS: usize> {
     value: T,
 }
 
 impl<T: Copy, const BITS: usize> UInt<T, BITS> {
+    /// The number of bits in the underlying type that are not present in this type.
+    const UNUSED_BITS: usize = (core::mem::size_of::<T>() << 3) - Self::BITS;
+
     pub const BITS: usize = BITS;
 
     /// Returns the type as a fundamental data type
@@ -284,7 +288,7 @@ uint_impl_num!(u8, u16, u32, u64, u128);
 uint_impl_num!(u8 as const, u16 as const, u32 as const, u64 as const, u128 as const);
 
 macro_rules! uint_impl {
-    ($($type:ident),+) => {
+    ($(($type:ident, doctest = $doctest_attr:literal)),+) => {
         $(
             impl<const BITS: usize> UInt<$type, BITS> {
                 /// Creates an instance. Panics if the given value is outside of the valid range
@@ -376,75 +380,18 @@ macro_rules! uint_impl {
                     }
                 }
 
-                /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
-                /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient.
-                /// panics if `start_bit+<number of bits>` doesn't fit within an u8, e.g. `u5::extract_u8(8, 4)`;
-                #[inline]
-                pub const fn extract_u8(value: u8, start_bit: usize) -> Self {
-                    assert!(start_bit + BITS <= 8);
-                    // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
-                    let _ = Self::MAX;
+                // Generate the `extract_{i,u}{8,16,32,64,128}` functions.
+                impl_extract!(
+                    $type,
+                    "new((value >> start_bit) & MASK)",
+                    |value| value & Self::MASK,
 
-                    Self {
-                        value: ((value >> start_bit) as $type) & Self::MAX.value,
-                    }
-                }
-
-                /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
-                /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if `start_bit+<number of bits>` doesn't fit within a u16, e.g. `u15::extract_u16(8, 2)`;
-                #[inline]
-                pub const fn extract_u16(value: u16, start_bit: usize) -> Self {
-                    assert!(start_bit + BITS <= 16);
-                    // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
-                    let _ = Self::MAX;
-
-                    Self {
-                        value: ((value >> start_bit) as $type) & Self::MAX.value,
-                    }
-                }
-
-                /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
-                /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if `start_bit+<number of bits>` doesn't fit within a u32, e.g. `u30::extract_u32(8, 4)`;
-                #[inline]
-                pub const fn extract_u32(value: u32, start_bit: usize) -> Self {
-                    assert!(start_bit + BITS <= 32);
-                    // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
-                    let _ = Self::MAX;
-
-                    Self {
-                        value: ((value >> start_bit) as $type) & Self::MAX.value,
-                    }
-                }
-
-                /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
-                /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if `start_bit+<number of bits>` doesn't fit within a u64, e.g. `u60::extract_u64(8, 5)`;
-                #[inline]
-                pub const fn extract_u64(value: u64, start_bit: usize) -> Self {
-                    assert!(start_bit + BITS <= 64);
-                    // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
-                    let _ = Self::MAX;
-
-                    Self {
-                        value: ((value >> start_bit) as $type) & Self::MAX.value,
-                    }
-                }
-
-                /// Extracts bits from a given value. The extract is equivalent to: `new((value >> start_bit) & MASK)`
-                /// Unlike new, extract doesn't perform range-checking so it is slightly more efficient
-                /// panics if `start_bit+<number of bits>` doesn't fit within a u128, e.g. `u120::extract_u64(8, 9)`;
-                #[inline]
-                pub const fn extract_u128(value: u128, start_bit: usize) -> Self {
-                    assert!(start_bit + BITS <= 128);
-                    // Query MAX to ensure that we get a compiler error if the current definition is bogus (e.g. <u8, 9>)
-                    let _ = Self::MAX;
-
-                    Self {
-                        value: ((value >> start_bit) as $type) & Self::MAX.value,
-                    }
-                }
+                    (8, (u8, extract_u8), (i8, extract_i8)),
+                    (16, (u16, extract_u16), (i16, extract_i16)),
+                    (32, (u32, extract_u32), (i32, extract_i32)),
+                    (64, (u64, extract_u64), (i64, extract_i64)),
+                    (128, (u128, extract_u128), (i128, extract_i128))
+                );
 
                 /// Returns a [`UInt`] with a wider bit depth but with the same base data type
                 #[inline]
@@ -468,7 +415,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u14, Number};
                 /// assert_eq!(u14::new(200).wrapping_add(u14::new(55)), u14::new(255));
                 /// assert_eq!(u14::new(200).wrapping_add(u14::MAX), u14::new(199));
@@ -489,7 +436,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u14, Number};
                 /// assert_eq!(u14::new(100).wrapping_sub(u14::new(100)), u14::new(0));
                 /// assert_eq!(u14::new(100).wrapping_sub(u14::MAX), u14::new(101));
@@ -510,7 +457,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u7;
                 /// assert_eq!(u7::new(10).wrapping_mul(u7::new(12)), u7::new(120));
                 /// assert_eq!(u7::new(25).wrapping_mul(u7::new(12)), u7::new(44));
@@ -538,7 +485,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u14;
                 /// assert_eq!(u14::new(100).wrapping_div(u14::new(10)), u14::new(10));
                 /// ```
@@ -559,12 +506,14 @@ macro_rules! uint_impl {
                 /// Note that this is not the same as a rotate-left; the RHS of a wrapping
                 /// shift-left is restricted to the range of the type, rather than the bits
                 /// shifted out of the LHS being returned to the other end.
+                /// A [`rotate_left`](Self::rotate_left) function exists as well, which may
+                /// be what you want instead.
                 ///
                 /// # Examples
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u14;
                 /// assert_eq!(u14::new(1).wrapping_shl(7), u14::new(128));
                 /// assert_eq!(u14::new(1).wrapping_shl(128), u14::new(4));
@@ -594,12 +543,14 @@ macro_rules! uint_impl {
                 /// Note that this is not the same as a rotate-right; the RHS of a wrapping shift-right is
                 /// restricted to the range of the type, rather than the bits shifted out of the LHS being
                 /// returned to the other end.
+                /// A [`rotate_right`](Self::rotate_right) function exists as well, which may be what you
+                /// want instead.
                 ///
                 /// # Examples
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u14;
                 /// assert_eq!(u14::new(128).wrapping_shr(7), u14::new(1));
                 /// assert_eq!(u14::new(128).wrapping_shr(128), u14::new(32));
@@ -626,7 +577,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u14, Number};
                 /// assert_eq!(u14::new(100).saturating_add(u14::new(1)), u14::new(101));
                 /// assert_eq!(u14::MAX.saturating_add(u14::new(100)), u14::MAX);
@@ -634,7 +585,7 @@ macro_rules! uint_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_add(self, rhs: Self) -> Self {
-                    let saturated = if core::mem::size_of::<$type>() << 3 == BITS {
+                    let saturated = if Self::UNUSED_BITS == 0 {
                         // We are something like a UInt::<u8; 8>, we can fallback to the base implementation.
                         // This is very unlikely to happen in practice, but checking allows us to use
                         // `wrapping_add` instead of `saturating_add` in the common case, which is faster.
@@ -658,7 +609,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u14;
                 /// assert_eq!(u14::new(100).saturating_sub(u14::new(27)), u14::new(73));
                 /// assert_eq!(u14::new(13).saturating_sub(u14::new(127)), u14::new(0));
@@ -680,7 +631,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u14, Number};
                 /// assert_eq!(u14::new(2).saturating_mul(u14::new(10)), u14::new(20));
                 /// assert_eq!(u14::MAX.saturating_mul(u14::new(10)), u14::MAX);
@@ -688,7 +639,7 @@ macro_rules! uint_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_mul(self, rhs: Self) -> Self {
-                    let product = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                    let product = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
                         // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
                         // wrapping_mul likely provides the best performance on all cpus
                         self.value.wrapping_mul(rhs.value)
@@ -715,7 +666,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::u14;
                 /// assert_eq!(u14::new(5).saturating_div(u14::new(2)), u14::new(2));
                 /// ```
@@ -737,7 +688,7 @@ macro_rules! uint_impl {
                 ///
                 /// Basic usage:
                 ///
-                /// ```
+                #[doc = concat!(" ```", $doctest_attr)]
                 /// # use arbitrary_int::{u14, Number};
                 /// assert_eq!(u14::new(4).saturating_pow(3), u14::new(64));
                 /// assert_eq!(u14::MAX.saturating_pow(2), u14::MAX);
@@ -755,79 +706,156 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Checked integer addition. Computes `self + rhs`, returning `None` if overflow occurred.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!((u14::MAX - u14::new(2)).checked_add(u14::new(1)), Some(u14::MAX - u14::new(1)));
+                /// assert_eq!((u14::MAX - u14::new(2)).checked_add(u14::new(3)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_add(self, rhs: Self) -> Option<Self> {
-                    if core::mem::size_of::<$type>() << 3 == BITS {
-                        // We are something like a UInt::<u8; 8>. We can fallback to the base implementation
-                        match self.value.checked_add(rhs.value) {
+                    if Self::UNUSED_BITS == 0 {
+                        // We are something like a UInt::<u8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_add` instead of `checked_add` in the common case, which is faster.
+                        match self.value().checked_add(rhs.value()) {
                             Some(value) => Some(Self { value }),
                             None => None
                         }
                     } else {
                         // We're dealing with fewer bits than the underlying type (e.g. u7).
                         // That means the addition can never overflow the underlying type
-                        let sum = self.value.wrapping_add(rhs.value);
+                        let sum = self.value().wrapping_add(rhs.value());
                         if sum > Self::MAX.value() { None } else { Some(Self { value: sum })}
                     }
                 }
 
+                /// Checked integer subtraction. Computes `self - rhs`, returning `None` if overflow occurred.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(1).checked_sub(u14::new(1)), Some(u14::new(0)));
+                /// assert_eq!(u14::new(0).checked_sub(u14::new(1)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_sub(self, rhs: Self) -> Option<Self> {
-                    match self.value.checked_sub(rhs.value) {
+                    match self.value().checked_sub(rhs.value()) {
                         Some(value) => Some(Self { value }),
                         None => None
                     }
                 }
 
+                /// Checked integer multiplication. Computes `self * rhs`, returning `None` if overflow occurred.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{u14, Number};
+                /// assert_eq!(u14::new(5).checked_mul(u14::new(1)), Some(u14::new(5)));
+                /// assert_eq!(u14::MAX.checked_mul(u14::new(2)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_mul(self, rhs: Self) -> Option<Self> {
-                    let product = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
-                        // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
-                        // wrapping_mul likely provides the best performance on all cpus
-                        Some(self.value.wrapping_mul(rhs.value))
+                    let product = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
+                        // We have half the bits (e.g. `u4 * u4`) of the base type, so we can't overflow the base type.
+                        // `wrapping_mul` likely provides the best performance on all CPUs.
+                        Some(self.value().wrapping_mul(rhs.value()))
                     } else {
                         // We have more than half the bits (e.g. u6 * u6)
-                        self.value.checked_mul(rhs.value)
+                        self.value().checked_mul(rhs.value())
                     };
 
                     match product {
-                        Some(value) => {
-                            if value > Self::MAX.value() {
-                                None
-                            } else {
-                                Some(Self {value})
-                            }
-                        }
-                        None => None
+                        Some(value) if value <= Self::MAX.value() => Some(Self { value }),
+                        _ => None
                     }
                 }
 
+                /// Checked integer division. Computes `self / rhs`, returning `None` if `rhs == 0`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(128).checked_div(u14::new(2)), Some(u14::new(64)));
+                /// assert_eq!(u14::new(1).checked_div(u14::new(0)), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_div(self, rhs: Self) -> Option<Self> {
-                    match self.value.checked_div(rhs.value) {
+                    match self.value().checked_div(rhs.value()) {
                         Some(value) => Some(Self { value }),
                         None => None
                     }
                 }
 
+                /// Checked shift left. Computes `self << rhs`, returning `None` if `rhs` is larger than
+                /// or equal to the number of bits in `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(0x1).checked_shl(4), Some(u14::new(0x10)));
+                /// assert_eq!(u14::new(0x10).checked_shl(129), None);
+                /// assert_eq!(u14::new(0x10).checked_shl(13), Some(u14::new(0)));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_shl(self, rhs: u32) -> Option<Self> {
                     if rhs >= (BITS as u32) {
                         None
                     } else {
                         Some(Self {
-                            value: (self.value << rhs) & Self::MASK,
+                            value: (self.value() << rhs) & Self::MASK,
                         })
                     }
                 }
 
+                /// Checked shift right. Computes `self >> rhs`, returning `None` if `rhs` is larger than
+                /// or equal to the number of bits in `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::u14;
+                /// assert_eq!(u14::new(0x10).checked_shr(4), Some(u14::new(0x1)));
+                /// assert_eq!(u14::new(0x10).checked_shr(129), None);
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_shr(self, rhs: u32) -> Option<Self> {
                     if rhs >= (BITS as u32) {
                         None
                     } else {
                         Some(Self {
-                            value: (self.value >> rhs),
+                            value: self.value() >> rhs,
                         })
                     }
                 }
 
                 pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
-                    let (value, overflow) = if core::mem::size_of::<$type>() << 3 == BITS {
+                    let (value, overflow) = if Self::UNUSED_BITS == 0 {
                         // We are something like a UInt::<u8; 8>. We can fallback to the base implementation
                         self.value.overflowing_add(rhs.value)
                     } else {
@@ -848,7 +876,7 @@ macro_rules! uint_impl {
                 }
 
                 pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
-                    let (wrapping_product, overflow) = if BITS << 1 <= (core::mem::size_of::<$type>() << 3) {
+                    let (wrapping_product, overflow) = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
                         // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
                         // wrapping_mul likely provides the best performance on all cpus
                         self.value.overflowing_mul(rhs.value)
@@ -883,78 +911,216 @@ macro_rules! uint_impl {
                     }
                 }
 
-                /// Reverses the order of bits in the integer. The least significant bit becomes the most significant bit, second least-significant bit becomes second most-significant bit, etc.
+                /// Reverses the order of bits in the integer. The least significant bit becomes the most
+                /// significant bit, second least-significant bit becomes second most-significant bit, etc.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::u6;
+                /// assert_eq!(u6::new(0b10_1010).reverse_bits(), u6::new(0b01_0101));
+                /// assert_eq!(u6::new(0), u6::new(0).reverse_bits());
+                /// ```
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn reverse_bits(self) -> Self {
-                    let shift_right = (core::mem::size_of::<$type>() << 3) - BITS;
-                    Self { value: self.value.reverse_bits() >> shift_right }
+                    Self { value: self.value().reverse_bits() >> Self::UNUSED_BITS }
                 }
 
-                /// Returns the number of ones in the binary representation of self.
+                /// Returns the number of ones in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{u7, Number};
+                /// let n = u7::new(0b100_1100);
+                /// assert_eq!(n.count_ones(), 3);
+                ///
+                /// let max = u7::MAX;
+                /// assert_eq!(max.count_ones(), 7);
+                ///
+                /// let zero = u7::new(0);
+                /// assert_eq!(zero.count_ones(), 0);
+                /// ```
                 #[inline]
                 pub const fn count_ones(self) -> u32 {
                     // The upper bits are zero, so we can ignore them
-                    self.value.count_ones()
+                    self.value().count_ones()
                 }
 
-                /// Returns the number of zeros in the binary representation of self.
+                /// Returns the number of zeros in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{u7, Number};
+                /// let zero = u7::new(0);
+                /// assert_eq!(zero.count_zeros(), 7);
+                ///
+                /// let max = u7::MAX;
+                /// assert_eq!(max.count_zeros(), 0);
+                /// ```
                 #[inline]
                 pub const fn count_zeros(self) -> u32 {
-                    // The upper bits are zero, so we can have to subtract them from the result
-                    let filler_bits = ((core::mem::size_of::<$type>() << 3) - BITS) as u32;
-                    self.value.count_zeros() - filler_bits
+                    // The upper bits are zero, so we can have to subtract them from the result.
+                    // We can avoid a bounds check in debug builds with `wrapping_sub` since this cannot overflow.
+                    self.value().count_zeros().wrapping_sub(Self::UNUSED_BITS as u32)
                 }
 
-                /// Returns the number of leading ones in the binary representation of self.
+                /// Returns the number of leading ones in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{u7, Number};
+                /// let n = !(u7::MAX >> 2);
+                /// assert_eq!(n.leading_ones(), 2);
+                ///
+                /// let zero = u7::new(0);
+                /// assert_eq!(zero.leading_ones(), 0);
+                ///
+                /// let max = u7::MAX;
+                /// assert_eq!(max.leading_ones(), 7);
+                /// ```
                 #[inline]
                 pub const fn leading_ones(self) -> u32 {
-                    let shift = ((core::mem::size_of::<$type>() << 3) - BITS) as u32;
-                    (self.value << shift).leading_ones()
+                    (self.value() << Self::UNUSED_BITS).leading_ones()
                 }
 
-                /// Returns the number of leading zeros in the binary representation of self.
+                /// Returns the number of leading zeros in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{u7, Number};
+                /// let n = u7::MAX >> 2;
+                /// assert_eq!(n.leading_zeros(), 2);
+                ///
+                /// let zero = u7::new(0);
+                /// assert_eq!(zero.leading_zeros(), 7);
+                ///
+                /// let max = u7::MAX;
+                /// assert_eq!(max.leading_zeros(), 0);
+                /// ```
                 #[inline]
                 pub const fn leading_zeros(self) -> u32 {
-                    let shift = ((core::mem::size_of::<$type>() << 3) - BITS) as u32;
-                    (self.value << shift).leading_zeros()
+                    if Self::UNUSED_BITS == 0 {
+                        self.value().leading_zeros()
+                    } else {
+                        // Prevent an all-zero value reporting the underlying type's entire bit width by setting
+                        // the first unused bit to one, causing `leading_zeros()` to ignore the unused bits.
+                        let first_unused_bit_set = const { 1 << (Self::UNUSED_BITS - 1) };
+                        ((self.value() << Self::UNUSED_BITS) | first_unused_bit_set).leading_zeros()
+                    }
                 }
 
-                /// Returns the number of leading ones in the binary representation of self.
+                /// Returns the number of trailing ones in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{u7, Number};
+                /// let n = u7::new(0b1010111);
+                /// assert_eq!(n.trailing_ones(), 3);
+                ///
+                /// let zero = u7::new(0);
+                /// assert_eq!(zero.trailing_ones(), 0);
+                ///
+                /// let max = u7::MAX;
+                /// assert_eq!(max.trailing_ones(), 7);
+                /// ```
                 #[inline]
                 pub const fn trailing_ones(self) -> u32 {
-                    self.value.trailing_ones()
+                    self.value().trailing_ones()
                 }
 
-                /// Returns the number of leading zeros in the binary representation of self.
+                /// Returns the number of trailing zeros in the binary representation of `self`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::{u7, Number};
+                /// let n = u7::new(0b010_1000);
+                /// assert_eq!(n.trailing_zeros(), 3);
+                ///
+                /// let zero = u7::new(0);
+                /// assert_eq!(zero.trailing_zeros(), 7);
+                ///
+                /// let max = u7::MAX;
+                /// assert_eq!(max.trailing_zeros(), 0);
+                /// ```
                 #[inline]
                 pub const fn trailing_zeros(self) -> u32 {
-                    self.value.trailing_zeros()
+                    // Prevent an all-zeros value reporting the underlying type's entire bit width by setting
+                    // all the unused bits.
+                    (self.value() | !Self::MASK).trailing_zeros()
                 }
 
-                /// Shifts the bits to the left by a specified amount, n, wrapping the truncated bits to the end of the resulting integer.
-                /// Please note this isn't the same operation as the << shifting operator!
+                /// Shifts the bits to the left by a specified amount, `n`, wrapping the truncated bits
+                /// to the end of the resulting integer.
+                ///
+                /// Please note this isn’t the same operation as the `<<` shifting operator!
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::u6;
+                /// let n = u6::new(0b10_1010);
+                /// let m = u6::new(0b01_0101);
+                ///
+                /// assert_eq!(n.rotate_left(1), m);
+                /// ```
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn rotate_left(self, n: u32) -> Self {
                     let b = BITS as u32;
                     let n = if n >= b { n % b } else { n };
 
-                    let moved_bits = (self.value << n) & Self::MASK;
-                    let truncated_bits = self.value >> (b - n);
+                    let moved_bits = (self.value() << n) & Self::MASK;
+                    let truncated_bits = self.value() >> (b - n);
                     Self { value: moved_bits | truncated_bits }
                 }
 
-                /// Shifts the bits to the right by a specified amount, n, wrapping the truncated bits to the beginning of the resulting integer.
-                /// Please note this isn't the same operation as the >> shifting operator!
+                /// Shifts the bits to the right by a specified amount, `n`, wrapping the truncated bits
+                /// to the beginning of the resulting integer.
+                ///
+                /// Please note this isn’t the same operation as the `>>` shifting operator!
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::u6;
+                /// let n = u6::new(0b10_1010);
+                /// let m = u6::new(0b01_0101);
+                ///
+                /// assert_eq!(n.rotate_right(1), m);
+                /// ```
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn rotate_right(self, n: u32) -> Self {
                     let b = BITS as u32;
                     let n = if n >= b { n % b } else { n };
 
-                    let moved_bits = self.value >> n;
-                    let truncated_bits = (self.value << (b - n)) & Self::MASK;
+                    let moved_bits = self.value() >> n;
+                    let truncated_bits = (self.value() << (b - n)) & Self::MASK;
                     Self { value: moved_bits | truncated_bits }
                 }
             }
@@ -962,7 +1128,17 @@ macro_rules! uint_impl {
     };
 }
 
-uint_impl!(u8, u16, u32, u64, u128);
+// Because the methods within this macro are effectively copy-pasted for each underlying integer type,
+// each documentation test gets executed five times (once for each underlying type), even though the
+// tests themselves aren't specific to said underlying type. This severely slows down `cargo test`,
+// so we ignore them for all but one (arbitrary) underlying type.
+uint_impl!(
+    (u8, doctest = "rust"),
+    (u16, doctest = "ignore"),
+    (u32, doctest = "ignore"),
+    (u64, doctest = "ignore"),
+    (u128, doctest = "ignore")
+);
 
 // Arithmetic implementations
 impl<T, const BITS: usize> Add for UInt<T, BITS>
@@ -1512,16 +1688,6 @@ where
     }
 }
 
-impl<T, const BITS: usize> Hash for UInt<T, BITS>
-where
-    T: Hash,
-{
-    #[inline]
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.value.hash(state)
-    }
-}
-
 #[cfg(feature = "step_trait")]
 impl<T, const BITS: usize> Step for UInt<T, BITS>
 where
@@ -1616,121 +1782,22 @@ where
     }
 }
 
-macro_rules! bytes_operation_impl {
-    ($base_data_type:ty, $bits:expr, [$($indices:expr),+]) => {
-        impl UInt<$base_data_type, $bits>
-        {
-            /// Reverses the byte order of the integer.
-            #[inline]
-            pub const fn swap_bytes(&self) -> Self {
-                // swap_bytes() of the underlying type does most of the work. Then, we just need to shift
-                const SHIFT_RIGHT: usize = (core::mem::size_of::<$base_data_type>() << 3) - $bits;
-                Self { value: self.value.swap_bytes() >> SHIFT_RIGHT }
-            }
-
-            pub const fn to_le_bytes(&self) -> [u8; $bits >> 3] {
-                let v = self.value();
-
-                [ $( (v >> ($indices << 3)) as u8, )+ ]
-            }
-
-            pub const fn from_le_bytes(from: [u8; $bits >> 3]) -> Self {
-                let value = { 0 $( | (from[$indices] as $base_data_type) << ($indices << 3))+ };
-                Self { value }
-            }
-
-            pub const fn to_be_bytes(&self) -> [u8; $bits >> 3] {
-                 let v = self.value();
-
-                [ $( (v >> ($bits - 8 - ($indices << 3))) as u8, )+ ]
-            }
-
-            pub const fn from_be_bytes(from: [u8; $bits >> 3]) -> Self {
-                let value = { 0 $( | (from[$indices] as $base_data_type) << ($bits - 8 - ($indices << 3)))+ };
-                Self { value }
-            }
-
-            #[inline]
-            pub const fn to_ne_bytes(&self) -> [u8; $bits >> 3] {
-                #[cfg(target_endian = "little")]
-                {
-                    self.to_le_bytes()
-                }
-                #[cfg(target_endian = "big")]
-                {
-                    self.to_be_bytes()
-                }
-            }
-
-            #[inline]
-            pub const fn from_ne_bytes(bytes: [u8; $bits >> 3]) -> Self {
-                #[cfg(target_endian = "little")]
-                {
-                    Self::from_le_bytes(bytes)
-                }
-                #[cfg(target_endian = "big")]
-                {
-                    Self::from_be_bytes(bytes)
-                }
-            }
-
-            #[inline]
-            pub const fn to_le(self) -> Self {
-                #[cfg(target_endian = "little")]
-                {
-                    self
-                }
-                #[cfg(target_endian = "big")]
-                {
-                    self.swap_bytes()
-                }
-            }
-
-            #[inline]
-            pub const fn to_be(self) -> Self {
-                #[cfg(target_endian = "little")]
-                {
-                    self.swap_bytes()
-                }
-                #[cfg(target_endian = "big")]
-                {
-                    self
-                }
-            }
-
-            #[inline]
-            pub const fn from_le(value: Self) -> Self {
-                value.to_le()
-            }
-
-            #[inline]
-            pub const fn from_be(value: Self) -> Self {
-                value.to_be()
-            }
-        }
-    };
-}
-
-bytes_operation_impl!(u32, 24, [0, 1, 2]);
-bytes_operation_impl!(u64, 24, [0, 1, 2]);
-bytes_operation_impl!(u128, 24, [0, 1, 2]);
-bytes_operation_impl!(u64, 40, [0, 1, 2, 3, 4]);
-bytes_operation_impl!(u128, 40, [0, 1, 2, 3, 4]);
-bytes_operation_impl!(u64, 48, [0, 1, 2, 3, 4, 5]);
-bytes_operation_impl!(u128, 48, [0, 1, 2, 3, 4, 5]);
-bytes_operation_impl!(u64, 56, [0, 1, 2, 3, 4, 5, 6]);
-bytes_operation_impl!(u128, 56, [0, 1, 2, 3, 4, 5, 6]);
-bytes_operation_impl!(u128, 72, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-bytes_operation_impl!(u128, 80, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-bytes_operation_impl!(u128, 88, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-bytes_operation_impl!(u128, 96, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-bytes_operation_impl!(u128, 104, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-bytes_operation_impl!(u128, 112, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
-bytes_operation_impl!(
-    u128,
-    120,
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-);
+bytes_operation_impl!(UInt<u32, 24>, u32);
+bytes_operation_impl!(UInt<u64, 24>, u64);
+bytes_operation_impl!(UInt<u128, 24>, u128);
+bytes_operation_impl!(UInt<u64, 40>, u64);
+bytes_operation_impl!(UInt<u128, 40>, u128);
+bytes_operation_impl!(UInt<u64, 48>, u64);
+bytes_operation_impl!(UInt<u128, 48>, u128);
+bytes_operation_impl!(UInt<u64, 56>, u64);
+bytes_operation_impl!(UInt<u128, 56>, u128);
+bytes_operation_impl!(UInt<u128, 72>, u128);
+bytes_operation_impl!(UInt<u128, 80>, u128);
+bytes_operation_impl!(UInt<u128, 88>, u128);
+bytes_operation_impl!(UInt<u128, 96>, u128);
+bytes_operation_impl!(UInt<u128, 104>, u128);
+bytes_operation_impl!(UInt<u128, 112>, u128);
+bytes_operation_impl!(UInt<u128, 120>, u128);
 
 // Conversions
 from_arbitrary_int_impl!(UInt(u8), [u16, u32, u64, u128]);
