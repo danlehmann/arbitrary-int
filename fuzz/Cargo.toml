@@ -1,0 +1,26 @@
+[package]
+name = "arbitrary-int-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+paste = "1"
+seq-macro = "0.3"
+
+[dependencies.arbitrary-int]
+path = ".."
+default-features = false
+features = ["arbitrary", "std"]
+
+[[bin]]
+name = "fuzz"
+path = "fuzz_targets/fuzz.rs"
+test = false
+doc = false
+bench = false
