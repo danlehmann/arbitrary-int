@@ -1,11 +1,22 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+// By unconditionally declaring this crate as `no_std` we opt out of the standard library's prelude,
+// which implicitly brings items like `Vec` and `String` into scope. Since we'd need to import those
+// manually in case the `alloc` crate is used but the standard library isn't, we might as well keep
+// things consistent and always manually import them.
+#![no_std]
 #![cfg_attr(
     feature = "const_convert_and_const_trait_impl",
     feature(const_convert, const_trait_impl, inline_const)
 )]
 #![cfg_attr(feature = "step_trait", feature(step_trait))]
 
-#[cfg(all(feature = "borsh", not(feature = "std")))]
+// This makes it possible to use `std::` when the `std` feature is enabled, even though we're `no_std`.
+#[cfg(feature = "std")]
+extern crate std;
+
+// The `alloc` crate is always usable when the standard library (i.e. the `std` feature) is enabled.
+// The standard library re-exports collections from the `alloc` crate, but since this crate supports
+// `alloc` without `std` its best to use `alloc` directly: that works both with and without `std`.
+#[cfg(any(feature = "borsh", feature = "std"))]
 extern crate alloc;
 
 use core::fmt;

@@ -13,12 +13,6 @@ use core::ops::{
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[cfg(all(feature = "borsh", not(feature = "std")))]
-use alloc::{collections::BTreeMap, string::ToString};
-
-#[cfg(all(feature = "borsh", feature = "std"))]
-use std::{collections::BTreeMap, string::ToString};
-
 #[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 
@@ -1720,7 +1714,10 @@ where
 impl<T, const BITS: usize> borsh::BorshSchema for UInt<T, BITS> {
     #[inline]
     fn add_definitions_recursively(
-        definitions: &mut BTreeMap<borsh::schema::Declaration, borsh::schema::Definition>,
+        definitions: &mut alloc::collections::btree_map::BTreeMap<
+            borsh::schema::Declaration,
+            borsh::schema::Definition,
+        >,
     ) {
         let byte_count = BITS.div_ceil(8) as u8;
         let def = borsh::schema::Definition::Primitive(byte_count);
@@ -1729,6 +1726,7 @@ impl<T, const BITS: usize> borsh::BorshSchema for UInt<T, BITS> {
 
     #[inline]
     fn declaration() -> borsh::schema::Declaration {
+        use alloc::string::ToString;
         ["u", &BITS.to_string()].concat()
     }
 }
@@ -1796,7 +1794,8 @@ impl<T, const BITS: usize> JsonSchema for UInt<T, BITS>
 where
     Self: Integer,
 {
-    fn schema_name() -> String {
+    fn schema_name() -> alloc::string::String {
+        use alloc::string::ToString;
         ["uint", &BITS.to_string()].concat()
     }
 
@@ -1805,7 +1804,7 @@ where
         let schema_object = SchemaObject {
             instance_type: Some(schemars::schema::InstanceType::Integer.into()),
             format: Some(Self::schema_name()),
-            number: Some(Box::new(NumberValidation {
+            number: Some(alloc::boxed::Box::new(NumberValidation {
                 // can be done with https://github.com/rust-lang/rfcs/pull/2484
                 // minimum: Some(Self::MIN.value().try_into().ok().unwrap()),
                 // maximum: Some(Self::MAX.value().try_into().ok().unwrap()),
