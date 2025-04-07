@@ -19,7 +19,7 @@ use schemars::JsonSchema;
 macro_rules! impl_integer_native {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
     // This macro will be invoked with `u8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
-    ($($type:ident $(as $const_keyword:ident)?),+) => {
+    ($(($type:ident, $signed_type:ident) $(as $const_keyword:ident)?),+) => {
         $(
             #[allow(deprecated)]
             impl crate::v1_number_compat::Number for $type {
@@ -32,6 +32,9 @@ macro_rules! impl_integer_native {
 
             impl $($const_keyword)? Integer for $type {
                 type UnderlyingType = $type;
+                type UnsignedUnderlyingType = $type;
+                type SignedUnderlyingType = $signed_type;
+
                 const BITS: usize = Self::BITS as usize;
                 const MIN: Self = Self::MIN;
                 const MAX: Self = Self::MAX;
@@ -41,9 +44,6 @@ macro_rules! impl_integer_native {
 
                 #[inline]
                 fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> { Ok(value) }
-
-                #[inline]
-                fn value(self) -> Self::UnderlyingType { self }
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
@@ -66,6 +66,24 @@ macro_rules! impl_integer_native {
                         128 => value.as_u128() as Self,
                         _ => panic!("Unhandled Integer type")
                     }
+                }
+
+                #[inline]
+                fn value(self) -> Self::UnderlyingType { self }
+
+                #[inline]
+                fn try_from_bits(value: Self::UnsignedUnderlyingType) -> Result<Self, TryNewError> {
+                    Ok(value)
+                }
+
+                #[inline]
+                unsafe fn from_bits_unchecked(value: Self::UnsignedUnderlyingType) -> Self {
+                    value
+                }
+
+                #[inline]
+                fn to_bits(self) -> Self::UnsignedUnderlyingType {
+                    self.value()
                 }
 
                 #[inline]
@@ -109,10 +127,10 @@ macro_rules! impl_integer_native {
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-impl_integer_native!(u8, u16, u32, u64, u128);
+impl_integer_native!((u8, i8), (u16, i16), (u32, i32), (u64, i64), (u128, i128));
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
-impl_integer_native!(u8 as const, u16 as const, u32 as const, u64 as const, u128 as const);
+impl_integer_native!((u8, i8) as const, (u16, i16) as const, (u32, i32) as const, (u64, i64) as const, (u128, i128));
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
 pub struct UInt<T, const BITS: usize> {
@@ -158,7 +176,7 @@ where
 macro_rules! uint_impl_num {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
     // This macro will be invoked with `u8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
-    ($($type:ident $(as $const_keyword:ident)?),+) => {
+    ($(($type:ident, $signed_type:ident) $(as $const_keyword:ident)?),+) => {
         $(
             #[allow(deprecated)]
             impl<const BITS: usize> crate::v1_number_compat::Number for UInt<$type, BITS> {
@@ -171,6 +189,8 @@ macro_rules! uint_impl_num {
 
             impl<const BITS: usize> $($const_keyword)? Integer for UInt<$type, BITS> {
                 type UnderlyingType = $type;
+                type UnsignedUnderlyingType = $type;
+                type SignedUnderlyingType = $signed_type;
 
                 const BITS: usize = BITS;
 
@@ -214,50 +234,77 @@ macro_rules! uint_impl_num {
                     }
                 }
 
+                #[inline]
+                fn try_from_bits(value: Self::UnsignedUnderlyingType) -> Result<Self, TryNewError> {
+                    Ok(Self { value })
+                }
+
+                #[inline]
+                unsafe fn from_bits_unchecked(value: Self::UnsignedUnderlyingType) -> Self {
+                    Self { value }
+                }
+
+                #[inline]
+                fn to_bits(self) -> Self::UnsignedUnderlyingType {
+                    self.value()
+                }
+
+                #[inline]
                 fn as_u8(self) -> u8 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_u16(self) -> u16 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_u32(self) -> u32 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_u64(self) -> u64 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_u128(self) -> u128 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_usize(self) -> usize {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_i8(self) -> i8 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_i16(self) -> i16 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_i32(self) -> i32 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_i64(self) -> i64 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_i128(self) -> i128 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_isize(self) -> isize {
                     self.value() as _
                 }
@@ -277,10 +324,10 @@ macro_rules! uint_impl_num {
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-uint_impl_num!(u8, u16, u32, u64, u128);
+uint_impl_num!((u8, i8), (u16, i16), (u32, i32), (u64, i64), (u128, i128));
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
-uint_impl_num!(u8 as const, u16 as const, u32 as const, u64 as const, u128 as const);
+uint_impl_num!((u8, i8) as const, (u16, i16) as const, (u32, i32) as const, (u64, i64) as const, (u128, i128));
 
 macro_rules! uint_impl {
     ($(($type:ident, doctest = $doctest_attr:literal)),+) => {
