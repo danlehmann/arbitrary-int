@@ -1990,6 +1990,89 @@ where
     }
 }
 
+#[cfg(feature = "borsh")]
+impl<T, UnsignedT, const BITS: usize> borsh::BorshSerialize for Int<T, BITS>
+where
+    Self: Integer<UnsignedUnderlyingType = UnsignedT>,
+    UnsignedT: borsh::BorshSerialize,
+{
+    #[inline]
+    fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
+        // Ideally, we'd want a buffer of size `BITS >> 3` or `size_of::<T>`, but that's not possible
+        // with arrays at present (`feature(generic_const_exprs)`, once stable, will allow this).
+        // `vec!` would be an option, but an allocation is not expected at this level.
+        // Therefore, allocate a buffer big enough to fit any underlying type and take a slice out of it.
+        const BUFFER_SIZE: usize = size_of::<u128>();
+        let mut buffer = [0_u8; BUFFER_SIZE];
+        const {
+            // This causes a compiler error if the buffer isn't big enough. That isn't possible with any
+            // of the types provided by this crate, but it can't hurt to double check.
+            assert!(core::mem::size_of::<UnsignedT>() <= BUFFER_SIZE);
+        }
+
+        let serialized_byte_count = BITS.div_ceil(8);
+        self.to_bits().serialize(&mut buffer.as_mut_slice())?;
+        writer.write_all(&buffer[..serialized_byte_count])
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl<T, UnsignedT, const BITS: usize> borsh::BorshDeserialize for Int<T, BITS>
+where
+    Self: Integer<UnsignedUnderlyingType = UnsignedT>,
+    UnsignedT: borsh::BorshDeserialize,
+{
+    #[inline]
+    fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> borsh::io::Result<Self> {
+        // Ideally, we'd want a buffer of size `BITS >> 3` or `size_of::<T>`, but that's not possible
+        // with arrays at present (`feature(generic_const_exprs)`, once stable, will allow this).
+        // `vec!` would be an option, but an allocation is not expected at this level.
+        // Therefore, allocate a buffer big enough to fit any underlying type and take a slice out of it.
+        const BUFFER_SIZE: usize = size_of::<u128>();
+        let mut buffer = [0_u8; BUFFER_SIZE];
+        const {
+            // This causes a compiler error if the buffer isn't big enough. That isn't possible with any
+            // of the types provided by this crate, but it can't hurt to double check.
+            assert!(core::mem::size_of::<UnsignedT>() <= BUFFER_SIZE);
+        }
+
+        let serialized_byte_count = BITS.div_ceil(8);
+        let underlying_byte_count = core::mem::size_of::<UnsignedT>();
+
+        // Read from the source, advancing cursor by the exact right number of bytes
+        reader.read_exact(&mut buffer[..serialized_byte_count])?;
+
+        // Deserialize the underlying type. We have to pass in the correct number of bytes of the
+        // underlying type (or more, but let's be precise). The unused bytes are all still zero
+        let value = UnsignedT::deserialize(&mut &buffer[..underlying_byte_count])?;
+
+        Self::try_from_bits(value).map_err(|_| {
+            borsh::io::Error::new(borsh::io::ErrorKind::InvalidData, "Value out of range")
+        })
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl<T, const BITS: usize> borsh::BorshSchema for Int<T, BITS> {
+    #[inline]
+    fn add_definitions_recursively(
+        definitions: &mut alloc::collections::btree_map::BTreeMap<
+            borsh::schema::Declaration,
+            borsh::schema::Definition,
+        >,
+    ) {
+        let byte_count = BITS.div_ceil(8) as u8;
+        let def = borsh::schema::Definition::Primitive(byte_count);
+        definitions.insert(Self::declaration(), def);
+    }
+
+    #[inline]
+    fn declaration() -> borsh::schema::Declaration {
+        use alloc::string::ToString;
+        ["i", &BITS.to_string()].concat()
+    }
+}
+
 // Implement `core::iter::Step` (if the `step_trait` feature is enabled).
 impl_step!(Int);
 

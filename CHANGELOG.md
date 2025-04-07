@@ -4,9 +4,8 @@
 
 ### Added
 
-- New types for signed integers: `i1`, ..., `i127`. They have a similar API to unsigned integers, though a few
-  features currently remain exclusive to unsigned integers:
-    * Support for the following optional Cargo features: `borsh` and `schemars`,
+- New types for signed integers: `i1`, ..., `i127`. They have a similar API to unsigned integers, though the `schemars`
+  feature currently remain exclusive to unsigned integers.
 - The old Number trait is now replaced with three traits: UnsignedInteger (equivalent to the old Number), SignedInteger
   and Integer (which can be either signed or unsigned).
 - prelude: `use arbitrary-int::prelude::*` to get everything (except for the deprecated Number trait).
