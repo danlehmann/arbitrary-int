@@ -3462,15 +3462,84 @@ fn serde_signed() {
 
 #[cfg(feature = "borsh")]
 mod borsh_tests {
-    use arbitrary_int::{u1, u14, u15, u6, u63, u65, u7, u72, u79, u80, u81, u9, Number, UInt};
+    use arbitrary_int::{
+        i1, i14, i15, i24, i6, i63, i65, i7, i72, i79, i80, i81, i9, u1, u14, u15, u24, u6, u63,
+        u65, u7, u72, u79, u80, u81, u9, Int, Number, SignedNumber, UInt,
+    };
+    use borsh::io::{Read, Write};
     use borsh::schema::BorshSchemaContainer;
     use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
     use std::fmt::Debug;
 
-    fn test_roundtrip<T: Number + BorshSerialize + BorshDeserialize + PartialEq + Eq + Debug>(
-        input: T,
-        expected_buffer: &[u8],
-    ) {
+    // `borsh::io::Read`/`borsh::io::Write` can read/write fewer bytes than requested per call.
+    // (This happens for example if a `TcpStream` is waiting on the other end to send more data).
+    // Simulate that behavior by reading 1 byte at a time and periodically returning `Interrupted`.
+    #[derive(Default)]
+    struct SlowReaderWriter {
+        data: [u8; 16],
+        pos: usize,
+        interrupt: bool,
+    }
+
+    impl SlowReaderWriter {
+        fn maybe_interrupt(&mut self) -> borsh::io::Result<()> {
+            if self.interrupt {
+                // This error should be ignored. From the `Read` documentation (also applies to `Write`):
+                //
+                // > An error of the ErrorKind::Interrupted kind is non-fatal and the read operation should
+                // > be retried if there is nothing else to do.
+                //
+                // Since neither `Read` nor `Write` are asynchronous or buffer any data for future calls,
+                // `Int`/`UInt` need to block until enough data is available / all data has been written.
+                self.interrupt = false;
+                Err(borsh::io::Error::new(borsh::io::ErrorKind::Interrupted, ""))
+            } else {
+                self.interrupt = true;
+                Ok(())
+            }
+        }
+    }
+
+    impl Read for SlowReaderWriter {
+        fn read(&mut self, buf: &mut [u8]) -> borsh::io::Result<usize> {
+            self.maybe_interrupt()?;
+            let Some(dst) = buf.first_mut() else {
+                return Ok(0);
+            };
+            let Some(byte) = self.data.get(self.pos).copied() else {
+                return Ok(0);
+            };
+
+            *dst = byte;
+            self.pos += 1;
+            Ok(1)
+        }
+    }
+
+    impl Write for SlowReaderWriter {
+        fn write(&mut self, buf: &[u8]) -> borsh::io::Result<usize> {
+            self.maybe_interrupt()?;
+            let Some(byte) = buf.first().copied() else {
+                return Ok(0);
+            };
+            let Some(dst) = self.data.get_mut(self.pos) else {
+                return Ok(0);
+            };
+
+            *dst = byte;
+            self.pos += 1;
+            Ok(1)
+        }
+
+        fn flush(&mut self) -> borsh::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn test_roundtrip<T>(input: T, expected_buffer: &[u8])
+    where
+        T: BorshSerialize + BorshDeserialize + PartialEq + Debug,
+    {
         let mut buf = Vec::new();
 
         // Serialize and compare against expected
@@ -3486,10 +3555,25 @@ mod borsh_tests {
         let output2 = T::deserialize(&mut &buf[buf.len() / 2..]).unwrap();
         assert_eq!(input, output);
         assert_eq!(input, output2);
+
+        // Serialize the input into a writer that only accepts 1 byte at a time and may return `Interrupted`
+        let mut reader_writer = SlowReaderWriter::default();
+        input.serialize(&mut reader_writer).unwrap();
+        assert_eq!(
+            &reader_writer.data[..expected_buffer.len()],
+            expected_buffer
+        );
+
+        // Deserializing it using the data we've just written, using a reader with the same behavior
+        reader_writer.pos = 0;
+        let output3 = T::deserialize_reader(&mut reader_writer).unwrap();
+        assert_eq!(output3, input);
     }
 
     #[test]
     fn test_serialize_deserialize() {
+        // Note that Borsh specifies that all integers are little-endian: https://github.com/near/borsh/tree/v0.4.0#specification
+
         // Run against plain u64 first (not an arbitrary_int)
         test_roundtrip(
             0x12345678_9ABCDEF0u64,
@@ -3499,11 +3583,40 @@ mod borsh_tests {
         // Now try various arbitrary ints
         test_roundtrip(u1::new(0b0), &[0]);
         test_roundtrip(u1::new(0b1), &[1]);
+        test_roundtrip(i1::new(0), &[0]);
+        test_roundtrip(i1::new(-1), &[1]);
+
         test_roundtrip(u6::new(0b101101), &[0b101101]);
+        test_roundtrip(i6::from_bits(0b101101), &[0b101101]);
+
         test_roundtrip(u14::new(0b110101_11001101), &[0b11001101, 0b110101]);
+        test_roundtrip(i14::from_bits(0b110101_11001101), &[0b11001101, 0b110101]);
+
         test_roundtrip(
             u72::new(0x36_01234567_89ABCDEF),
             &[0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01, 0x36],
+        );
+        test_roundtrip(
+            i72::from_bits(0x36_01234567_89ABCDEF),
+            &[0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01, 0x36],
+        );
+
+        test_roundtrip(u24::MAX, &u24::MAX.to_le_bytes());
+        test_roundtrip(i24::MAX, &i24::MAX.to_le_bytes());
+
+        test_roundtrip(u24::MIN, &u24::MIN.to_le_bytes());
+        test_roundtrip(i24::MIN, &i24::MIN.to_le_bytes());
+
+        test_roundtrip(u24::new(0xAB_CD_EF), &u24::new(0xAB_CD_EF).to_le_bytes());
+        test_roundtrip(
+            i24::from_bits(0xAB_CD_EF),
+            &i24::from_bits(0xAB_CD_EF).to_le_bytes(),
+        );
+
+        test_roundtrip(u24::new(0x12_34_56), &u24::new(0x12_34_56).to_le_bytes());
+        test_roundtrip(
+            i24::from_bits(0x12_34_56),
+            &i24::from_bits(0x12_34_56).to_le_bytes(),
         );
 
         // Pick a byte boundary (80; test one below and one above to ensure we get the right number
@@ -3513,17 +3626,62 @@ mod borsh_tests {
             &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
         );
         test_roundtrip(
+            i79::new(-1),
+            &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
+        );
+
+        test_roundtrip(
             u80::MAX,
             &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
         );
+        test_roundtrip(
+            i80::new(-1),
+            &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
+        );
+
         test_roundtrip(
             u81::MAX,
             &[
                 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01,
             ],
         );
+        test_roundtrip(
+            i81::new(-1),
+            &[
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01,
+            ],
+        );
 
-        // Test actual u128 and arbitrary u128 (which is a legal one, though not a predefined)
+        // Test MIN/MAX for signed integers
+        test_roundtrip(
+            i79::MAX,
+            &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x3F],
+        );
+        test_roundtrip(
+            i80::MAX,
+            &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
+        );
+        test_roundtrip(
+            i81::MAX,
+            &[
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0,
+            ],
+        );
+
+        test_roundtrip(
+            i79::MIN,
+            &[0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40],
+        );
+        test_roundtrip(
+            i80::MIN,
+            &[0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x80],
+        );
+        test_roundtrip(
+            i81::MIN,
+            &[0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 1],
+        );
+
+        // Test actual u128 and arbitrary u128 (which is a legal one, though not predefined)
         test_roundtrip(
             u128::MAX,
             &[
@@ -3533,6 +3691,22 @@ mod borsh_tests {
         );
         test_roundtrip(
             UInt::<u128, 128>::MAX,
+            &[
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF,
+            ],
+        );
+
+        // Test actual i128 and arbitrary i128 (which is a legal one, though not predefined)
+        test_roundtrip(
+            i128::new(-1),
+            &[
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF,
+            ],
+        );
+        test_roundtrip(
+            Int::<i128, 128>::new(-1),
             &[
                 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                 0xFF, 0xFF,
@@ -3553,20 +3727,31 @@ mod borsh_tests {
     #[test]
     fn test_schema_byte_count() {
         verify_byte_count_in_schema::<u1>(1, "u1");
+        verify_byte_count_in_schema::<i1>(1, "i1");
 
         verify_byte_count_in_schema::<u7>(1, "u7");
+        verify_byte_count_in_schema::<i7>(1, "i7");
 
         verify_byte_count_in_schema::<UInt<u8, 8>>(1, "u8");
+        verify_byte_count_in_schema::<Int<i8, 8>>(1, "i8");
+
         verify_byte_count_in_schema::<UInt<u32, 8>>(1, "u8");
+        verify_byte_count_in_schema::<Int<i32, 8>>(1, "i8");
 
         verify_byte_count_in_schema::<u9>(2, "u9");
+        verify_byte_count_in_schema::<i9>(2, "i9");
 
         verify_byte_count_in_schema::<u15>(2, "u15");
+        verify_byte_count_in_schema::<i15>(2, "i15");
+
         verify_byte_count_in_schema::<UInt<u128, 15>>(2, "u15");
+        verify_byte_count_in_schema::<Int<i128, 15>>(2, "i15");
 
         verify_byte_count_in_schema::<u63>(8, "u63");
+        verify_byte_count_in_schema::<i63>(8, "i63");
 
         verify_byte_count_in_schema::<u65>(9, "u65");
+        verify_byte_count_in_schema::<i65>(9, "i65");
     }
 }
 

@@ -15,17 +15,38 @@ use core::ops::{
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[cfg(all(feature = "borsh", not(feature = "std")))]
-use alloc::{collections::BTreeMap, string::ToString};
-
-#[cfg(all(feature = "borsh", feature = "std"))]
-use std::{collections::BTreeMap, string::ToString};
-
 #[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
 pub trait Number: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
+    /// The unsigned primitive type that is used to represent the value of an [`UInt`] in memory.
+    /// Its bit width must be greater than or equal to [`BITS`](Self::BITS), and it must be unsigned.
+    /// In practice this will one of [`u8`], [`u16`], [`u32`], [`u64`] or [`u128`].
+    ///
+    /// The number of bits an [`UInt`] uses decides which underlying type is used: it uses the
+    /// smallest possible primitive that has enough space to store the entire value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use arbitrary_int::{Number, u3, u4, u7};
+    /// fn uses_num<T: Number<UnderlyingType = u8>>(value: T) {}
+    ///
+    /// // Ok: u1, u2, ..., u7 all use an u8 as their underlying type.
+    /// uses_num(u3::new(0));
+    /// uses_num(u4::new(1));
+    /// uses_num(u7::new(3));
+    /// ```
+    ///
+    /// ```compile_fail
+    /// # use arbitrary_int::{Number, u9};
+    /// fn uses_num<T: Number<UnderlyingType = u8>>(value: T) {}
+    ///
+    /// // Error: the value of an u9 is too large to fit inside of an u8,
+    /// // so its underlying type is rounded up to an u16 instead.
+    /// uses_num(u9::new(0));
+    /// ```
     type UnderlyingType: Number
         + Debug
         + From<u8>
@@ -1540,66 +1561,82 @@ where
 #[cfg(feature = "borsh")]
 impl<T, const BITS: usize> borsh::BorshSerialize for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Number<UnderlyingType = T>,
     T: borsh::BorshSerialize,
 {
+    #[inline]
     fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
-        let serialized_byte_count = (BITS + 7) / 8;
-        let mut buffer = [0u8; 16];
-        self.value.serialize(&mut &mut buffer[..])?;
-        writer.write(&buffer[0..serialized_byte_count])?;
+        // Ideally, we'd want a buffer of size `BITS >> 3` or `size_of::<T>`, but that's not possible
+        // with arrays at present (`feature(generic_const_exprs)`, once stable, will allow this).
+        // `vec!` would be an option, but an allocation is not expected at this level.
+        // Therefore, allocate a buffer big enough to fit any underlying type and take a slice out of it.
+        const BUFFER_SIZE: usize = size_of::<u128>();
+        let mut buffer = [0_u8; BUFFER_SIZE];
+        const {
+            // This causes a compiler error if the buffer isn't big enough. That isn't possible with any
+            // of the types provided by this crate, but it can't hurt to double check.
+            assert!(core::mem::size_of::<T>() <= BUFFER_SIZE);
+        }
 
-        Ok(())
+        let serialized_byte_count = BITS.div_ceil(8);
+        self.value().serialize(&mut buffer.as_mut_slice())?;
+        writer.write_all(&buffer[..serialized_byte_count])
     }
 }
 
 #[cfg(feature = "borsh")]
-impl<
-        T: borsh::BorshDeserialize + PartialOrd<<UInt<T, BITS> as Number>::UnderlyingType>,
-        const BITS: usize,
-    > borsh::BorshDeserialize for UInt<T, BITS>
+impl<T, const BITS: usize> borsh::BorshDeserialize for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Number<UnderlyingType = T>,
+    T: borsh::BorshDeserialize,
 {
+    #[inline]
     fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> borsh::io::Result<Self> {
         // Ideally, we'd want a buffer of size `BITS >> 3` or `size_of::<T>`, but that's not possible
-        // with arrays at present (feature(generic_const_exprs), once stable, will allow this).
-        // vec! would be an option, but an allocation is not expected at this level.
-        // Therefore, allocate a 16 byte buffer and take a slice out of it.
-        let serialized_byte_count = (BITS + 7) / 8;
+        // with arrays at present (`feature(generic_const_exprs)`, once stable, will allow this).
+        // `vec!` would be an option, but an allocation is not expected at this level.
+        // Therefore, allocate a buffer big enough to fit any underlying type and take a slice out of it.
+        const BUFFER_SIZE: usize = size_of::<u128>();
+        let mut buffer = [0_u8; BUFFER_SIZE];
+        const {
+            // This causes a compiler error if the buffer isn't big enough. That isn't possible with any
+            // of the types provided by this crate, but it can't hurt to double check.
+            assert!(core::mem::size_of::<T>() <= BUFFER_SIZE);
+        }
+
+        let serialized_byte_count = BITS.div_ceil(8);
         let underlying_byte_count = core::mem::size_of::<T>();
-        let mut buf = [0u8; 16];
 
         // Read from the source, advancing cursor by the exact right number of bytes
-        reader.read(&mut buf[..serialized_byte_count])?;
+        reader.read_exact(&mut buffer[..serialized_byte_count])?;
 
         // Deserialize the underlying type. We have to pass in the correct number of bytes of the
         // underlying type (or more, but let's be precise). The unused bytes are all still zero
-        let value = T::deserialize(&mut &buf[..underlying_byte_count])?;
+        let value = T::deserialize(&mut &buffer[..underlying_byte_count])?;
 
-        if value >= Self::MIN.value() && value <= Self::MAX.value() {
-            Ok(Self { value })
-        } else {
-            Err(borsh::io::Error::new(
-                borsh::io::ErrorKind::InvalidData,
-                "Value out of range",
-            ))
-        }
+        Self::try_new(value).map_err(|_| {
+            borsh::io::Error::new(borsh::io::ErrorKind::InvalidData, "Value out of range")
+        })
     }
 }
 
 #[cfg(feature = "borsh")]
 impl<T, const BITS: usize> borsh::BorshSchema for UInt<T, BITS> {
+    #[inline]
     fn add_definitions_recursively(
-        definitions: &mut BTreeMap<borsh::schema::Declaration, borsh::schema::Definition>,
+        definitions: &mut alloc::collections::btree_map::BTreeMap<
+            borsh::schema::Declaration,
+            borsh::schema::Definition,
+        >,
     ) {
-        definitions.insert(
-            ["u", &BITS.to_string()].concat(),
-            borsh::schema::Definition::Primitive(((BITS + 7) / 8) as u8),
-        );
+        let byte_count = BITS.div_ceil(8) as u8;
+        let def = borsh::schema::Definition::Primitive(byte_count);
+        definitions.insert(Self::declaration(), def);
     }
 
+    #[inline]
     fn declaration() -> borsh::schema::Declaration {
+        use alloc::string::ToString;
         ["u", &BITS.to_string()].concat()
     }
 }
@@ -1667,7 +1704,8 @@ impl<T, const BITS: usize> JsonSchema for UInt<T, BITS>
 where
     Self: Number,
 {
-    fn schema_name() -> String {
+    fn schema_name() -> alloc::string::String {
+        use alloc::string::ToString;
         ["uint", &BITS.to_string()].concat()
     }
 
@@ -1676,7 +1714,7 @@ where
         let schema_object = SchemaObject {
             instance_type: Some(schemars::schema::InstanceType::Integer.into()),
             format: Some(Self::schema_name()),
-            number: Some(Box::new(NumberValidation {
+            number: Some(alloc::boxed::Box::new(NumberValidation {
                 // can be done with https://github.com/rust-lang/rfcs/pull/2484
                 // minimum: Some(Self::MIN.value().try_into().ok().unwrap()),
                 // maximum: Some(Self::MAX.value().try_into().ok().unwrap()),

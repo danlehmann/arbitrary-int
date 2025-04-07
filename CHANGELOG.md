@@ -6,14 +6,18 @@
 
 - New types for signed integers: `i1`, ..., `i127`. They have a similar API to unsigned integers, though a few
   features currently remain exclusive to unsigned integers:
-    * Support for the following optional Cargo features: `step_trait`, `borsh` and `schemars`
+    * Support for the following optional Cargo features: `step_trait` and `schemars`
     * Overflowing arithmetic functions (`overflowing_add`, ...)
 - Various new extract functions: `extract_i8`, `extract_i16`, ..., `extract_i128`. These are the same as the
   equivalent `extract_u<N>` functions, but work with signed integers instead.
 
 ### Fixed
 
-- `leading_zeros` and `trailing_zeros` now report the correct number of bits when a value of `MIN` is passed.
+- `leading_zeros` and `trailing_zeros` now report the correct number of bits for integers with a value of zero.
+- The implementation of `BorshSerialize` and `BorshDeserialize` now correctly handle writers/readers that can only
+  partially write/read all data after a single call to `borsh::io::Write::write()`/`borsh::io::Read::read()`.
+  This can happen if for example an `TcpStream` is waiting on the other end to send more data. The value would previously
+  be truncated, now it blocks until enough data is available.
 
 ## arbitrary-int 1.3.0
 
