@@ -20,6 +20,33 @@ use schemars::JsonSchema;
 
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
 pub trait Number: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
+    /// The unsigned primitive type that is used to represent the value of an [`UInt`] in memory.
+    /// Its bit width must be greater than or equal to [`BITS`](Self::BITS), and it must be unsigned.
+    /// In practice this will one of [`u8`], [`u16`], [`u32`], [`u64`] or [`u128`].
+    ///
+    /// The number of bits an [`UInt`] uses decides which underlying type is used: it uses the
+    /// smallest possible primitive that has enough space to store the entire value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use arbitrary_int::{Number, u3, u4, u7};
+    /// fn uses_num<T: Number<UnderlyingType = u8>>(value: T) {}
+    ///
+    /// // Ok: u1, u2, ..., u7 all use an u8 as their underlying type.
+    /// uses_num(u3::new(0));
+    /// uses_num(u4::new(1));
+    /// uses_num(u7::new(3));
+    /// ```
+    ///
+    /// ```compile_fail
+    /// # use arbitrary_int::{Number, u9};
+    /// fn uses_num<T: Number<UnderlyingType = u8>>(value: T) {}
+    ///
+    /// // Error: the value of an u9 is too large to fit inside of an u8,
+    /// // so its underlying type is rounded up to an u16 instead.
+    /// uses_num(u9::new(0));
+    /// ```
     type UnderlyingType: Number
         + Debug
         + From<u8>

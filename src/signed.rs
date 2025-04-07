@@ -1,9 +1,9 @@
 use crate::{
     common::{bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract},
-    TryNewError,
+    Number, TryNewError,
 };
 use core::{
-    fmt::{self, Debug},
+    fmt,
     ops::{
         Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
         DivAssign, Mul, MulAssign, Neg, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
@@ -12,13 +12,65 @@ use core::{
 
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
 pub trait SignedNumber: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
+    /// The signed primitive type that is used to represent the value of an [`Int`] in memory.
+    /// Its bit width must be greater than or equal to [`BITS`](Self::BITS), and it must be signed.
+    /// In practice this will one of [`i8`], [`i16`], [`i32`], [`i64`] or [`i128`].
+    ///
+    /// The number of bits an [`Int`] uses decides which underlying type is used: it uses the
+    /// smallest possible primitive that has enough space to store the entire value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use arbitrary_int::{SignedNumber, i3, i4, i7};
+    /// fn uses_num<T: SignedNumber<UnderlyingType = i8>>(value: T) {}
+    ///
+    /// // Ok: i1, i2, ..., i7 all use an i8 as their underlying type.
+    /// uses_num(i3::new(0));
+    /// uses_num(i4::new(1));
+    /// uses_num(i7::new(-1));
+    /// ```
+    ///
+    /// ```compile_fail
+    /// # use arbitrary_int::{SignedNumber, i9};
+    /// fn uses_num<T: SignedNumber<UnderlyingType = i8>>(value: T) {}
+    ///
+    /// // Error: the value of an i9 is too large to fit inside of an i8,
+    /// // so its underlying type is rounded up to an i16 instead.
+    /// uses_num(i9::new(0));
+    /// ```
     type UnderlyingType: SignedNumber
-        + Debug
+        + fmt::Debug
         + From<i8>
         + TryFrom<i16>
         + TryFrom<i32>
         + TryFrom<i64>
         + TryFrom<i128>;
+
+    /// The unsigned primitive type with a bit width equal to that of [`UnderlyingType`](Self::UnderlyingType).
+    /// This type must be unsigned. In practice it will one of [`u8`], [`u16`], [`u32`], [`u64`] or [`u128`],
+    /// depending on [`BITS`](Self::BITS).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use arbitrary_int::{SignedNumber, i3, i4, i7};
+    /// fn uses_num<T>(value: T)
+    /// where
+    ///     T: SignedNumber<UnderlyingType = i8, UnsignedUnderlyingType = u8>,
+    /// {
+    /// }
+    ///
+    /// // Ok: i1, i2, ..., i7 all use an i8 as their underlying type, whose unsigned equivalent is u8.
+    /// uses_num(i3::new(0));
+    /// ```
+    type UnsignedUnderlyingType: Number
+        + fmt::Debug
+        + From<u8>
+        + TryFrom<u16>
+        + TryFrom<u32>
+        + TryFrom<u64>
+        + TryFrom<u128>;
 
     /// Number of bits that can fit in this type
     const BITS: usize;
@@ -48,8 +100,83 @@ pub trait SignedNumber: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq
     /// assert_eq!(value.count_ones(), 8);
     /// ```
     ///
-    /// If you need a value within the specified bit range, use [`Int::to_bits`].
+    /// If you need a value within the specified bit range, use [`to_bits`](Self::to_bits).
     fn value(self) -> Self::UnderlyingType;
+
+    /// Returns the bitwise representation of the value.
+    ///
+    /// As the bit width is limited to [`BITS`](Self::BITS) the numeric value may differ from [`value`](Self::value).
+    ///
+    /// ```
+    /// # use arbitrary_int::i3;
+    /// let value = i3::new(-1);
+    /// assert_eq!(value.to_bits(), 0b111); // 7
+    /// assert_eq!(value.value(), -1);
+    /// ```
+    ///
+    /// To convert from the bitwise representation back to an instance, use [`from_bits`](Self::from_bits).
+    #[must_use = "this returns the result of the operation, without modifying the original"]
+    fn to_bits(self) -> Self::UnsignedUnderlyingType;
+
+    /// Convert the bitwise representation from [`to_bits`](Self::to_bits) to an instance.
+    ///
+    /// ```
+    /// # use arbitrary_int::i3;
+    /// let value = i3::from_bits(0b111);
+    /// assert_eq!(value.value(), -1);
+    /// assert_eq!(value.to_bits(), 0b111);
+    /// ```
+    ///
+    /// If you want to convert a numeric value to an instance instead, use [`new`](Self::new).
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given value exceeds the bit width specified by [`BITS`](Self::BITS).
+    #[inline]
+    #[must_use]
+    fn from_bits(value: Self::UnsignedUnderlyingType) -> Self {
+        match Self::try_from_bits(value) {
+            Ok(value) => value,
+            Err(err) => {
+                #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+                {
+                    panic!("{err}");
+                }
+                #[cfg(feature = "const_convert_and_const_trait_impl")]
+                {
+                    // We cannot use format strings in const context's.
+                    let _ = err;
+                    panic!("value exceeds the bit width specified by BITS");
+                }
+            }
+        }
+    }
+
+    /// Try to convert the bitwise representation from [`to_bits`](Self::to_bits) to an instance.
+    ///
+    /// ```
+    /// # use arbitrary_int::i3;
+    /// i3::try_from_bits(0b1111).expect_err("value is > 3 bits");
+    /// let value = i3::try_from_bits(0b111).expect("value is <= 3 bits");
+    /// assert_eq!(value.value(), -1);
+    /// assert_eq!(value.to_bits(), 0b111);
+    /// ```
+    ///
+    /// If you want to convert a numeric value to an instance instead, use [`try_new`](Self::try_new).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the given value exceeds the bit width specified by [`BITS`](Self::BITS).
+    fn try_from_bits(value: Self::UnsignedUnderlyingType) -> Result<Self, TryNewError>;
+
+    /// Converts the bitwise representation from [`to_bits`](Self::to_bits) to an instance,
+    /// without checking the bounds.
+    ///
+    /// # Safety
+    ///
+    /// The given value must not exceed the bit width specified by [`Self::BITS`].
+    #[must_use]
+    unsafe fn from_bits_unchecked(value: Self::UnsignedUnderlyingType) -> Self;
 
     /// Creates a number from the given value, throwing an error if the value is too large.
     /// This constructor is useful when the value is convertible to T. Use [`Self::new`] for literals.
@@ -82,23 +209,51 @@ pub trait SignedNumber: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq
 
 macro_rules! impl_signed_number_native {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
-    // This macro will be invoked with `i8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
-    ($($type:ident $(as $const_keyword:ident)?),+) => {
+    // This macro will be invoked with `(i8, u8) as const, ...` if `const_convert_and_const_trait_impl` is enabled.
+    ($(($type:ident, $unsigned_type:ident) $(as $const_keyword:ident)?),+) => {
         $(
             impl $($const_keyword)? SignedNumber for $type {
                 type UnderlyingType = $type;
+                type UnsignedUnderlyingType = $unsigned_type;
+
                 const BITS: usize = Self::BITS as usize;
                 const MIN: Self = Self::MIN;
                 const MAX: Self = Self::MAX;
 
                 #[inline]
-                fn new(value: Self::UnderlyingType) -> Self { value }
+                fn new(value: Self::UnderlyingType) -> Self {
+                    value
+                }
 
                 #[inline]
-                fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> { Ok(value) }
+                fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> {
+                    Ok(value)
+                }
 
                 #[inline]
-                fn value(self) -> Self::UnderlyingType { self }
+                fn value(self) -> Self::UnderlyingType {
+                    self
+                }
+
+                #[inline]
+                fn to_bits(self) -> $unsigned_type {
+                    self as $unsigned_type
+                }
+
+                #[inline]
+                fn from_bits(value: $unsigned_type) -> Self {
+                    value as Self
+                }
+
+                #[inline]
+                fn try_from_bits(value: $unsigned_type) -> Result<Self, TryNewError> {
+                    Ok(value as Self)
+                }
+
+                #[inline]
+                unsafe fn from_bits_unchecked(value: $unsigned_type) -> Self {
+                    value as Self
+                }
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
@@ -124,32 +279,44 @@ macro_rules! impl_signed_number_native {
                 }
 
                 #[inline]
-                fn as_i8(&self) -> i8 { *self as i8 }
+                fn as_i8(&self) -> i8 {
+                    *self as i8
+                }
 
                 #[inline]
-                fn as_i16(&self) -> i16 { *self as i16 }
+                fn as_i16(&self) -> i16 {
+                    *self as i16
+                }
 
                 #[inline]
-                fn as_i32(&self) -> i32 { *self as i32 }
+                fn as_i32(&self) -> i32 {
+                    *self as i32
+                }
 
                 #[inline]
-                fn as_i64(&self) -> i64 { *self as i64 }
+                fn as_i64(&self) -> i64 {
+                    *self as i64
+                }
 
                 #[inline]
-                fn as_i128(&self) -> i128 { *self as i128 }
+                fn as_i128(&self) -> i128 {
+                    *self as i128
+                }
 
                 #[inline]
-                fn as_isize(&self) -> isize { *self as isize }
+                fn as_isize(&self) -> isize {
+                    *self as isize
+                }
             }
         )+
     };
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-impl_signed_number_native!(i8, i16, i32, i64, i128);
+impl_signed_number_native!((i8, u8), (i16, u16), (i32, u32), (i64, u64), (i128, u128));
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
-impl_signed_number_native!(i8 as const, i16 as const, i32 as const, i64 as const, i128 as const);
+impl_signed_number_native!((i8, u8) as const, (i16, u16) as const, (i32, u32) as const, (i64, u64) as const, (i128, u128) as const);
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd)]
 pub struct Int<T, const BITS: usize> {
@@ -174,7 +341,7 @@ impl<T: Copy, const BITS: usize> Int<T, BITS> {
     /// assert_eq!(value.count_ones(), 8);
     /// ```
     ///
-    /// If you need a value within the specified bit range, use [`Self::to_bits`].
+    /// If you need a value within the specified bit range, use [`to_bits`](Self::to_bits).
     #[cfg(not(feature = "hint"))]
     #[inline]
     pub const fn value(self) -> T {
@@ -194,11 +361,12 @@ impl<T: Copy, const BITS: usize> Int<T, BITS> {
 
 macro_rules! int_impl_num {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
-    // This macro will be invoked with `i8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
-    ($($type:ident $(as $const_keyword:ident)?),+) => {
+    // This macro will be invoked with `(i8, u8) as const, ...` if `const_convert_and_const_trait_impl` is enabled.
+    ($(($type:ident, $unsigned_type:ident) $(as $const_keyword:ident)?),+) => {
         $(
             impl<const BITS: usize> $($const_keyword)? SignedNumber for Int<$type, BITS> {
                 type UnderlyingType = $type;
+                type UnsignedUnderlyingType = $unsigned_type;
 
                 const BITS: usize = BITS;
 
@@ -227,6 +395,40 @@ macro_rules! int_impl_num {
                     Self { value }
                 }
 
+                #[inline]
+                fn value(self) -> $type {
+                    #[cfg(feature = "hint")]
+                    unsafe {
+                        core::hint::assert_unchecked(self.value >= Self::MIN.value);
+                        core::hint::assert_unchecked(self.value <= Self::MAX.value);
+                    }
+
+                    self.value
+                }
+
+                #[inline]
+                fn to_bits(self) -> $unsigned_type {
+                    (self.value() & Self::MASK) as $unsigned_type
+                }
+
+                #[inline]
+                fn try_from_bits(value: $unsigned_type) -> Result<Self, TryNewError> {
+                    if value & (!Self::MASK as $unsigned_type) == 0 {
+                        // First do a logical left shift to put the sign bit at the underlying type's MSB (copying the sign),
+                        // then an arithmetic right shift to sign-extend the value into its original position.
+                        Ok(Self { value: ((value << Self::UNUSED_BITS) as $type) >> Self::UNUSED_BITS })
+                    } else {
+                        Err(TryNewError {})
+                    }
+                }
+
+                #[inline]
+                unsafe fn from_bits_unchecked(value: $unsigned_type) -> Self {
+                    // First do a logical left shift to put the sign bit at the underlying type's MSB (copying the sign),
+                    // then an arithmetic right shift to sign-extend the value into its original position.
+                    Self { value: ((value << Self::UNUSED_BITS) as $type) >> Self::UNUSED_BITS }
+                }
+
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
                 fn from_<T: SignedNumber>(value: T) -> Self {
@@ -247,38 +449,27 @@ macro_rules! int_impl_num {
                 }
 
                 fn as_i8(&self) -> i8 {
-                    self.value() as _
+                    self.value() as i8
                 }
 
                 fn as_i16(&self) -> i16 {
-                    self.value() as _
+                    self.value() as i16
                 }
 
                 fn as_i32(&self) -> i32 {
-                    self.value() as _
+                    self.value() as i32
                 }
 
                 fn as_i64(&self) -> i64 {
-                    self.value() as _
+                    self.value() as i64
                 }
 
                 fn as_i128(&self) -> i128 {
-                    self.value() as _
+                    self.value() as i128
                 }
 
                 fn as_isize(&self) -> isize {
-                    self.value() as _
-                }
-
-                #[inline]
-                fn value(self) -> $type {
-                    #[cfg(feature = "hint")]
-                    unsafe {
-                        core::hint::assert_unchecked(self.value >= Self::MIN.value);
-                        core::hint::assert_unchecked(self.value <= Self::MAX.value);
-                    }
-
-                    self.value
+                    self.value() as isize
                 }
             }
         )+
@@ -286,10 +477,10 @@ macro_rules! int_impl_num {
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-int_impl_num!(i8, i16, i32, i64, i128);
+int_impl_num!((i8, u8), (i16, u16), (i32, u32), (i64, u64), (i128, u128));
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
-int_impl_num!(i8 as const, i16 as const, i32 as const, i64 as const, i128 as const);
+int_impl_num!((i8, u8) as const, (i16, u16) as const, (i32, u32) as const, (i64, u64) as const, (i128, u128) as const);
 
 macro_rules! int_impl {
     ($(($type:ident, $unsigned_type:ident, doctest = $doctest_attr:literal)),+) => {
@@ -393,6 +584,7 @@ macro_rules! int_impl {
                 ///
                 /// Panics if the given value exceeds the bit width specified by [`BITS`](Self::BITS).
                 #[inline]
+                #[must_use]
                 pub const fn from_bits(value: $unsigned_type) -> Self {
                     assert!(value & (!Self::MASK as $unsigned_type) == 0);
 
