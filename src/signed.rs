@@ -507,10 +507,8 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_add(self, rhs: Self) -> Self {
-                    let sum = self.value.wrapping_add(rhs.value);
-                    Self {
-                        value: (sum << Self::UNUSED_BITS) >> Self::UNUSED_BITS,
-                    }
+                    let (value, _overflow) = self.overflowing_add(rhs);
+                    value
                 }
 
                 /// Wrapping (modular) subtraction. Computes `self - rhs`, wrapping around at the
@@ -528,10 +526,8 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_sub(self, rhs: Self) -> Self {
-                    let sum = self.value.wrapping_sub(rhs.value);
-                    Self {
-                        value: (sum << Self::UNUSED_BITS) >> Self::UNUSED_BITS,
-                    }
+                    let (value, _overflow) = self.overflowing_sub(rhs);
+                    value
                 }
 
                 /// Wrapping (modular) multiplication. Computes `self * rhs`, wrapping around at the
@@ -549,10 +545,8 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_mul(self, rhs: Self) -> Self {
-                    let sum = self.value.wrapping_mul(rhs.value);
-                    Self {
-                        value: (sum << Self::UNUSED_BITS) >> Self::UNUSED_BITS,
-                    }
+                    let (value, _overflow) = self.overflowing_mul(rhs);
+                    value
                 }
 
                 /// Wrapping (modular) division. Computes `self / rhs`, wrapping around at the
@@ -579,12 +573,8 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_div(self, rhs: Self) -> Self {
-                    let sum = self.value.wrapping_div(rhs.value);
-                    Self {
-                        // Unlike the unsigned implementation we do need to account for overflow here,
-                        // `Self::MIN / -1` is equal to `Self::MAX + 1`.
-                        value: (sum << Self::UNUSED_BITS) >> Self::UNUSED_BITS,
-                    }
+                    let (value, _overflow) = self.overflowing_div(rhs);
+                    value
                 }
 
                 /// Wrapping (modular) negation. Computes `-self`, wrapping around at the boundary of the type.
@@ -606,8 +596,8 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_neg(self) -> Self {
-                    let value = (self.value().wrapping_neg() << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
-                    Self { value }
+                    let (value, _overflow) = self.overflowing_neg();
+                    value
                 }
 
                 /// Panic-free bitwise shift-left; yields `self << mask(rhs)`, where mask removes any
@@ -631,20 +621,8 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_shl(self, rhs: u32) -> Self {
-                    // modulo is expensive on some platforms, so only do it when necessary
-                    let shift_amount = Self::UNUSED_BITS as u32 + (if rhs >= BITS as u32 {
-                        rhs % (BITS as u32)
-                    } else {
-                        rhs
-                    });
-
-                    Self {
-                        // We could use wrapping_shl here to make Debug builds slightly smaller;
-                        // the downside would be that on weird CPUs that don't do wrapping_shl by
-                        // default release builds would get slightly worse. Using << should give
-                        // good release performance everywere
-                        value: (self.value << shift_amount) >> Self::UNUSED_BITS,
-                    }
+                    let (value, _overflow) = self.overflowing_shl(rhs);
+                    value
                 }
 
                 /// Panic-free bitwise shift-right; yields `self >> mask(rhs)`, where mask removes any
@@ -668,16 +646,8 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_shr(self, rhs: u32) -> Self {
-                    // modulo is expensive on some platforms, so only do it when necessary
-                    let shift_amount = if rhs >= (BITS as u32) {
-                        rhs % (BITS as u32)
-                    } else {
-                        rhs
-                    };
-
-                    Self {
-                        value: (self.value >> shift_amount),
-                    }
+                    let (value, _overflow) = self.overflowing_shr(rhs);
+                    value
                 }
 
                 /// Saturating integer addition. Computes `self + rhs`, saturating at the numeric
@@ -700,12 +670,12 @@ macro_rules! int_impl {
                         // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
                         // This is very unlikely to happen in practice, but checking allows us to use
                         // `wrapping_add` instead of `saturating_add` in the common case, which is faster.
-                        let value = self.value.saturating_add(rhs.value);
+                        let value = self.value().saturating_add(rhs.value());
                         Self { value }
                     } else {
                         // We're dealing with fewer bits than the underlying type (e.g. i7).
                         // That means the addition can never overflow the underlying type.
-                        let value = self.value.wrapping_add(rhs.value);
+                        let value = self.value().wrapping_add(rhs.value());
                         if value > Self::MAX.value {
                             Self::MAX
                         } else if value < Self::MIN.value {
@@ -736,12 +706,12 @@ macro_rules! int_impl {
                         // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
                         // This is very unlikely to happen in practice, but checking allows us to use
                         // `wrapping_sub` instead of `saturating_sub` in the common case, which is faster.
-                        let value = self.value.saturating_sub(rhs.value);
+                        let value = self.value().saturating_sub(rhs.value());
                         Self { value }
                     } else {
                         // We're dealing with fewer bits than the underlying type (e.g. i7).
                         // That means the subtraction can never overflow the underlying type.
-                        let value = self.value.wrapping_sub(rhs.value);
+                        let value = self.value().wrapping_sub(rhs.value());
                         if value > Self::MAX.value {
                             Self::MAX
                         } else if value < Self::MIN.value {
@@ -771,10 +741,10 @@ macro_rules! int_impl {
                     let value = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
                         // We have half the bits (e.g. i4 * i4) of the base type, so we can't overflow the base type
                         // `wrapping_mul` likely provides the best performance on all cpus
-                        self.value.wrapping_mul(rhs.value)
+                        self.value().wrapping_mul(rhs.value())
                     } else {
                         // We have more than half the bits (e.g. i6 * i6)
-                        self.value.saturating_mul(rhs.value)
+                        self.value.saturating_mul(rhs.value())
                     };
 
                     if value > Self::MAX.value {
@@ -807,7 +777,7 @@ macro_rules! int_impl {
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_div(self, rhs: Self) -> Self {
                     // As `Self::MIN / -1` is equal to `Self::MAX + 1` we always need to check for overflow.
-                    let value = self.value.saturating_div(rhs.value);
+                    let value = self.value().saturating_div(rhs.value());
 
                     if value > Self::MAX.value {
                         Self::MAX
@@ -862,7 +832,7 @@ macro_rules! int_impl {
                 pub const fn saturating_pow(self, exp: u32) -> Self {
                     // It might be possible to handwrite this to be slightly faster as both
                     // `saturating_pow` has to do a bounds-check and then we do second one.
-                    let value = self.value.saturating_pow(exp);
+                    let value = self.value().saturating_pow(exp);
 
                     if value > Self::MAX.value {
                         Self::MAX
@@ -887,24 +857,8 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_add(self, rhs: Self) -> Option<Self> {
-                    if Self::UNUSED_BITS == 0 {
-                        // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
-                        // This is very unlikely to happen in practice, but checking allows us to use
-                        // `wrapping_add` instead of `checked_add` in the common case, which is faster.
-                        match self.value().checked_add(rhs.value()) {
-                            Some(value) => Some(Self { value }),
-                            None => None
-                        }
-                    } else {
-                        // We're dealing with fewer bits than the underlying type (e.g. i7).
-                        // That means the addition can never overflow the underlying type
-                        let value = self.value().wrapping_add(rhs.value());
-                        if value < Self::MIN.value() || value > Self::MAX.value() {
-                            None
-                        } else {
-                            Some(Self { value })
-                        }
-                    }
+                    let (value, overflow) = self.overflowing_add(rhs);
+                    if overflow { None } else { Some(value) }
                 }
 
                 /// Checked integer subtraction. Computes `self - rhs`, returning `None` if overflow occurred.
@@ -921,24 +875,8 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_sub(self, rhs: Self) -> Option<Self> {
-                    if Self::UNUSED_BITS == 0 {
-                        // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
-                        // This is very unlikely to happen in practice, but checking allows us to use
-                        // `wrapping_sub` instead of `checked_sub` in the common case, which is faster.
-                        match self.value().checked_sub(rhs.value()) {
-                            Some(value) => Some(Self { value }),
-                            None => None
-                        }
-                    } else {
-                        // We're dealing with fewer bits than the underlying type (e.g. i7).
-                        // That means the subtraction can never overflow the underlying type
-                        let value = self.value().wrapping_sub(rhs.value());
-                        if value < Self::MIN.value() || value > Self::MAX.value() {
-                            None
-                        } else {
-                            Some(Self { value })
-                        }
-                    }
+                    let (value, overflow) = self.overflowing_sub(rhs);
+                    if overflow { None } else { Some(value) }
                 }
 
                 /// Checked integer multiplication. Computes `self * rhs`, returning `None` if overflow occurred.
@@ -955,21 +893,8 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_mul(self, rhs: Self) -> Option<Self> {
-                    let product = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
-                        // We have half the bits (e.g. `i4 * i4`) of the base type, so we can't overflow the base type.
-                        // `wrapping_mul` likely provides the best performance on all CPUs.
-                        Some(self.value().wrapping_mul(rhs.value()))
-                    } else {
-                        // We have more than half the bits (e.g. u6 * u6)
-                        self.value().checked_mul(rhs.value())
-                    };
-
-                    match product {
-                        Some(value) if value >= Self::MIN.value() && value <= Self::MAX.value() => {
-                            Some(Self { value })
-                        }
-                        _ => None
-                    }
+                    let (value, overflow) = self.overflowing_mul(rhs);
+                    if overflow { None } else { Some(value) }
                 }
 
                 /// Checked integer division. Computes `self / rhs`, returning `None` if `rhs == 0`
@@ -1009,13 +934,8 @@ macro_rules! int_impl {
                 /// assert_eq!(i14::MIN.checked_neg(), None);
                 /// ```
                 pub const fn checked_neg(self) -> Option<Self> {
-                    if self.value() == Self::MIN.value() {
-                        None
-                    } else {
-                        // It is not possible for this to wrap as we've already checked for `MIN`.
-                        let value = self.value().wrapping_neg();
-                        Some(Self { value })
-                    }
+                    let (value, overflow) = self.overflowing_neg();
+                    if overflow { None } else { Some(value) }
                 }
 
                 /// Checked shift left. Computes `self << rhs`, returning `None` if `rhs` is larger than or
@@ -1034,12 +954,8 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_shl(self, rhs: u32) -> Option<Self> {
-                    if rhs >= (BITS as u32) {
-                        None
-                    } else {
-                        let value = ((self.value() << rhs) << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
-                        Some(Self { value })
-                    }
+                    let (value, overflow) = self.overflowing_shl(rhs);
+                    if overflow { None } else { Some(value) }
                 }
 
                 /// Checked shift right. Computes `self >> rhs`, returning `None` if `rhs` is larger than
@@ -1057,12 +973,8 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn checked_shr(self, rhs: u32) -> Option<Self> {
-                    if rhs >= (BITS as u32) {
-                        None
-                    } else {
-                        let value = ((self.value() >> rhs) << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
-                        Some(Self { value })
-                    }
+                    let (value, overflow) = self.overflowing_shr(rhs);
+                    if overflow { None } else { Some(value) }
                 }
 
                 /// Calculates `self + rhs`.
