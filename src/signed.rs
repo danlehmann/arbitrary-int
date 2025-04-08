@@ -1046,6 +1046,235 @@ macro_rules! int_impl {
                     }
                 }
 
+                /// Calculates `self + rhs`.
+                ///
+                /// Returns a tuple of the addition along with a boolean indicating whether an arithmetic
+                /// overflow would occur. If an overflow would have occurred then the wrapped value is returned.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::prelude::*;
+                /// assert_eq!(i14::new(5).overflowing_add(i14::new(2)), (i14::new(7), false));
+                /// assert_eq!(i14::MAX.overflowing_add(i14::new(1)), (i14::MIN, true));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
+                    let (value, overflow) = if Self::UNUSED_BITS == 0 {
+                        // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_add` instead of `overflowing_add` in the common case, which is faster.
+                        self.value().overflowing_add(rhs.value())
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. i7).
+                        // That means the addition can never overflow the underlying type.
+                        let sum = self.value().wrapping_add(rhs.value());
+                        let value = (sum << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+                        (value, value != sum)
+                    };
+
+                    (Self { value }, overflow)
+                }
+
+                /// Calculates `self - rhs`.
+                ///
+                /// Returns a tuple of the subtraction along with a boolean indicating whether an arithmetic
+                /// overflow would occur. If an overflow would have occurred then the wrapped value is returned.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::prelude::*;
+                /// assert_eq!(i14::new(5).overflowing_sub(i14::new(2)), (i14::new(3), false));
+                /// assert_eq!(i14::MIN.overflowing_sub(i14::new(1)), (i14::MAX, true));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
+                    let (value, overflow) = if Self::UNUSED_BITS == 0 {
+                        // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_sub` instead of `overflowing_sub` in the common case, which is faster.
+                        self.value().overflowing_sub(rhs.value())
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. i7).
+                        // That means the subtraction can never overflow the underlying type
+                        let sum = self.value().wrapping_sub(rhs.value());
+                        let value = (sum << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+                        (value, value != sum)
+                    };
+
+                    (Self { value }, overflow)
+                }
+
+                /// Calculates the multiplication of `self` and `rhs`.
+                ///
+                /// Returns a tuple of the multiplication along with a boolean indicating whether an arithmetic
+                /// overflow would occur. If an overflow would have occurred then the wrapped value is returned.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::prelude::*;
+                /// assert_eq!(i14::new(5).overflowing_mul(i14::new(2)), (i14::new(10), false));
+                /// assert_eq!(i14::new(1_000).overflowing_mul(i14::new(10)), (i14::new(-6384), true));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
+                    let (wrapping_product, overflow) = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
+                        // We have half the bits (e.g. i4 * i4) of the base type, so we can't overflow the base type.
+                        // `wrapping_mul` likely provides the best performance on all CPUs.
+                        (self.value().wrapping_mul(rhs.value()), false)
+                    } else {
+                        // We have more than half the bits (e.g. i6 * i6)
+                        self.value().overflowing_mul(rhs.value())
+                    };
+
+                    let value = (wrapping_product << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+                    let overflow2 = value != wrapping_product;
+                    (Self { value }, overflow || overflow2)
+                }
+
+                /// Calculates the divisor when `self` is divided by `rhs`.
+                ///
+                /// Returns a tuple of the divisor along with a boolean indicating whether an arithmetic
+                /// overflow would occur. If an overflow would occur then self is returned.
+                ///
+                /// # Panics
+                ///
+                /// This function will panic if `rhs` is zero.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::prelude::*;
+                /// assert_eq!(i14::new(5).overflowing_div(i14::new(2)), (i14::new(2), false));
+                /// assert_eq!(i14::MIN.overflowing_div(i14::new(-1)), (i14::MIN, true));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn overflowing_div(self, rhs: Self) -> (Self, bool) {
+                    let (value, overflow) = if Self::UNUSED_BITS == 0 {
+                        // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_div` instead of `overflowing_div` in the common case, which is faster.
+                        self.value().overflowing_div(rhs.value())
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. i7).
+                        // That means the division can never overflow the underlying type.
+                        let quotient = self.value().wrapping_div(rhs.value());
+                        let value = (quotient << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+                        (value, value != quotient)
+                    };
+
+                    (Self { value }, overflow)
+                }
+
+                /// Negates `self`, overflowing if this is equal to the minimum value.
+                ///
+                /// Returns a tuple of the negated version of self along with a boolean indicating whether an
+                /// overflow happened. If `self` is the minimum value (e.g., `i14::MIN` for values of type `i14`),
+                /// then the minimum value will be returned again and `true` will be returned for an overflow happening.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::prelude::*;
+                /// assert_eq!(i14::new(2).overflowing_neg(), (i14::new(-2), false));
+                /// assert_eq!(i14::MIN.overflowing_neg(), (i14::MIN, true));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn overflowing_neg(self) -> (Self, bool) {
+                    let (value, overflow) = if Self::UNUSED_BITS == 0 {
+                        // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_neg` instead of `overflowing_neg` in the common case, which is faster.
+                        self.value().overflowing_neg()
+                    } else {
+                        // We're dealing with fewer bits than the underlying type (e.g. i7).
+                        // That means the negation can never overflow the underlying type.
+                        let negated = self.value().wrapping_neg();
+                        let value = (negated << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+                        (value, value != negated)
+                    };
+
+                    (Self { value }, overflow)
+                }
+
+                /// Shifts `self` left by `rhs` bits.
+                ///
+                /// Returns a tuple of the shifted version of `self` along with a boolean indicating whether
+                /// the shift value was larger than or equal to the number of bits. If the shift value is too
+                /// large, then value is masked (`N-1`) where `N` is the number of bits, and this value is then
+                /// used to perform the shift.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::prelude::*;
+                /// assert_eq!(i14::new(0x1).overflowing_shl(4), (i14::new(0x10), false));
+                /// assert_eq!(i14::new(0x1).overflowing_shl(15), (i14::new(0x2), true));
+                /// assert_eq!(i14::new(0x10).overflowing_shl(13), (i14::new(0), false));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn overflowing_shl(self, rhs: u32) -> (Self, bool) {
+                    let (shift, overflow) = if rhs >= (BITS as u32) {
+                        (rhs % (BITS as u32), true)
+                    } else {
+                        (rhs, false)
+                    };
+
+                    // This cannot possibly wrap as we've already limited `shift` to `BITS`.
+                    let value = (self.value().wrapping_shl(shift) << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+                    (Self { value }, overflow)
+                }
+
+                /// Shifts `self` right by `rhs` bits.
+                ///
+                /// Returns a tuple of the shifted version of `self` along with a boolean indicating whether
+                /// the shift value was larger than or equal to the number of bits. If the shift value is too
+                /// large, then value is masked (`N-1`) where `N` is the number of bits, and this value is then
+                /// used to perform the shift.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::prelude::*;
+                /// assert_eq!(i14::new(0x10).overflowing_shr(4), (i14::new(0x1), false));
+                /// assert_eq!(i14::new(0x10).overflowing_shr(15), (i14::new(0x8), true));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn overflowing_shr(self, rhs: u32) -> (Self, bool) {
+                    let (shift, overflow) = if rhs >= (BITS as u32) {
+                        (rhs % (BITS as u32), true)
+                    } else {
+                        (rhs, false)
+                    };
+
+                    // This cannot possibly wrap as we've already limited `shift` to `BITS`.
+                    let value = (self.value().wrapping_shr(shift) << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
+                    (Self { value }, overflow)
+                }
+
                 /// Returns `true` if `self` is positive and `false` if the number is zero or negative.
                 ///
                 /// # Examples
@@ -1053,7 +1282,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::i14;
+                /// # use arbitrary_int::prelude::*;
                 /// assert!(i14::new(10).is_positive());
                 /// assert!(!i14::new(-10).is_positive());
                 /// ```
@@ -1070,7 +1299,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::i14;
+                /// # use arbitrary_int::prelude::*;
                 /// assert!(i14::new(-10).is_negative());
                 /// assert!(!i14::new(10).is_negative());
                 /// ```

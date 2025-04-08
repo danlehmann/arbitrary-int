@@ -856,61 +856,177 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Calculates `self + rhs`.
+                ///
+                /// Returns a tuple of the addition along with a boolean indicating whether an arithmetic
+                /// overflow would occur. If an overflow would have occurred then the wrapped value is returned.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::prelude::*;
+                /// assert_eq!(u14::new(5).overflowing_add(u14::new(2)), (u14::new(7), false));
+                /// assert_eq!(u14::MAX.overflowing_add(u14::new(1)), (u14::new(0), true));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn overflowing_add(self, rhs: Self) -> (Self, bool) {
                     let (value, overflow) = if Self::UNUSED_BITS == 0 {
-                        // We are something like a UInt::<u8; 8>. We can fallback to the base implementation
-                        self.value.overflowing_add(rhs.value)
+                        // We are something like a UInt::<u8; 8>, we can fallback to the base implementation.
+                        // This is very unlikely to happen in practice, but checking allows us to use
+                        // `wrapping_add` instead of `overflowing_add` in the common case, which is faster.
+                        self.value().overflowing_add(rhs.value)
                     } else {
                         // We're dealing with fewer bits than the underlying type (e.g. u7).
                         // That means the addition can never overflow the underlying type
-                        let sum = self.value.wrapping_add(rhs.value);
+                        let sum = self.value().wrapping_add(rhs.value);
                         let masked = sum & Self::MASK;
                         (masked, masked != sum)
                     };
+
                     (Self { value }, overflow)
                 }
 
+                /// Calculates `self - rhs`.
+                ///
+                /// Returns a tuple of the subtraction along with a boolean indicating whether an arithmetic
+                /// overflow would occur. If an overflow would have occurred then the wrapped value is returned.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::prelude::*;
+                /// assert_eq!(u14::new(5).overflowing_sub(u14::new(2)), (u14::new(3), false));
+                /// assert_eq!(u14::new(0).overflowing_sub(u14::new(1)), (u14::MAX, true));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
                     // For unsigned numbers, the only difference is when we reach 0 - which is the same
                     // no matter the data size. In the case of overflow we do have the mask the result though
-                    let (value, overflow) = self.value.overflowing_sub(rhs.value);
+                    let (value, overflow) = self.value().overflowing_sub(rhs.value());
                     (Self { value: value & Self::MASK }, overflow)
                 }
 
+                /// Calculates the multiplication of `self` and `rhs`.
+                ///
+                /// Returns a tuple of the multiplication along with a boolean indicating whether an arithmetic
+                /// overflow would occur. If an overflow would have occurred then the wrapped value is returned.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::prelude::*;
+                /// assert_eq!(u14::new(5).overflowing_mul(u14::new(2)), (u14::new(10), false));
+                /// assert_eq!(u14::new(1_000).overflowing_mul(u14::new(1000)), (u14::new(576), true));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {
                     let (wrapping_product, overflow) = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
-                        // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type
-                        // wrapping_mul likely provides the best performance on all cpus
-                        self.value.overflowing_mul(rhs.value)
+                        // We have half the bits (e.g. u4 * u4) of the base type, so we can't overflow the base type.
+                        // `wrapping_mul` likely provides the best performance on all CPUs.
+                        (self.value().wrapping_mul(rhs.value()), false)
                     } else {
                         // We have more than half the bits (e.g. u6 * u6)
-                        self.value.overflowing_mul(rhs.value)
+                        self.value().overflowing_mul(rhs.value())
                     };
 
                     let masked = wrapping_product & Self::MASK;
                     let overflow2 = masked != wrapping_product;
-                    (Self { value: masked }, overflow || overflow2 )
+                    (Self { value: masked }, overflow || overflow2)
                 }
 
+                /// Calculates the divisor when `self` is divided by `rhs`.
+                ///
+                /// Returns a tuple of the divisor along with a boolean indicating whether an arithmetic
+                /// overflow would occur. Note that for unsigned integers overflow never occurs, so the
+                /// second value is always false.
+                ///
+                /// # Panics
+                ///
+                /// This function will panic if `rhs` is `zero`.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::prelude::*;
+                /// assert_eq!(u14::new(5).overflowing_div(u14::new(2)), (u14::new(2), false));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn overflowing_div(self, rhs: Self) -> (Self, bool) {
-                    let value = self.value.wrapping_div(rhs.value);
-                    (Self { value }, false )
+                    let value = self.value().wrapping_div(rhs.value());
+                    (Self { value }, false)
                 }
 
+                /// Shifts `self` left by `rhs` bits.
+                ///
+                /// Returns a tuple of the shifted version of `self` along with a boolean indicating whether
+                /// the shift value was larger than or equal to the number of bits. If the shift value is too
+                /// large, then value is masked (`N-1`) where `N` is the number of bits, and this value is then
+                /// used to perform the shift.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::prelude::*;
+                /// assert_eq!(u14::new(0x1).overflowing_shl(4), (u14::new(0x10), false));
+                /// assert_eq!(u14::new(0x1).overflowing_shl(132), (u14::new(0x40), true));
+                /// assert_eq!(u14::new(0x10).overflowing_shl(13), (u14::new(0), false));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn overflowing_shl(self, rhs: u32) -> (Self, bool) {
-                    if rhs >= (BITS as u32) {
-                        (Self { value: self.value << (rhs % (BITS as u32)) }, true)
+                    let (shift, overflow) = if rhs >= (BITS as u32) {
+                        (rhs % (BITS as u32), true)
                     } else {
-                        (Self { value: self.value << rhs }, false)
-                    }
+                        (rhs, false)
+                    };
+
+                    // This cannot possibly wrap as we've already limited `shift` to `BITS`.
+                    let value = self.value().wrapping_shl(shift);
+                    (Self { value }, overflow)
                 }
 
+                /// Shifts `self` right by `rhs` bits.
+                ///
+                /// Returns a tuple of the shifted version of `self` along with a boolean indicating whether
+                /// the shift value was larger than or equal to the number of bits. If the shift value is too
+                /// large, then value is masked (`N-1`) where `N` is the number of bits, and this value is then
+                /// used to perform the shift.
+                ///
+                /// # Examples
+                ///
+                /// Basic usage:
+                ///
+                #[doc = concat!(" ```", $doctest_attr)]
+                /// # use arbitrary_int::prelude::*;
+                /// assert_eq!(u14::new(0x10).overflowing_shr(4), (u14::new(0x1), false));
+                /// assert_eq!(u14::new(0x10).overflowing_shr(113), (u14::new(0x8), true));
+                /// ```
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn overflowing_shr(self, rhs: u32) -> (Self, bool) {
-                    if rhs >= (BITS as u32) {
-                        (Self { value: self.value >> (rhs % (BITS as u32)) }, true)
+                    let (shift, overflow) = if rhs >= (BITS as u32) {
+                        (rhs % (BITS as u32), true)
                     } else {
-                        (Self { value: self.value >> rhs }, false)
-                    }
+                        (rhs, false)
+                    };
+
+                    // This cannot possibly wrap as we've already limited `shift` to `BITS`.
+                    let value = self.value().wrapping_shr(shift);
+                    (Self { value }, overflow)
                 }
 
                 /// Reverses the order of bits in the integer. The least significant bit becomes the most

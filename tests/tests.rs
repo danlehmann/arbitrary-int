@@ -2924,7 +2924,7 @@ fn checked_shr_signed() {
 }
 
 #[test]
-fn overflowing_add() {
+fn overflowing_add_unsigned() {
     assert_eq!(
         u7::new(120).overflowing_add(u7::new(1)),
         (u7::new(121), false)
@@ -2952,7 +2952,55 @@ fn overflowing_add() {
 }
 
 #[test]
-fn overflowing_sub() {
+fn overflowing_add_signed() {
+    assert_eq!(
+        i7::new(60).overflowing_add(i7::new(1)),
+        (i7::new(61), false)
+    );
+
+    assert_eq!(
+        i7::new(60).overflowing_add(i7::new(-1)),
+        (i7::new(59), false)
+    );
+
+    assert_eq!(
+        i7::new(-60).overflowing_add(i7::new(4)),
+        (i7::new(-56), false)
+    );
+
+    assert_eq!(
+        i7::new(-60).overflowing_add(i7::new(-4)),
+        (i7::new(-64), false)
+    );
+
+    assert_eq!(
+        i7::new(60).overflowing_add(i7::new(3)),
+        (i7::new(63), false)
+    );
+
+    assert_eq!(
+        i7::new(60).overflowing_add(i7::new(10)),
+        (i7::new(-58), true)
+    );
+
+    assert_eq!(
+        i7::new(63).overflowing_add(i7::new(63)),
+        (i7::new(-2), true)
+    );
+
+    assert_eq!(
+        Int::<i8, 8>::new(120).overflowing_add(Int::<i8, 8>::new(7)),
+        (Int::<i8, 8>::new(127), false)
+    );
+
+    assert_eq!(
+        Int::<i8, 8>::new(120).overflowing_add(Int::<i8, 8>::new(10)),
+        (Int::<i8, 8>::new(-126), true)
+    );
+}
+
+#[test]
+fn overflowing_sub_unsigned() {
     assert_eq!(
         u7::new(120).overflowing_sub(u7::new(30)),
         (u7::new(90), false)
@@ -2973,7 +3021,60 @@ fn overflowing_sub() {
 }
 
 #[test]
-fn overflowing_mul() {
+fn overflowing_sub_signed() {
+    assert_eq!(
+        i7::new(60).overflowing_sub(i7::new(30)),
+        (i7::new(30), false)
+    );
+
+    assert_eq!(
+        i7::new(-30).overflowing_sub(i7::new(30)),
+        (i7::new(-60), false)
+    );
+
+    assert_eq!(
+        i7::new(-60).overflowing_sub(i7::new(-30)),
+        (i7::new(-30), false)
+    );
+
+    assert_eq!(
+        i7::new(60).overflowing_sub(i7::new(59)),
+        (i7::new(1), false)
+    );
+
+    assert_eq!(
+        i7::new(60).overflowing_sub(i7::new(60)),
+        (i7::new(0), false)
+    );
+
+    assert_eq!(
+        i7::new(60).overflowing_sub(i7::new(61)),
+        (i7::new(-1), false)
+    );
+
+    assert_eq!(
+        i7::new(-60).overflowing_sub(i7::new(5)),
+        (i7::new(63), true)
+    );
+
+    assert_eq!(
+        i7::new(-2).overflowing_sub(i7::new(63)),
+        (i7::new(63), true)
+    );
+
+    assert_eq!(
+        Int::<i8, 8>::new(120).overflowing_sub(Int::<i8, 8>::new(7)),
+        (Int::<i8, 8>::new(113), false)
+    );
+
+    assert_eq!(
+        Int::<i8, 8>::new(-120).overflowing_sub(Int::<i8, 8>::new(10)),
+        (Int::<i8, 8>::new(126), true)
+    );
+}
+
+#[test]
+fn overflowing_mul_unsigned() {
     // Fast-path: Only the arbitrary int is bounds checked
     assert_eq!(u4::new(5).overflowing_mul(u4::new(2)), (u4::new(10), false));
     assert_eq!(u4::new(5).overflowing_mul(u4::new(3)), (u4::new(15), false));
@@ -3001,7 +3102,36 @@ fn overflowing_mul() {
 }
 
 #[test]
-fn overflowing_div() {
+fn overflowing_mul_signed() {
+    // Fast-path: Only the arbitrary int is bounds checked
+    assert_eq!(i4::new(2).overflowing_mul(i4::new(1)), (i4::new(2), false));
+    assert_eq!(i4::new(2).overflowing_mul(i4::new(2)), (i4::new(4), false));
+    assert_eq!(i4::new(2).overflowing_mul(i4::new(3)), (i4::new(6), false));
+    assert_eq!(i4::new(2).overflowing_mul(i4::new(4)), (i4::new(-8), true));
+    assert_eq!(i4::new(2).overflowing_mul(i4::new(5)), (i4::new(-6), true));
+    assert_eq!(i4::new(2).overflowing_mul(i4::new(6)), (i4::new(-4), true));
+    assert_eq!(i4::new(2).overflowing_mul(i4::new(7)), (i4::new(-2), true));
+
+    // Slow-path (well, one more comparison)
+    assert_eq!(i6::new(5).overflowing_mul(i6::new(2)), (i6::new(10), false));
+    assert_eq!(i6::new(5).overflowing_mul(i6::new(3)), (i6::new(15), false));
+    assert_eq!(i6::new(5).overflowing_mul(i6::new(4)), (i6::new(20), false));
+    assert_eq!(i6::new(5).overflowing_mul(i6::new(5)), (i6::new(25), false));
+    assert_eq!(i6::new(5).overflowing_mul(i6::new(6)), (i6::new(30), false));
+    assert_eq!(i6::new(5).overflowing_mul(i6::new(7)), (i6::new(-29), true));
+    assert_eq!(
+        i6::new(30).overflowing_mul(i6::new(1)),
+        (i6::new(30), false)
+    );
+    assert_eq!(i6::new(30).overflowing_mul(i6::new(2)), (i6::new(-4), true));
+    assert_eq!(
+        i6::new(30).overflowing_mul(i6::new(10)),
+        (i6::new(-20), true)
+    );
+}
+
+#[test]
+fn overflowing_div_unsigned() {
     assert_eq!(u4::new(5).overflowing_div(u4::new(1)), (u4::new(5), false));
     assert_eq!(u4::new(5).overflowing_div(u4::new(2)), (u4::new(2), false));
     assert_eq!(u4::new(5).overflowing_div(u4::new(3)), (u4::new(1), false));
@@ -3009,14 +3139,56 @@ fn overflowing_div() {
     assert_eq!(u4::new(5).overflowing_div(u4::new(5)), (u4::new(1), false));
 }
 
+#[test]
+fn overflowing_div_signed() {
+    assert_eq!(i4::new(5).overflowing_div(i4::new(1)), (i4::new(5), false));
+    assert_eq!(i4::new(5).overflowing_div(i4::new(2)), (i4::new(2), false));
+    assert_eq!(i4::new(5).overflowing_div(i4::new(3)), (i4::new(1), false));
+    assert_eq!(i4::new(5).overflowing_div(i4::new(4)), (i4::new(1), false));
+    assert_eq!(i4::new(5).overflowing_div(i4::new(5)), (i4::new(1), false));
+    assert_eq!(
+        i4::new(5).overflowing_div(i4::new(-5)),
+        (i4::new(-1), false)
+    );
+    assert_eq!(i4::MIN.overflowing_div(i4::new(-1)), (i4::MIN, true));
+
+    assert_eq!(
+        Int::<i8, 8>::new(120).overflowing_div(Int::<i8, 8>::new(2)),
+        (Int::<i8, 8>::new(60), false)
+    );
+    assert_eq!(
+        Int::<i8, 8>::MIN.overflowing_div(Int::<i8, 8>::new(-1)),
+        (Int::<i8, 8>::MIN, true)
+    );
+}
+
 #[should_panic]
 #[test]
-fn overflowing_div_by_zero() {
+fn overflowing_div_by_zero_unsigned() {
     let _ = u4::new(5).overflowing_div(u4::new(0));
 }
 
+#[should_panic]
 #[test]
-fn overflowing_shl() {
+fn overflowing_div_by_zero_signed() {
+    let _ = i4::new(5).overflowing_div(i4::new(0));
+}
+
+#[test]
+fn overflowing_neg() {
+    assert_eq!(i17::new(0).overflowing_neg(), (i17::new(0), false));
+    assert_eq!(i17::new(-1).overflowing_neg(), (i17::new(1), false));
+    assert_eq!(i17::new(2).overflowing_neg(), (i17::new(-2), false));
+    assert_eq!(i17::new(-3).overflowing_neg(), (i17::new(3), false));
+    assert_eq!(i17::new(4).overflowing_neg(), (i17::new(-4), false));
+    assert_eq!(i17::new(-5).overflowing_neg(), (i17::new(5), false));
+
+    assert_eq!(i17::MAX.overflowing_neg(), (i17::MIN + i17::new(1), false));
+    assert_eq!(i17::MIN.overflowing_neg(), (i17::MIN, true));
+}
+
+#[test]
+fn overflowing_shl_unsigned() {
     assert_eq!(
         u7::new(0b010_1101).overflowing_shl(0),
         (u7::new(0b010_1101), false)
@@ -3045,10 +3217,52 @@ fn overflowing_shl() {
         u7::new(0b010_1101).overflowing_shl(15),
         (u7::new(0b101_1010), true)
     );
+
+    assert_eq!(
+        u14::new(0b010_1101).overflowing_shl(14),
+        (u14::new(0b010_1101), true)
+    );
 }
 
 #[test]
-fn overflowing_shr() {
+fn overflowing_shl_signed() {
+    assert_eq!(
+        i7::from_bits(0b010_1101).overflowing_shl(0),
+        (i7::from_bits(0b010_1101), false)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).overflowing_shl(1),
+        (i7::from_bits(0b101_1010), false)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).overflowing_shl(6),
+        (i7::from_bits(0b100_0000), false)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).overflowing_shl(7),
+        (i7::from_bits(0b010_1101), true)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).overflowing_shl(8),
+        (i7::from_bits(0b101_1010), true)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).overflowing_shl(14),
+        (i7::from_bits(0b010_1101), true)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).overflowing_shl(15),
+        (i7::from_bits(0b101_1010), true)
+    );
+
+    assert_eq!(
+        i14::from_bits(0b010_1101).overflowing_shl(14),
+        (i14::from_bits(0b010_1101), true)
+    );
+}
+
+#[test]
+fn overflowing_shr_unsigned() {
     assert_eq!(
         u7::new(0b010_1101).overflowing_shr(0),
         (u7::new(0b010_1101), false)
@@ -3076,6 +3290,38 @@ fn overflowing_shr() {
     assert_eq!(
         u7::new(0b010_1101).overflowing_shr(15),
         (u7::new(0b001_0110), true)
+    );
+}
+
+#[test]
+fn overflowing_shr_signed() {
+    assert_eq!(
+        i7::from_bits(0b010_1101).overflowing_shr(0),
+        (i7::from_bits(0b010_1101), false)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).overflowing_shr(1),
+        (i7::from_bits(0b001_0110), false)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).overflowing_shr(5),
+        (i7::from_bits(0b000_0001), false)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).overflowing_shr(7),
+        (i7::from_bits(0b010_1101), true)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).overflowing_shr(8),
+        (i7::from_bits(0b001_0110), true)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).overflowing_shr(14),
+        (i7::from_bits(0b010_1101), true)
+    );
+    assert_eq!(
+        i7::from_bits(0b010_1101).overflowing_shr(15),
+        (i7::from_bits(0b001_0110), true)
     );
 }
 
