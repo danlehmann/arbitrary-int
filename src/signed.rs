@@ -1,5 +1,8 @@
 use crate::{
-    common::{bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract},
+    common::{
+        bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
+        impl_schemars,
+    },
     TryNewError,
 };
 use core::{
@@ -1709,6 +1712,9 @@ where
         }
     }
 }
+
+// Support for the `schemars` crate, if the feature is enabled.
+impl_schemars!(Int, "int", SignedNumber);
 
 bytes_operation_impl!(Int<i32, 24>, i32);
 bytes_operation_impl!(Int<i64, 24>, i64);
