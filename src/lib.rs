@@ -20,6 +20,12 @@ pub use signed::*;
 pub use unsigned::*;
 pub use v1_number_compat::*;
 
+pub mod prelude {
+    pub use crate::common::Integer;
+    pub use crate::signed::*;
+    pub use crate::unsigned::*;
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TryNewError;
 
