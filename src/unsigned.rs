@@ -32,6 +32,11 @@ macro_rules! impl_integer_native {
     // This macro will be invoked with `u8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
+            #[allow(deprecated)]
+            impl $($const_keyword)? super::Number for $type {
+
+            }
+
             impl $($const_keyword)? UnsignedInteger for $type {
 
             }
@@ -166,6 +171,11 @@ macro_rules! uint_impl_num {
     // This macro will be invoked with `u8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
+            #[allow(deprecated)]
+            impl<const BITS: usize> $($const_keyword)? super::Number for UInt<$type, BITS> {
+
+            }
+
             impl<const BITS: usize> $($const_keyword)? UnsignedInteger for UInt<$type, BITS> {
 
             }
