@@ -24,8 +24,8 @@ pub(crate) const fn const_byte_copy<
 }
 
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
-pub trait Number: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
-    type UnderlyingType: Number
+pub trait Integer: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
+    type UnderlyingType: Integer
         + Debug
         + TryFrom<u8>
         + TryFrom<u16>
@@ -54,12 +54,12 @@ pub trait Number: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
     /// Creates a number from the given value, throwing an error if the value is too large.
     /// This constructor is useful when the value is convertible to T. Use [`Self::new`] for literals.
     #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-    fn from_<T: Number>(value: T) -> Self;
+    fn from_<T: Integer>(value: T) -> Self;
 
     /// Creates an instance from the given `value`. Unlike the various `new...` functions, this
     /// will never fail as the value is masked to the result size.
     #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-    fn masked_new<T: Number>(value: T) -> Self;
+    fn masked_new<T: Integer>(value: T) -> Self;
 
     fn as_u8(&self) -> u8;
 
@@ -87,7 +87,7 @@ pub trait Number: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
 
     #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
     #[inline]
-    fn as_<T: Number>(self) -> T {
+    fn as_<T: Integer>(self) -> T {
         T::masked_new(self)
     }
 }

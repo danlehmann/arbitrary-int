@@ -7,7 +7,6 @@
 
 #[cfg(all(feature = "borsh", not(feature = "std")))]
 extern crate alloc;
-extern crate core;
 
 use core::fmt;
 
@@ -15,9 +14,16 @@ mod common;
 mod signed;
 mod unsigned;
 
-pub use common::Number;
+pub use common::Integer;
 pub use signed::*;
 pub use unsigned::*;
+
+/// Compatibility with arbitrary-int 1.x, which didn't support signed integers.
+///
+/// Going forward, use [`UnsignedInteger`] (to allow only unsigned integers) or [`Integer`] (to
+/// support either signed or unsigned)
+#[deprecated(since = "2.0", note = "Use [`UnsignedInteger`] or [`Integer`] instead")]
+pub trait Number: UnsignedInteger {}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TryNewError;

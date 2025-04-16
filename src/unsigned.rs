@@ -1,5 +1,5 @@
 use crate::common::{
-    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, Number,
+    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, Integer,
 };
 use crate::TryNewError;
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
@@ -25,18 +25,18 @@ use std::{collections::BTreeMap, string::ToString};
 use schemars::JsonSchema;
 
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
-pub trait UnsignedNumber: Number {}
+pub trait UnsignedInteger: Integer {}
 
-macro_rules! impl_number_native {
+macro_rules! impl_integer_native {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
     // This macro will be invoked with `u8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
-            impl $($const_keyword)? UnsignedNumber for $type {
+            impl $($const_keyword)? UnsignedInteger for $type {
 
             }
 
-            impl $($const_keyword)? Number for $type {
+            impl $($const_keyword)? Integer for $type {
                 type UnderlyingType = $type;
                 const BITS: usize = Self::BITS as usize;
                 const MIN: Self = Self::MIN;
@@ -53,7 +53,7 @@ macro_rules! impl_number_native {
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
-                fn from_<T: Number>(value: T) -> Self {
+                fn from_<T: Integer>(value: T) -> Self {
                     if T::BITS > Self::BITS as usize {
                         assert!(value <= T::masked_new(Self::MAX));
                     }
@@ -62,7 +62,7 @@ macro_rules! impl_number_native {
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
-                fn masked_new<T: Number>(value: T) -> Self {
+                fn masked_new<T: Integer>(value: T) -> Self {
                     // Primitive types don't need masking
                     match Self::BITS {
                         8 => value.as_u8() as Self,
@@ -70,7 +70,7 @@ macro_rules! impl_number_native {
                         32 => value.as_u32() as Self,
                         64 => value.as_u64() as Self,
                         128 => value.as_u128() as Self,
-                        _ => panic!("Unhandled Number type")
+                        _ => panic!("Unhandled Integer type")
                     }
                 }
 
@@ -115,10 +115,10 @@ macro_rules! impl_number_native {
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-impl_number_native!(u8, u16, u32, u64, u128);
+impl_integer_native!(u8, u16, u32, u64, u128);
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
-impl_number_native!(u8 as const, u16 as const, u32 as const, u64 as const, u128 as const);
+impl_integer_native!(u8 as const, u16 as const, u32 as const, u64 as const, u128 as const);
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
 pub struct UInt<T, const BITS: usize> {
@@ -150,7 +150,7 @@ impl<T: Copy, const BITS: usize> UInt<T, BITS> {
 
 impl<T, const BITS: usize> UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: Copy,
 {
     pub const MASK: T = Self::MAX.value;
@@ -166,7 +166,7 @@ macro_rules! uint_impl_num {
     // This macro will be invoked with `u8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
-            impl<const BITS: usize> $($const_keyword)? Number for UInt<$type, BITS> {
+            impl<const BITS: usize> $($const_keyword)? Integer for UInt<$type, BITS> {
                 type UnderlyingType = $type;
 
                 const BITS: usize = BITS;
@@ -175,7 +175,7 @@ macro_rules! uint_impl_num {
 
                 // The existence of MAX also serves as a bounds check: If NUM_BITS is > available bits,
                 // we will get a compiler error right here
-                const MAX: Self = Self { value: (<$type as Number>::MAX >> (<$type as Number>::BITS - Self::BITS)) };
+                const MAX: Self = Self { value: (<$type as Integer>::MAX >> (<$type as Integer>::BITS - Self::BITS)) };
 
                 #[inline]
                 fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> {
@@ -195,7 +195,7 @@ macro_rules! uint_impl_num {
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
-                fn from_<T: Number>(value: T) -> Self {
+                fn from_<T: Integer>(value: T) -> Self {
                     if Self::BITS < T::BITS {
                         assert!(value <= Self::MAX.value.as_());
                     }
@@ -203,7 +203,7 @@ macro_rules! uint_impl_num {
                 }
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-                fn masked_new<T: Number>(value: T) -> Self {
+                fn masked_new<T: Integer>(value: T) -> Self {
                     if Self::BITS < T::BITS {
                         Self { value: Self::UnderlyingType::masked_new(value.as_::<Self::UnderlyingType>() & Self::MASK) }
                     } else {
@@ -408,7 +408,7 @@ macro_rules! uint_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{u14, Number};
+                /// # use arbitrary_int::{u14, Integer};
                 /// assert_eq!(u14::new(200).wrapping_add(u14::new(55)), u14::new(255));
                 /// assert_eq!(u14::new(200).wrapping_add(u14::MAX), u14::new(199));
                 /// ```
@@ -429,7 +429,7 @@ macro_rules! uint_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{u14, Number};
+                /// # use arbitrary_int::{u14, Integer};
                 /// assert_eq!(u14::new(100).wrapping_sub(u14::new(100)), u14::new(0));
                 /// assert_eq!(u14::new(100).wrapping_sub(u14::MAX), u14::new(101));
                 /// ```
@@ -570,7 +570,7 @@ macro_rules! uint_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{u14, Number};
+                /// # use arbitrary_int::{u14, Integer};
                 /// assert_eq!(u14::new(100).saturating_add(u14::new(1)), u14::new(101));
                 /// assert_eq!(u14::MAX.saturating_add(u14::new(100)), u14::MAX);
                 /// ```
@@ -624,7 +624,7 @@ macro_rules! uint_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{u14, Number};
+                /// # use arbitrary_int::{u14, Integer};
                 /// assert_eq!(u14::new(2).saturating_mul(u14::new(10)), u14::new(20));
                 /// assert_eq!(u14::MAX.saturating_mul(u14::new(10)), u14::MAX);
                 /// ```
@@ -681,7 +681,7 @@ macro_rules! uint_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{u14, Number};
+                /// # use arbitrary_int::{u14, Integer};
                 /// assert_eq!(u14::new(4).saturating_pow(3), u14::new(64));
                 /// assert_eq!(u14::MAX.saturating_pow(2), u14::MAX);
                 /// ```
@@ -705,7 +705,7 @@ macro_rules! uint_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{u14, Number};
+                /// # use arbitrary_int::{u14, Integer};
                 /// assert_eq!((u14::MAX - u14::new(2)).checked_add(u14::new(1)), Some(u14::MAX - u14::new(1)));
                 /// assert_eq!((u14::MAX - u14::new(2)).checked_add(u14::new(3)), None);
                 /// ```
@@ -755,7 +755,7 @@ macro_rules! uint_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{u14, Number};
+                /// # use arbitrary_int::{u14, Integer};
                 /// assert_eq!(u14::new(5).checked_mul(u14::new(1)), Some(u14::new(5)));
                 /// assert_eq!(u14::MAX.checked_mul(u14::new(2)), None);
                 /// ```
@@ -928,7 +928,7 @@ macro_rules! uint_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{u7, Number};
+                /// # use arbitrary_int::{u7, Integer};
                 /// let n = u7::new(0b100_1100);
                 /// assert_eq!(n.count_ones(), 3);
                 ///
@@ -951,7 +951,7 @@ macro_rules! uint_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{u7, Number};
+                /// # use arbitrary_int::{u7, Integer};
                 /// let zero = u7::new(0);
                 /// assert_eq!(zero.count_zeros(), 7);
                 ///
@@ -972,7 +972,7 @@ macro_rules! uint_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{u7, Number};
+                /// # use arbitrary_int::{u7, Integer};
                 /// let n = !(u7::MAX >> 2);
                 /// assert_eq!(n.leading_ones(), 2);
                 ///
@@ -994,7 +994,7 @@ macro_rules! uint_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{u7, Number};
+                /// # use arbitrary_int::{u7, Integer};
                 /// let n = u7::MAX >> 2;
                 /// assert_eq!(n.leading_zeros(), 2);
                 ///
@@ -1023,7 +1023,7 @@ macro_rules! uint_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{u7, Number};
+                /// # use arbitrary_int::{u7, Integer};
                 /// let n = u7::new(0b1010111);
                 /// assert_eq!(n.trailing_ones(), 3);
                 ///
@@ -1045,7 +1045,7 @@ macro_rules! uint_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{u7, Number};
+                /// # use arbitrary_int::{u7, Integer};
                 /// let n = u7::new(0b010_1000);
                 /// assert_eq!(n.trailing_zeros(), 3);
                 ///
@@ -1135,7 +1135,7 @@ uint_impl!(
 // Arithmetic implementations
 impl<T, const BITS: usize> Add for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq
         + Copy
         + BitAnd<T, Output = T>
@@ -1160,7 +1160,7 @@ where
 
 impl<T, const BITS: usize> AddAssign for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq
         + Eq
         + Not<Output = T>
@@ -1182,7 +1182,7 @@ where
 
 impl<T, const BITS: usize> Sub for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: Copy + BitAnd<T, Output = T> + Sub<T, Output = T>,
 {
     type Output = UInt<T, BITS>;
@@ -1197,7 +1197,7 @@ where
 
 impl<T, const BITS: usize> SubAssign for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: Copy + SubAssign<T> + BitAnd<T, Output = T> + BitAndAssign<T> + Sub<T, Output = T>,
 {
     fn sub_assign(&mut self, rhs: Self) {
@@ -1209,7 +1209,7 @@ where
 
 impl<T, const BITS: usize> Mul for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + BitAnd<T, Output = T> + Not<Output = T> + Mul<T, Output = T> + From<u8>,
 {
     type Output = UInt<T, BITS>;
@@ -1231,7 +1231,7 @@ where
 
 impl<T, const BITS: usize> MulAssign for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq
         + Eq
         + Not<Output = T>
@@ -1253,7 +1253,7 @@ where
 
 impl<T, const BITS: usize> Div for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Div<T, Output = T>,
 {
     type Output = UInt<T, BITS>;
@@ -1269,7 +1269,7 @@ where
 
 impl<T, const BITS: usize> DivAssign for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + DivAssign<T>,
 {
     fn div_assign(&mut self, rhs: Self) {
@@ -1279,7 +1279,7 @@ where
 
 impl<T, const BITS: usize> BitAnd for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: Copy
         + BitAnd<T, Output = T>
         + Sub<T, Output = T>
@@ -1351,7 +1351,7 @@ where
 
 impl<T, const BITS: usize> Not for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: Copy
         + BitAnd<T, Output = T>
         + BitXor<T, Output = T>
@@ -1371,7 +1371,7 @@ where
 
 impl<T, TSHIFTBITS, const BITS: usize> Shl<TSHIFTBITS> for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: Copy
         + BitAnd<T, Output = T>
         + Shl<TSHIFTBITS, Output = T>
@@ -1399,7 +1399,7 @@ where
 
 impl<T, TSHIFTBITS, const BITS: usize> ShlAssign<TSHIFTBITS> for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: Copy
         + BitAnd<T, Output = T>
         + BitAndAssign<T>
@@ -1532,7 +1532,7 @@ where
 #[cfg(feature = "borsh")]
 impl<T, const BITS: usize> borsh::BorshSerialize for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: borsh::BorshSerialize,
 {
     fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
@@ -1547,11 +1547,11 @@ where
 
 #[cfg(feature = "borsh")]
 impl<
-        T: borsh::BorshDeserialize + PartialOrd<<UInt<T, BITS> as Number>::UnderlyingType>,
+        T: borsh::BorshDeserialize + PartialOrd<<UInt<T, BITS> as Integer>::UnderlyingType>,
         const BITS: usize,
     > borsh::BorshDeserialize for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
 {
     fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> borsh::io::Result<Self> {
         // Ideally, we'd want a buffer of size `BITS >> 3` or `size_of::<T>`, but that's not possible
@@ -1614,7 +1614,7 @@ where
 #[cfg(feature = "serde")]
 struct InvalidUIntValueError<T>
 where
-    T: Number,
+    T: Integer,
     T::UnderlyingType: Display,
 {
     value: T::UnderlyingType,
@@ -1623,7 +1623,7 @@ where
 #[cfg(feature = "serde")]
 impl<T> Display for InvalidUIntValueError<T>
 where
-    T: Number,
+    T: Integer,
     T::UnderlyingType: Display,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
@@ -1639,7 +1639,7 @@ where
 #[cfg(feature = "serde")]
 impl<'de, T, const BITS: usize> Deserialize<'de> for UInt<T, BITS>
 where
-    Self: Number<UnderlyingType = T>,
+    Self: Integer<UnderlyingType = T>,
     T: Display + PartialOrd + Deserialize<'de>,
 {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
@@ -1657,7 +1657,7 @@ where
 #[cfg(feature = "schemars")]
 impl<T, const BITS: usize> JsonSchema for UInt<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
 {
     fn schema_name() -> String {
         ["uint", &BITS.to_string()].concat()
@@ -1683,7 +1683,7 @@ where
 #[cfg(feature = "step_trait")]
 impl<T, const BITS: usize> Step for UInt<T, BITS>
 where
-    Self: Number<UnderlyingType = T>,
+    Self: Integer<UnderlyingType = T>,
     T: Copy + Step,
 {
     #[inline]
@@ -1713,7 +1713,7 @@ where
 #[cfg(feature = "num-traits")]
 impl<T, const NUM_BITS: usize> num_traits::WrappingAdd for UInt<T, NUM_BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq
         + Eq
         + Copy
@@ -1738,7 +1738,7 @@ where
 #[cfg(feature = "num-traits")]
 impl<T, const NUM_BITS: usize> num_traits::WrappingSub for UInt<T, NUM_BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq
         + Eq
         + Copy
@@ -1763,7 +1763,7 @@ where
 #[cfg(feature = "num-traits")]
 impl<T, const NUM_BITS: usize> num_traits::bounds::Bounded for UInt<T, NUM_BITS>
 where
-    Self: Number,
+    Self: Integer,
 {
     fn min_value() -> Self {
         Self::MIN

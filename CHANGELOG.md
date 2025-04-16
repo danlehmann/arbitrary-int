@@ -1,6 +1,6 @@
 # Changelog
 
-## arbitrary-int 1.4.0 (unreleased)
+## arbitrary-int 2.0.0 (unreleased)
 
 ### Added
 
@@ -8,6 +8,8 @@
   features currently remain exclusive to unsigned integers:
     * Support for the following optional Cargo features: `step_trait`, `borsh` and `schemars`
     * Overflowing arithmetic functions (`overflowing_add`, ...)
+- The old Number trait is now replaced with three traits: UnsignedInteger (equivalent to the old Number), SignedInteger
+  and Integer (which can be either signed or unsigned)
 - Various new extract functions: `extract_i8`, `extract_i16`, ..., `extract_i128`. These are the same as the
   equivalent `extract_u<N>` functions, but work with signed integers instead.
 

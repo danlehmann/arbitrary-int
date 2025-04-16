@@ -1,6 +1,6 @@
 use crate::{
     common::{
-        bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, Number,
+        bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, Integer,
     },
     TryNewError,
 };
@@ -13,18 +13,18 @@ use core::{
 };
 
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
-pub trait SignedNumber: Number {}
+pub trait SignedInteger: Integer {}
 
-macro_rules! impl_signed_number_native {
+macro_rules! impl_signed_integer_native {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
     // This macro will be invoked with `i8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
-            impl $($const_keyword)? SignedNumber for $type {
+            impl $($const_keyword)? SignedInteger for $type {
 
             }
 
-            impl $($const_keyword)? Number for $type {
+            impl $($const_keyword)? Integer for $type {
                 type UnderlyingType = $type;
                 const BITS: usize = Self::BITS as usize;
                 const MIN: Self = Self::MIN;
@@ -41,7 +41,7 @@ macro_rules! impl_signed_number_native {
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
-                fn from_<T: Number>(value: T) -> Self {
+                fn from_<T: Integer>(value: T) -> Self {
                     if T::BITS > Self::BITS as usize {
                         assert!(value >= T::masked_new(Self::MIN) && value <= T::masked_new(Self::MAX));
                     }
@@ -50,7 +50,7 @@ macro_rules! impl_signed_number_native {
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
-                fn masked_new<T: Number>(value: T) -> Self {
+                fn masked_new<T: Integer>(value: T) -> Self {
                     // Primitive types don't need masking
                     match Self::BITS {
                         8 => value.as_i8() as Self,
@@ -58,7 +58,7 @@ macro_rules! impl_signed_number_native {
                         32 => value.as_i32() as Self,
                         64 => value.as_i64() as Self,
                         128 => value.as_i128() as Self,
-                        _ => panic!("Unhandled Number type")
+                        _ => panic!("Unhandled Integer type")
                     }
                 }
 
@@ -103,10 +103,10 @@ macro_rules! impl_signed_number_native {
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-impl_signed_number_native!(i8, i16, i32, i64, i128);
+impl_signed_integer_native!(i8, i16, i32, i64, i128);
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
-impl_signed_number_native!(i8 as const, i16 as const, i32 as const, i64 as const, i128 as const);
+impl_signed_integer_native!(i8 as const, i16 as const, i32 as const, i64 as const, i128 as const);
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd)]
 pub struct Int<T, const BITS: usize> {
@@ -154,11 +154,11 @@ macro_rules! int_impl_num {
     // This macro will be invoked with `i8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
-            impl<const BITS: usize> $($const_keyword)? SignedNumber for Int<$type, BITS> {
+            impl<const BITS: usize> $($const_keyword)? SignedInteger for Int<$type, BITS> {
 
             }
 
-            impl<const BITS: usize> $($const_keyword)? Number for Int<$type, BITS> {
+            impl<const BITS: usize> $($const_keyword)? Integer for Int<$type, BITS> {
                 type UnderlyingType = $type;
 
                 const BITS: usize = BITS;
@@ -169,7 +169,7 @@ macro_rules! int_impl_num {
                 // we will get a compiler error right here
                 const MAX: Self = Self {
                     // MAX is always positive so we don't have to worry about the sign
-                    value: (<$type as Number>::MAX >> (<$type as Number>::BITS - Self::BITS)),
+                    value: (<$type as Integer>::MAX >> (<$type as Integer>::BITS - Self::BITS)),
                 };
 
                 #[inline]
@@ -190,7 +190,7 @@ macro_rules! int_impl_num {
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
-                fn from_<T: Number>(value: T) -> Self {
+                fn from_<T: Integer>(value: T) -> Self {
                     if Self::BITS < T::BITS {
                         assert!(value >= Self::MIN.value.as_() && value <= Self::MAX.value.as_());
                     }
@@ -198,7 +198,7 @@ macro_rules! int_impl_num {
                 }
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-                fn masked_new<T: Number>(value: T) -> Self {
+                fn masked_new<T: Integer>(value: T) -> Self {
                     if Self::BITS < T::BITS {
                         let value = (value.as_::<Self::UnderlyingType>() << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
                         Self { value: Self::UnderlyingType::masked_new(value) }
@@ -485,7 +485,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Number};
+                /// # use arbitrary_int::{i14, Integer};
                 /// assert_eq!(i14::new(100).wrapping_add(i14::new(27)), i14::new(127));
                 /// assert_eq!(i14::MAX.wrapping_add(i14::new(2)), i14::MIN + i14::new(1));
                 /// ```
@@ -506,7 +506,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Number};
+                /// # use arbitrary_int::{i14, Integer};
                 /// assert_eq!(i14::new(0).wrapping_sub(i14::new(127)), i14::new(-127));
                 /// assert_eq!(i14::new(-2).wrapping_sub(i14::MAX), i14::MAX);
                 /// ```
@@ -557,7 +557,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Number};
+                /// # use arbitrary_int::{i14, Integer};
                 /// assert_eq!(i14::new(100).wrapping_div(i14::new(10)), i14::new(10));
                 /// assert_eq!(i14::MIN.wrapping_div(i14::new(-1)), i14::MIN);
                 /// ```
@@ -583,7 +583,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Number};
+                /// # use arbitrary_int::{i14, Integer};
                 /// assert_eq!(i14::new(100).wrapping_neg(), i14::new(-100));
                 /// assert_eq!(i14::new(-100).wrapping_neg(), i14::new(100));
                 /// assert_eq!(i14::MIN.wrapping_neg(), i14::MIN);
@@ -673,7 +673,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Number};
+                /// # use arbitrary_int::{i14, Integer};
                 /// assert_eq!(i14::new(100).saturating_add(i14::new(1)), i14::new(101));
                 /// assert_eq!(i14::MAX.saturating_add(i14::new(100)), i14::MAX);
                 /// assert_eq!(i14::MIN.saturating_add(i14::new(-1)), i14::MIN);
@@ -709,7 +709,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Number};
+                /// # use arbitrary_int::{i14, Integer};
                 /// assert_eq!(i14::new(100).saturating_sub(i14::new(127)), i14::new(-27));
                 /// assert_eq!(i14::MIN.saturating_sub(i14::new(100)), i14::MIN);
                 /// assert_eq!(i14::MAX.saturating_sub(i14::new(-1)), i14::MAX);
@@ -745,7 +745,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Number};
+                /// # use arbitrary_int::{i14, Integer};
                 /// assert_eq!(i14::new(10).saturating_mul(i14::new(12)), i14::new(120));
                 /// assert_eq!(i14::MAX.saturating_mul(i14::new(10)), i14::MAX);
                 /// assert_eq!(i14::MIN.saturating_mul(i14::new(10)), i14::MIN);
@@ -783,7 +783,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Number};
+                /// # use arbitrary_int::{i14, Integer};
                 /// assert_eq!(i14::new(5).saturating_div(i14::new(2)), i14::new(2));
                 /// assert_eq!(i14::MAX.saturating_div(i14::new(-1)), i14::MIN + i14::new(1));
                 /// assert_eq!(i14::MIN.saturating_div(i14::new(-1)), i14::MAX);
@@ -811,7 +811,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Number};
+                /// # use arbitrary_int::{i14, Integer};
                 /// assert_eq!(i14::new(100).saturating_neg(), i14::new(-100));
                 /// assert_eq!(i14::new(-100).saturating_neg(), i14::new(100));
                 /// assert_eq!(i14::MIN.saturating_neg(), i14::MAX);
@@ -837,7 +837,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Number};
+                /// # use arbitrary_int::{i14, Integer};
                 /// assert_eq!(i14::new(-4).saturating_pow(3), i14::new(-64));
                 /// assert_eq!(i14::MIN.saturating_pow(2), i14::MAX);
                 /// assert_eq!(i14::MIN.saturating_pow(3), i14::MIN);
@@ -865,7 +865,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Number};
+                /// # use arbitrary_int::{i14, Integer};
                 /// assert_eq!((i14::MAX - i14::new(2)).checked_add(i14::new(1)), Some(i14::MAX - i14::new(1)));
                 /// assert_eq!((i14::MAX - i14::new(2)).checked_add(i14::new(3)), None);
                 /// ```
@@ -899,7 +899,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Number};
+                /// # use arbitrary_int::{i14, Integer};
                 /// assert_eq!((i14::MIN + i14::new(2)).checked_sub(i14::new(1)), Some(i14::MIN + i14::new(1)));
                 /// assert_eq!((i14::MIN + i14::new(2)).checked_sub(i14::new(3)), None);
                 /// ```
@@ -933,7 +933,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Number};
+                /// # use arbitrary_int::{i14, Integer};
                 /// assert_eq!(i14::MAX.checked_mul(i14::new(1)), Some(i14::MAX));
                 /// assert_eq!(i14::MAX.checked_mul(i14::new(2)), None);
                 /// ```
@@ -965,7 +965,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Number};
+                /// # use arbitrary_int::{i14, Integer};
                 /// assert_eq!((i14::MIN + i14::new(1)).checked_div(i14::new(-1)), Some(i14::new(8191)));
                 /// assert_eq!(i14::MIN.checked_div(i14::new(-1)), None);
                 /// assert_eq!((i14::new(1)).checked_div(i14::new(0)), None);
@@ -989,7 +989,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Number};
+                /// # use arbitrary_int::{i14, Integer};
                 /// assert_eq!(i14::new(5).checked_neg(), Some(i14::new(-5)));
                 /// assert_eq!(i14::MIN.checked_neg(), None);
                 /// ```
@@ -1127,7 +1127,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i6, Number};
+                /// # use arbitrary_int::{i6, Integer};
                 /// assert_eq!(i6::MAX.count_zeros(), 1);
                 /// ```
                 #[inline]
@@ -1290,7 +1290,7 @@ int_impl!(
 // Arithmetic operator implementations
 impl<T, const BITS: usize> Add for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + Add<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     type Output = Self;
@@ -1305,7 +1305,7 @@ where
 
 impl<T, const BITS: usize> AddAssign for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + Add<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     fn add_assign(&mut self, rhs: Self) {
@@ -1316,7 +1316,7 @@ where
 
 impl<T, const BITS: usize> Sub for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + Sub<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     type Output = Self;
@@ -1331,7 +1331,7 @@ where
 
 impl<T, const BITS: usize> SubAssign for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + Sub<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     fn sub_assign(&mut self, rhs: Self) {
@@ -1342,7 +1342,7 @@ where
 
 impl<T, const BITS: usize> Mul for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + Mul<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     type Output = Self;
@@ -1357,7 +1357,7 @@ where
 
 impl<T, const BITS: usize> MulAssign for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + Mul<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     fn mul_assign(&mut self, rhs: Self) {
@@ -1368,7 +1368,7 @@ where
 
 impl<T, const BITS: usize> Div for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + Div<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     type Output = Self;
@@ -1385,7 +1385,7 @@ where
 
 impl<T, const BITS: usize> DivAssign for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + Div<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     fn div_assign(&mut self, rhs: Self) {
@@ -1396,7 +1396,7 @@ where
 
 impl<T, const BITS: usize> Neg for Int<T, BITS>
 where
-    Self: Number<UnderlyingType = T>,
+    Self: Integer<UnderlyingType = T>,
     T: PartialEq + Copy + Neg<Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     type Output = Self;
@@ -1413,7 +1413,7 @@ where
 // Bitwise operator implementations
 impl<T, const BITS: usize> BitAnd for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + BitAnd<T, Output = T>,
 {
     type Output = Self;
@@ -1426,7 +1426,7 @@ where
 
 impl<T, const BITS: usize> BitAndAssign for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + BitAndAssign<T>,
 {
     fn bitand_assign(&mut self, rhs: Self) {
@@ -1436,7 +1436,7 @@ where
 
 impl<T, const BITS: usize> BitOr for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + BitOr<T, Output = T>,
 {
     type Output = Self;
@@ -1449,7 +1449,7 @@ where
 
 impl<T, const BITS: usize> BitOrAssign for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + BitOrAssign<T>,
 {
     fn bitor_assign(&mut self, rhs: Self) {
@@ -1459,7 +1459,7 @@ where
 
 impl<T, const BITS: usize> BitXor for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + BitXor<T, Output = T>,
 {
     type Output = Self;
@@ -1472,7 +1472,7 @@ where
 
 impl<T, const BITS: usize> BitXorAssign for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + BitXorAssign<T>,
 {
     fn bitxor_assign(&mut self, rhs: Self) {
@@ -1482,7 +1482,7 @@ where
 
 impl<T, const BITS: usize> Not for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: PartialEq + Copy + Not<Output = T>,
 {
     type Output = Self;
@@ -1495,7 +1495,7 @@ where
 
 impl<T, TSHIFTBITS, const BITS: usize> Shl<TSHIFTBITS> for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: Copy + Shl<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
     TSHIFTBITS: TryInto<usize> + Copy,
 {
@@ -1518,7 +1518,7 @@ where
 
 impl<T, TSHIFTBITS, const BITS: usize> ShlAssign<TSHIFTBITS> for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: Copy + Shl<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
     TSHIFTBITS: TryInto<usize> + Copy,
 {
@@ -1530,7 +1530,7 @@ where
 
 impl<T, TSHIFTBITS, const BITS: usize> Shr<TSHIFTBITS> for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: Copy + Shr<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
     TSHIFTBITS: TryInto<usize> + Copy,
 {
@@ -1554,7 +1554,7 @@ where
 
 impl<T, TSHIFTBITS, const BITS: usize> ShrAssign<TSHIFTBITS> for Int<T, BITS>
 where
-    Self: Number,
+    Self: Integer,
     T: Copy + Shr<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
     TSHIFTBITS: TryInto<usize> + Copy,
 {
@@ -1644,7 +1644,7 @@ where
 #[cfg(feature = "serde")]
 struct InvalidIntValueError<T>
 where
-    T: Number,
+    T: Integer,
     T::UnderlyingType: fmt::Display,
 {
     value: T::UnderlyingType,
@@ -1653,7 +1653,7 @@ where
 #[cfg(feature = "serde")]
 impl<T> fmt::Display for InvalidIntValueError<T>
 where
-    T: Number,
+    T: Integer,
     T::UnderlyingType: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1680,7 +1680,7 @@ where
 #[cfg(feature = "serde")]
 impl<'de, T, const BITS: usize> serde::Deserialize<'de> for Int<T, BITS>
 where
-    Self: Number<UnderlyingType = T>,
+    Self: Integer<UnderlyingType = T>,
     T: fmt::Display + PartialOrd + serde::Deserialize<'de>,
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
