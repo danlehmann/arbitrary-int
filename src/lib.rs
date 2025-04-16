@@ -13,17 +13,12 @@ use core::fmt;
 mod common;
 mod signed;
 mod unsigned;
+mod v1_number_compat;
 
 pub use common::Integer;
 pub use signed::*;
 pub use unsigned::*;
-
-/// Compatibility with arbitrary-int 1.x, which didn't support signed integers.
-///
-/// Going forward, use [`UnsignedInteger`] (to allow only unsigned integers) or [`Integer`] (to
-/// support either signed or unsigned)
-#[deprecated(since = "2.0", note = "Use [`UnsignedInteger`] or [`Integer`] instead")]
-pub trait Number: UnsignedInteger {}
+pub use v1_number_compat::*;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TryNewError;
