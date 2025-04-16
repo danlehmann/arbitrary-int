@@ -166,6 +166,10 @@ macro_rules! uint_impl_num {
     // This macro will be invoked with `u8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
+            impl<const BITS: usize> $($const_keyword)? UnsignedInteger for UInt<$type, BITS> {
+
+            }
+
             impl<const BITS: usize> $($const_keyword)? Integer for UInt<$type, BITS> {
                 type UnderlyingType = $type;
 
