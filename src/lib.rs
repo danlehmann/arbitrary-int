@@ -15,15 +15,16 @@ mod signed;
 mod unsigned;
 mod v1_number_compat;
 
-pub use common::Integer;
 pub use signed::*;
 pub use unsigned::*;
 pub use v1_number_compat::*;
 
+/// The preferred way to import arbitrary-int into a project: `use arbitrary_int::prelude::*`
 pub mod prelude {
     pub use crate::common::Integer;
     pub use crate::signed::*;
     pub use crate::unsigned::*;
+    pub use crate::TryNewError;
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]

@@ -6,7 +6,7 @@
 
 extern crate core;
 
-use arbitrary_int::*;
+use arbitrary_int::prelude::*;
 use std::collections::HashMap;
 #[cfg(feature = "step_trait")]
 use std::iter::Step;
@@ -3462,7 +3462,7 @@ fn serde_signed() {
 
 #[cfg(feature = "borsh")]
 mod borsh_tests {
-    use arbitrary_int::{u1, u14, u15, u6, u63, u65, u7, u72, u79, u80, u81, u9, Integer, UInt};
+    use arbitrary_int::prelude::*;
     use borsh::schema::BorshSchemaContainer;
     use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
     use std::fmt::Debug;

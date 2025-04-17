@@ -23,6 +23,8 @@ pub(crate) const fn const_byte_copy<
     }
 }
 
+/// The base trait for integer numbers, either built-in (u8, i8, u16, i16, u32, i32, u64, i64,
+/// u128, i128) or arbitrary-int (u1, i1, u7, i7 etc.).
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
 pub trait Integer: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
     type UnderlyingType: Integer

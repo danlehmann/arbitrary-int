@@ -12,6 +12,8 @@ use core::{
     },
 };
 
+/// The base trait for all signed numbers, either built-in (i8, i16, i32, i64, i128) or
+/// arbitrary-int (i1, i7 etc.).
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
 pub trait SignedInteger: Integer {}
 
@@ -485,7 +487,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i14::new(100).wrapping_add(i14::new(27)), i14::new(127));
                 /// assert_eq!(i14::MAX.wrapping_add(i14::new(2)), i14::MIN + i14::new(1));
                 /// ```
@@ -506,7 +508,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i14::new(0).wrapping_sub(i14::new(127)), i14::new(-127));
                 /// assert_eq!(i14::new(-2).wrapping_sub(i14::MAX), i14::MAX);
                 /// ```
@@ -527,7 +529,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::i14;
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i14::new(10).wrapping_mul(i14::new(12)), i14::new(120));
                 /// assert_eq!(i14::new(12).wrapping_mul(i14::new(1024)), i14::new(-4096));
                 /// ```
@@ -557,7 +559,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i14::new(100).wrapping_div(i14::new(10)), i14::new(10));
                 /// assert_eq!(i14::MIN.wrapping_div(i14::new(-1)), i14::MIN);
                 /// ```
@@ -583,7 +585,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i14::new(100).wrapping_neg(), i14::new(-100));
                 /// assert_eq!(i14::new(-100).wrapping_neg(), i14::new(100));
                 /// assert_eq!(i14::MIN.wrapping_neg(), i14::MIN);
@@ -609,7 +611,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::i14;
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i14::new(-1).wrapping_shl(7), i14::new(-128));
                 /// assert_eq!(i14::new(-1).wrapping_shl(128), i14::new(-4));
                 /// ```
@@ -646,7 +648,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::i14;
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i14::new(-128).wrapping_shr(7), i14::new(-1));
                 /// assert_eq!(i14::new(-128).wrapping_shr(60), i14::new(-8));
                 /// ```
@@ -673,7 +675,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i14::new(100).saturating_add(i14::new(1)), i14::new(101));
                 /// assert_eq!(i14::MAX.saturating_add(i14::new(100)), i14::MAX);
                 /// assert_eq!(i14::MIN.saturating_add(i14::new(-1)), i14::MIN);
@@ -709,7 +711,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i14::new(100).saturating_sub(i14::new(127)), i14::new(-27));
                 /// assert_eq!(i14::MIN.saturating_sub(i14::new(100)), i14::MIN);
                 /// assert_eq!(i14::MAX.saturating_sub(i14::new(-1)), i14::MAX);
@@ -745,7 +747,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i14::new(10).saturating_mul(i14::new(12)), i14::new(120));
                 /// assert_eq!(i14::MAX.saturating_mul(i14::new(10)), i14::MAX);
                 /// assert_eq!(i14::MIN.saturating_mul(i14::new(10)), i14::MIN);
@@ -783,7 +785,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i14::new(5).saturating_div(i14::new(2)), i14::new(2));
                 /// assert_eq!(i14::MAX.saturating_div(i14::new(-1)), i14::MIN + i14::new(1));
                 /// assert_eq!(i14::MIN.saturating_div(i14::new(-1)), i14::MAX);
@@ -811,7 +813,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i14::new(100).saturating_neg(), i14::new(-100));
                 /// assert_eq!(i14::new(-100).saturating_neg(), i14::new(100));
                 /// assert_eq!(i14::MIN.saturating_neg(), i14::MAX);
@@ -837,7 +839,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i14::new(-4).saturating_pow(3), i14::new(-64));
                 /// assert_eq!(i14::MIN.saturating_pow(2), i14::MAX);
                 /// assert_eq!(i14::MIN.saturating_pow(3), i14::MIN);
@@ -865,7 +867,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!((i14::MAX - i14::new(2)).checked_add(i14::new(1)), Some(i14::MAX - i14::new(1)));
                 /// assert_eq!((i14::MAX - i14::new(2)).checked_add(i14::new(3)), None);
                 /// ```
@@ -899,7 +901,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!((i14::MIN + i14::new(2)).checked_sub(i14::new(1)), Some(i14::MIN + i14::new(1)));
                 /// assert_eq!((i14::MIN + i14::new(2)).checked_sub(i14::new(3)), None);
                 /// ```
@@ -933,7 +935,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i14::MAX.checked_mul(i14::new(1)), Some(i14::MAX));
                 /// assert_eq!(i14::MAX.checked_mul(i14::new(2)), None);
                 /// ```
@@ -965,7 +967,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!((i14::MIN + i14::new(1)).checked_div(i14::new(-1)), Some(i14::new(8191)));
                 /// assert_eq!(i14::MIN.checked_div(i14::new(-1)), None);
                 /// assert_eq!((i14::new(1)).checked_div(i14::new(0)), None);
@@ -989,7 +991,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i14, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i14::new(5).checked_neg(), Some(i14::new(-5)));
                 /// assert_eq!(i14::MIN.checked_neg(), None);
                 /// ```
@@ -1092,7 +1094,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::i6;
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i6::from_bits(0b10_1010).reverse_bits(), i6::from_bits(0b01_0101));
                 /// assert_eq!(i6::new(0), i6::new(0).reverse_bits());
                 /// ```
@@ -1110,7 +1112,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::i6;
+                /// # use arbitrary_int::prelude::*;
                 /// let n = i6::from_bits(0b00_1000);
                 /// assert_eq!(n.count_ones(), 1);
                 /// ```
@@ -1127,7 +1129,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::{i6, Integer};
+                /// # use arbitrary_int::prelude::*;
                 /// assert_eq!(i6::MAX.count_zeros(), 1);
                 /// ```
                 #[inline]
@@ -1145,7 +1147,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::i6;
+                /// # use arbitrary_int::prelude::*;
                 /// let n = i6::new(-1);
                 /// assert_eq!(n.leading_ones(), 6);
                 /// ```
@@ -1161,7 +1163,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::i6;
+                /// # use arbitrary_int::prelude::*;
                 /// let n = i6::new(-1);
                 /// assert_eq!(n.leading_zeros(), 0);
                 /// ```
@@ -1184,7 +1186,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::i6;
+                /// # use arbitrary_int::prelude::*;
                 /// let n = i6::new(3);
                 /// assert_eq!(n.trailing_ones(), 2);
                 /// ```
@@ -1202,7 +1204,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::i6;
+                /// # use arbitrary_int::prelude::*;
                 /// let n = i6::new(-4);
                 /// assert_eq!(n.trailing_zeros(), 2);
                 /// ```
@@ -1223,7 +1225,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::i6;
+                /// # use arbitrary_int::prelude::*;
                 /// let n = i6::from_bits(0b10_1010);
                 /// let m = i6::from_bits(0b01_0101);
                 ///
@@ -1252,7 +1254,7 @@ macro_rules! int_impl {
                 /// Basic usage:
                 ///
                 #[doc = concat!(" ```", $doctest_attr)]
-                /// # use arbitrary_int::i6;
+                /// # use arbitrary_int::prelude::*;
                 /// let n = i6::from_bits(0b10_1010);
                 /// let m = i6::from_bits(0b01_0101);
                 ///
