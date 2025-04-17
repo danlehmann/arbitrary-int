@@ -14,7 +14,6 @@ use core::fmt::Debug;
     since = "2.0",
     note = "Use [`UnsignedInteger`] or [`Integer`] instead. Suggested to import via `use arbitrary_int::prelude::*`."
 )]
-#[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
 pub trait Number: UnsignedInteger<UnderlyingType = <Self as Number>::UnderlyingType> {
     type UnderlyingType: Integer
         + Debug

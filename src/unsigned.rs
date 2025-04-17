@@ -35,7 +35,7 @@ macro_rules! impl_integer_native {
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
             #[allow(deprecated)]
-            impl $($const_keyword)? super::Number for $type {
+            impl super::Number for $type {
                 type UnderlyingType = $type;
             }
 
@@ -174,7 +174,7 @@ macro_rules! uint_impl_num {
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
             #[allow(deprecated)]
-            impl<const BITS: usize> $($const_keyword)? super::Number for UInt<$type, BITS> {
+            impl<const BITS: usize> super::Number for UInt<$type, BITS> {
                 type UnderlyingType = $type;
             }
 
