@@ -10,7 +10,7 @@ extern crate alloc;
 
 use core::fmt;
 
-mod common;
+pub mod common;
 mod signed;
 mod unsigned;
 mod v1_number_compat;
