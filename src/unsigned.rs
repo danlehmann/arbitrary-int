@@ -1,7 +1,7 @@
 use crate::common::{
     bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
 };
-use crate::traits::{Integer, UnsignedInteger};
+use crate::traits::{Integer, UnsignedInteger, sealed::Sealed};
 use crate::TryNewError;
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
 #[cfg(feature = "step_trait")]
@@ -34,6 +34,8 @@ macro_rules! impl_integer_native {
             impl crate::v1_number_compat::Number for $type {
                 type UnderlyingType = $type;
             }
+
+            impl $($const_keyword)? Sealed for $type {}
 
             impl $($const_keyword)? UnsignedInteger for $type {}
 
@@ -172,9 +174,9 @@ macro_rules! uint_impl_num {
                 type UnderlyingType = $type;
             }
 
-            impl<const BITS: usize> $($const_keyword)? UnsignedInteger for UInt<$type, BITS> {
+            impl<const BITS: usize> $($const_keyword)? Sealed for UInt<$type, BITS> {}
 
-            }
+            impl<const BITS: usize> $($const_keyword)? UnsignedInteger for UInt<$type, BITS> {}
 
             impl<const BITS: usize> $($const_keyword)? Integer for UInt<$type, BITS> {
                 type UnderlyingType = $type;

@@ -1,5 +1,5 @@
 use crate::{
-    traits::{Integer, SignedInteger},
+    traits::{Integer, SignedInteger, sealed::Sealed},
     common::{
         bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
     },
@@ -18,6 +18,8 @@ macro_rules! impl_signed_integer_native {
     // This macro will be invoked with `i8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
+            impl $($const_keyword)? Sealed for $type {}
+
             impl $($const_keyword)? SignedInteger for $type {}
 
             impl $($const_keyword)? Integer for $type {
@@ -150,9 +152,9 @@ macro_rules! int_impl_num {
     // This macro will be invoked with `i8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
-            impl<const BITS: usize> $($const_keyword)? SignedInteger for Int<$type, BITS> {
+            impl<const BITS: usize> $($const_keyword)? Sealed for Int<$type, BITS> {}
 
-            }
+            impl<const BITS: usize> $($const_keyword)? SignedInteger for Int<$type, BITS> {}
 
             impl<const BITS: usize> $($const_keyword)? Integer for Int<$type, BITS> {
                 type UnderlyingType = $type;
