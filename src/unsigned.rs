@@ -1,6 +1,7 @@
 use crate::common::{
-    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, Integer,
+    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
 };
+use crate::traits::{Integer, UnsignedInteger};
 use crate::TryNewError;
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
 #[cfg(feature = "step_trait")]
@@ -23,11 +24,6 @@ use std::{collections::BTreeMap, string::ToString};
 
 #[cfg(feature = "schemars")]
 use schemars::JsonSchema;
-
-/// The base trait for all unsigned numbers, either built-in (u8, u16, u32, u64, u128) or
-/// arbitrary-int (u1, u7 etc.).
-#[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
-pub trait UnsignedInteger: Integer {}
 
 macro_rules! impl_integer_native {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
@@ -82,40 +78,40 @@ macro_rules! impl_integer_native {
                 }
 
                 #[inline]
-                fn as_u8(&self) -> u8 { *self as u8 }
+                fn as_u8(self) -> u8 { self as u8 }
 
                 #[inline]
-                fn as_u16(&self) -> u16 { *self as u16 }
+                fn as_u16(self) -> u16 { self as u16 }
 
                 #[inline]
-                fn as_u32(&self) -> u32 { *self as u32 }
+                fn as_u32(self) -> u32 { self as u32 }
 
                 #[inline]
-                fn as_u64(&self) -> u64 { *self as u64 }
+                fn as_u64(self) -> u64 { self as u64 }
 
                 #[inline]
-                fn as_u128(&self) -> u128 { *self as u128 }
+                fn as_u128(self) -> u128 { self as u128 }
 
                 #[inline]
-                fn as_usize(&self) -> usize { *self as usize }
+                fn as_usize(self) -> usize { self as usize }
 
                 #[inline]
-                fn as_i8(&self) -> i8 { *self as i8 }
+                fn as_i8(self) -> i8 { self as i8 }
 
                 #[inline]
-                fn as_i16(&self) -> i16 { *self as i16 }
+                fn as_i16(self) -> i16 { self as i16 }
 
                 #[inline]
-                fn as_i32(&self) -> i32 { *self as i32 }
+                fn as_i32(self) -> i32 { self as i32 }
 
                 #[inline]
-                fn as_i64(&self) -> i64 { *self as i64 }
+                fn as_i64(self) -> i64 { self as i64 }
 
                 #[inline]
-                fn as_i128(&self) -> i128 { *self as i128 }
+                fn as_i128(self) -> i128 { self as i128 }
 
                 #[inline]
-                fn as_isize(&self) -> isize { *self as isize }
+                fn as_isize(self) -> isize { self as isize }
             }
         )+
     };
@@ -227,51 +223,51 @@ macro_rules! uint_impl_num {
                     }
                 }
 
-                fn as_u8(&self) -> u8 {
+                fn as_u8(self) -> u8 {
                     self.value() as _
                 }
 
-                fn as_u16(&self) -> u16 {
+                fn as_u16(self) -> u16 {
                     self.value() as _
                 }
 
-                fn as_u32(&self) -> u32 {
+                fn as_u32(self) -> u32 {
                     self.value() as _
                 }
 
-                fn as_u64(&self) -> u64 {
+                fn as_u64(self) -> u64 {
                     self.value() as _
                 }
 
-                fn as_u128(&self) -> u128 {
+                fn as_u128(self) -> u128 {
                     self.value() as _
                 }
 
-                fn as_usize(&self) -> usize {
+                fn as_usize(self) -> usize {
                     self.value() as _
                 }
 
-                fn as_i8(&self) -> i8 {
+                fn as_i8(self) -> i8 {
                     self.value() as _
                 }
 
-                fn as_i16(&self) -> i16 {
+                fn as_i16(self) -> i16 {
                     self.value() as _
                 }
 
-                fn as_i32(&self) -> i32 {
+                fn as_i32(self) -> i32 {
                     self.value() as _
                 }
 
-                fn as_i64(&self) -> i64 {
+                fn as_i64(self) -> i64 {
                     self.value() as _
                 }
 
-                fn as_i128(&self) -> i128 {
+                fn as_i128(self) -> i128 {
                     self.value() as _
                 }
 
-                fn as_isize(&self) -> isize {
+                fn as_isize(self) -> isize {
                     self.value() as _
                 }
 

@@ -1,8 +1,5 @@
 //! This module contains the functionality that can be shared between [`crate::Int`] and [`crate::UInt`]
 
-use crate::TryNewError;
-use core::fmt::Debug;
-
 /// Copies LEN bytes from `from[FROM_OFFSET]` to `to[TO_OFFSET]`.
 ///
 /// Usable in const contexts and inlines for small arrays.
@@ -20,77 +17,6 @@ pub(crate) const fn const_byte_copy<
     while i < LEN {
         to[TO_OFFSET + i] = from[FROM_OFFSET + i];
         i += 1;
-    }
-}
-
-/// The base trait for integer numbers, either built-in (u8, i8, u16, i16, u32, i32, u64, i64,
-/// u128, i128) or arbitrary-int (u1, i1, u7, i7 etc.).
-#[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
-pub trait Integer: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq {
-    type UnderlyingType: Integer
-        + Debug
-        + TryFrom<u8>
-        + TryFrom<u16>
-        + TryFrom<u32>
-        + TryFrom<u64>
-        + TryFrom<u128>;
-
-    /// Number of bits that can fit in this type
-    const BITS: usize;
-
-    /// Minimum value that can be represented by this type
-    const MIN: Self;
-
-    /// Maximum value that can be represented by this type
-    const MAX: Self;
-
-    /// Creates a number from the given value, throwing an error if the value is too large.
-    /// This constructor is useful when creating a value from a literal.
-    fn new(value: Self::UnderlyingType) -> Self;
-
-    /// Creates a number from the given value, return None if the value is too large
-    fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError>;
-
-    fn value(self) -> Self::UnderlyingType;
-
-    /// Creates a number from the given value, throwing an error if the value is too large.
-    /// This constructor is useful when the value is convertible to T. Use [`Self::new`] for literals.
-    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-    fn from_<T: Integer>(value: T) -> Self;
-
-    /// Creates an instance from the given `value`. Unlike the various `new...` functions, this
-    /// will never fail as the value is masked to the result size.
-    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-    fn masked_new<T: Integer>(value: T) -> Self;
-
-    fn as_u8(&self) -> u8;
-
-    fn as_u16(&self) -> u16;
-
-    fn as_u32(&self) -> u32;
-
-    fn as_u64(&self) -> u64;
-
-    fn as_u128(&self) -> u128;
-
-    fn as_usize(&self) -> usize;
-
-    fn as_i8(&self) -> i8;
-
-    fn as_i16(&self) -> i16;
-
-    fn as_i32(&self) -> i32;
-
-    fn as_i64(&self) -> i64;
-
-    fn as_i128(&self) -> i128;
-
-    fn as_isize(&self) -> isize;
-
-    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-    #[inline]
-    fn as_<T: Integer>(self) -> T {
-        T::masked_new(self)
     }
 }
 
@@ -220,21 +146,21 @@ macro_rules! bytes_operation_impl {
         impl $target {
             /// Reverses the byte order of the integer.
             #[inline]
-            pub const fn swap_bytes(&self) -> Self {
+            pub const fn swap_bytes(self) -> Self {
                 // swap_bytes() of the underlying type does most of the work. Then, we just need to shift
                 Self {
                     value: self.value.swap_bytes() >> Self::UNUSED_BITS,
                 }
             }
 
-            pub const fn to_le_bytes(&self) -> [u8; Self::BITS >> 3] {
+            pub const fn to_le_bytes(self) -> [u8; Self::BITS >> 3] {
                 let mut result = [0_u8; Self::BITS >> 3];
                 let be = self.value.to_le_bytes();
                 crate::common::const_byte_copy::<{ Self::BITS >> 3 }, 0, 0>(&mut result, &be);
                 result
             }
 
-            pub const fn to_be_bytes(&self) -> [u8; Self::BITS >> 3] {
+            pub const fn to_be_bytes(self) -> [u8; Self::BITS >> 3] {
                 let mut result = [0_u8; Self::BITS >> 3];
                 let be = self.value.to_be_bytes();
                 crate::common::const_byte_copy::<{ Self::BITS >> 3 }, 0, { Self::UNUSED_BITS >> 3 }>(
@@ -263,7 +189,7 @@ macro_rules! bytes_operation_impl {
             }
 
             #[inline]
-            pub const fn to_ne_bytes(&self) -> [u8; Self::BITS >> 3] {
+            pub const fn to_ne_bytes(self) -> [u8; Self::BITS >> 3] {
                 #[cfg(target_endian = "little")]
                 {
                     self.to_le_bytes()
