@@ -18,9 +18,7 @@ macro_rules! impl_signed_integer_native {
     // This macro will be invoked with `i8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
-            impl $($const_keyword)? SignedInteger for $type {
-
-            }
+            impl $($const_keyword)? SignedInteger for $type {}
 
             impl $($const_keyword)? Integer for $type {
                 type UnderlyingType = $type;

@@ -12,9 +12,9 @@ use core::fmt;
 
 mod common;
 mod signed;
+pub mod traits;
 mod unsigned;
 mod v1_number_compat;
-pub mod traits;
 
 pub use signed::*;
 pub use unsigned::*;
@@ -22,8 +22,8 @@ pub use v1_number_compat::*;
 
 /// The preferred way to import arbitrary-int into a project: `use arbitrary_int::prelude::*`
 pub mod prelude {
-    pub use crate::traits::*;
     pub use crate::signed::*;
+    pub use crate::traits::*;
     pub use crate::unsigned::*;
     pub use crate::TryNewError;
 }

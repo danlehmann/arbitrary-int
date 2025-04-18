@@ -31,13 +31,11 @@ macro_rules! impl_integer_native {
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
             #[allow(deprecated)]
-            impl super::Number for $type {
+            impl crate::v1_number_compat::Number for $type {
                 type UnderlyingType = $type;
             }
 
-            impl $($const_keyword)? UnsignedInteger for $type {
-
-            }
+            impl $($const_keyword)? UnsignedInteger for $type {}
 
             impl $($const_keyword)? Integer for $type {
                 type UnderlyingType = $type;
@@ -170,7 +168,7 @@ macro_rules! uint_impl_num {
     ($($type:ident $(as $const_keyword:ident)?),+) => {
         $(
             #[allow(deprecated)]
-            impl<const BITS: usize> super::Number for UInt<$type, BITS> {
+            impl<const BITS: usize> crate::v1_number_compat::Number for UInt<$type, BITS> {
                 type UnderlyingType = $type;
             }
 
