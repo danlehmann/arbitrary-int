@@ -1,4 +1,4 @@
-//! This module contains the few bits of functionality that can be shared between Int's and UInt's.
+//! This module contains the functionality that can be shared between [`crate::Int`] and [`crate::UInt`]
 
 /// Copies LEN bytes from `from[FROM_OFFSET]` to `to[TO_OFFSET]`.
 ///
@@ -146,21 +146,21 @@ macro_rules! bytes_operation_impl {
         impl $target {
             /// Reverses the byte order of the integer.
             #[inline]
-            pub const fn swap_bytes(&self) -> Self {
+            pub const fn swap_bytes(self) -> Self {
                 // swap_bytes() of the underlying type does most of the work. Then, we just need to shift
                 Self {
                     value: self.value.swap_bytes() >> Self::UNUSED_BITS,
                 }
             }
 
-            pub const fn to_le_bytes(&self) -> [u8; Self::BITS >> 3] {
+            pub const fn to_le_bytes(self) -> [u8; Self::BITS >> 3] {
                 let mut result = [0_u8; Self::BITS >> 3];
                 let be = self.value.to_le_bytes();
                 crate::common::const_byte_copy::<{ Self::BITS >> 3 }, 0, 0>(&mut result, &be);
                 result
             }
 
-            pub const fn to_be_bytes(&self) -> [u8; Self::BITS >> 3] {
+            pub const fn to_be_bytes(self) -> [u8; Self::BITS >> 3] {
                 let mut result = [0_u8; Self::BITS >> 3];
                 let be = self.value.to_be_bytes();
                 crate::common::const_byte_copy::<{ Self::BITS >> 3 }, 0, { Self::UNUSED_BITS >> 3 }>(
@@ -189,7 +189,7 @@ macro_rules! bytes_operation_impl {
             }
 
             #[inline]
-            pub const fn to_ne_bytes(&self) -> [u8; Self::BITS >> 3] {
+            pub const fn to_ne_bytes(self) -> [u8; Self::BITS >> 3] {
                 #[cfg(target_endian = "little")]
                 {
                     self.to_le_bytes()

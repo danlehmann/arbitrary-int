@@ -6,7 +6,7 @@
 
 extern crate core;
 
-use arbitrary_int::*;
+use arbitrary_int::prelude::*;
 use std::collections::HashMap;
 #[cfg(feature = "step_trait")]
 use std::iter::Step;
@@ -1264,15 +1264,15 @@ fn from_same_bit_widths() {
 #[cfg(feature = "num-traits")]
 #[test]
 fn calculation_with_number_trait() {
-    fn increment_by_1<T: num_traits::WrappingAdd + Number>(foo: T) -> T {
-        foo.wrapping_add(&T::new(1.into()))
+    fn increment_by_1<T: num_traits::WrappingAdd + Integer>(foo: T) -> T {
+        foo.wrapping_add(&T::from_(1u8))
     }
 
-    fn increment_by_512<T: num_traits::WrappingAdd + Number>(
+    fn increment_by_512<T: num_traits::WrappingAdd + Integer>(
         foo: T,
-    ) -> Result<T, <<T as Number>::UnderlyingType as TryFrom<u32>>::Error>
+    ) -> Result<T, <<T as Integer>::UnderlyingType as TryFrom<u32>>::Error>
     where
-        <<T as Number>::UnderlyingType as TryFrom<u32>>::Error: core::fmt::Debug,
+        <<T as Integer>::UnderlyingType as TryFrom<u32>>::Error: core::fmt::Debug,
     {
         Ok(foo.wrapping_add(&T::new(512u32.try_into()?)))
     }
@@ -3462,12 +3462,12 @@ fn serde_signed() {
 
 #[cfg(feature = "borsh")]
 mod borsh_tests {
-    use arbitrary_int::{u1, u14, u15, u6, u63, u65, u7, u72, u79, u80, u81, u9, Number, UInt};
+    use arbitrary_int::prelude::*;
     use borsh::schema::BorshSchemaContainer;
     use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
     use std::fmt::Debug;
 
-    fn test_roundtrip<T: Number + BorshSerialize + BorshDeserialize + PartialEq + Eq + Debug>(
+    fn test_roundtrip<T: Integer + BorshSerialize + BorshDeserialize + PartialEq + Eq + Debug>(
         input: T,
         expected_buffer: &[u8],
     ) {
@@ -3716,35 +3716,35 @@ fn as_flexible() {
 #[cfg(feature = "const_convert_and_const_trait_impl")]
 #[test]
 pub fn const_constructors_unsigned() {
-    const IN_BETWEEN: u4 = <u4 as Number>::new(5);
+    const IN_BETWEEN: u4 = <u4 as Integer>::new(5);
     assert_eq!(IN_BETWEEN.value(), 5);
 
-    const MAX: u4 = <u4 as Number>::new(15);
+    const MAX: u4 = <u4 as Integer>::new(15);
     assert_eq!(MAX.value(), 15);
 
-    const MIN: u4 = <u4 as Number>::new(0);
+    const MIN: u4 = <u4 as Integer>::new(0);
     assert_eq!(MIN.value(), 0);
 
-    const TOO_BIG: Result<u4, TryNewError> = <u4 as Number>::try_new(16);
+    const TOO_BIG: Result<u4, TryNewError> = <u4 as Integer>::try_new(16);
     assert!(TOO_BIG.is_err());
 }
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
 #[test]
 pub fn const_constructors_signed() {
-    const IN_BETWEEN: i4 = <i4 as SignedNumber>::new(4);
+    const IN_BETWEEN: i4 = <i4 as Integer>::new(4);
     assert_eq!(IN_BETWEEN.value(), 4);
 
-    const MAX: i4 = <i4 as SignedNumber>::new(7);
+    const MAX: i4 = <i4 as Integer>::new(7);
     assert_eq!(MAX.value(), 7);
 
-    const MIN: i4 = <i4 as SignedNumber>::new(-8);
+    const MIN: i4 = <i4 as Integer>::new(-8);
     assert_eq!(MIN.value(), -8);
 
-    const TOO_BIG: Result<i4, TryNewError> = <i4 as SignedNumber>::try_new(8);
+    const TOO_BIG: Result<i4, TryNewError> = <i4 as Integer>::try_new(8);
     assert!(TOO_BIG.is_err());
 
-    const TOO_SMALL: Result<i4, TryNewError> = <i4 as SignedNumber>::try_new(-9);
+    const TOO_SMALL: Result<i4, TryNewError> = <i4 as Integer>::try_new(-9);
     assert!(TOO_SMALL.is_err());
 }
 
