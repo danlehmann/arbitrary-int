@@ -1,11 +1,10 @@
-use ::arbitrary::{unstructured, Arbitrary, Result, Unstructured};
-
-use super::*;
+use crate::prelude::*;
+use arbitrary::{unstructured, Arbitrary, Result, Unstructured};
 
 impl<'a, T, const BITS: usize> Arbitrary<'a> for UInt<T, BITS>
 where
     T: unstructured::Int,
-    Self: Number<UnderlyingType = T>,
+    Self: UnsignedInteger<UnderlyingType = T>,
 {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         u.int_in_range(Self::MIN.value()..=Self::MAX.value())
@@ -16,7 +15,7 @@ where
 impl<'a, T, const BITS: usize> Arbitrary<'a> for Int<T, BITS>
 where
     T: unstructured::Int,
-    Self: SignedNumber<UnderlyingType = T>,
+    Self: SignedInteger<UnderlyingType = T>,
 {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         u.int_in_range(Self::MIN.value()..=Self::MAX.value())
