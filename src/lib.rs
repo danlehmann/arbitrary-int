@@ -28,6 +28,12 @@ pub mod prelude {
     pub use crate::TryNewError;
 }
 
+#[cfg(feature = "arbitrary")]
+mod arbitrary;
+
+#[cfg(feature = "quickcheck")]
+mod quickcheck;
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TryNewError;
 

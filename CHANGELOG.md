@@ -13,10 +13,12 @@
 - prelude: `use arbitrary-int::prelude::*` to get everything (except for the deprecated Number trait).
 - Various new extract functions: `extract_i8`, `extract_i16`, ..., `extract_i128`. These are the same as the
   equivalent `extract_u<N>` functions, but work with signed integers instead.
+- Add `quickcheck` and `arbitrary` support
 
 ### Fixed
 
 - `leading_zeros` and `trailing_zeros` now report the correct number of bits when a value of `MIN` is passed.
+
 
 ## arbitrary-int 1.3.0
 
