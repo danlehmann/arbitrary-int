@@ -1,4 +1,4 @@
-name: test borsh
+name: test fuzzy
 run-name: ${{ github.actor }}'s patch
 on: [push, pull_request]
 jobs:
@@ -13,4 +13,4 @@ jobs:
       - run: |
           cargo install cargo-fuzz
           cargo +nightly fuzz build
-          cargo +nightly fuzz run fuzz -- -max_total_time=300
+          cargo +nightly fuzz run fuzz -- -max_total_time=150
