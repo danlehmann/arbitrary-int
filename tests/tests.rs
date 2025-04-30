@@ -3298,49 +3298,53 @@ fn rotate_right_signed() {
 
 #[cfg(feature = "step_trait")]
 #[test]
-fn range_agrees_with_underlying() {
-    compare_range_32(u19::MIN, u19::MAX);
-    compare_range_64(u37::new(95_993), u37::new(1_994_910));
-    compare_range_128(u68::new(58_858_348), u68::new(58_860_000));
-    compare_range_128(u122::new(111_222_333_444), u122::new(111_222_444_555));
-    compare_range_32(u23::MIN, u23::MAX);
-    compare_range_64(u48::new(999_444), u48::new(1_005_000));
-    compare_range_128(u99::new(12345), u99::new(54321));
-
-    // with the `hint` feature enabled, ::value only exist with primitive types, not on all
-    // implementations. This makes some copy & paste necessary here.
-    fn compare_range_32<const BITS: usize>(arb_start: UInt<u32, BITS>, arb_end: UInt<u32, BITS>)
+fn range_agrees_with_underlying_unsigned() {
+    fn compare_range<T, const BITS: usize>(arb_start: UInt<T, BITS>, arb_end: UInt<T, BITS>)
     where
-        UInt<u32, BITS>: Step,
+        UInt<T, BITS>: Step + Integer,
+        <UInt<T, BITS> as Integer>::UnderlyingType: Step,
     {
-        let arbint_range = (arb_start..=arb_end).map(UInt::<u32, BITS>::value);
+        let arbint_range = (arb_start..=arb_end).map(UInt::<T, BITS>::value);
         let underlying_range = arb_start.value()..=arb_end.value();
 
         assert!(arbint_range.eq(underlying_range));
     }
-    fn compare_range_64<const BITS: usize>(arb_start: UInt<u64, BITS>, arb_end: UInt<u64, BITS>)
-    where
-        UInt<u64, BITS>: Step,
-    {
-        let arbint_range = (arb_start..=arb_end).map(UInt::<u64, BITS>::value);
-        let underlying_range = arb_start.value()..=arb_end.value();
 
-        assert!(arbint_range.eq(underlying_range));
-    }
-    fn compare_range_128<const BITS: usize>(arb_start: UInt<u128, BITS>, arb_end: UInt<u128, BITS>)
-    where
-        UInt<u128, BITS>: Step,
-    {
-        let arbint_range = (arb_start..=arb_end).map(UInt::<u128, BITS>::value);
-        let underlying_range = arb_start.value()..=arb_end.value();
-
-        assert!(arbint_range.eq(underlying_range));
-    }
+    compare_range(u19::MIN, u19::MAX);
+    compare_range(u37::new(95_993), u37::new(1_994_910));
+    compare_range(u68::new(58_858_348), u68::new(58_860_000));
+    compare_range(u122::new(111_222_333_444), u122::new(111_222_444_555));
+    compare_range(u23::MIN, u23::MAX);
+    compare_range(u48::new(999_444), u48::new(1_005_000));
+    compare_range(u99::new(12345), u99::new(54321));
 }
 
 #[cfg(feature = "step_trait")]
 #[test]
-fn forward_checked() {
+fn range_agrees_with_underlying_signed() {
+    fn compare_range<T, const BITS: usize>(arb_start: Int<T, BITS>, arb_end: Int<T, BITS>)
+    where
+        Int<T, BITS>: Step + Integer,
+        <Int<T, BITS> as Integer>::UnderlyingType: Step,
+    {
+        let arbint_range = (arb_start..=arb_end).map(Int::<T, BITS>::value);
+        let underlying_range = arb_start.value()..=arb_end.value();
+
+        assert!(arbint_range.eq(underlying_range));
+    }
+
+    compare_range(i19::MIN, i19::MAX);
+    compare_range(i37::new(95_993), i37::new(1_994_910));
+    compare_range(i68::new(58_858_348), i68::new(58_860_000));
+    compare_range(i122::new(111_222_333_444), i122::new(111_222_444_555));
+    compare_range(i23::MIN, i23::MAX);
+    compare_range(i48::new(999_444), i48::new(1_005_000));
+    compare_range(i99::new(12345), i99::new(54321));
+}
+
+#[cfg(feature = "step_trait")]
+#[test]
+fn forward_checked_unsigned() {
     // In range
     assert_eq!(Some(u7::new(121)), Step::forward_checked(u7::new(120), 1));
     assert_eq!(Some(u7::new(127)), Step::forward_checked(u7::new(120), 7));
@@ -3354,7 +3358,23 @@ fn forward_checked() {
 
 #[cfg(feature = "step_trait")]
 #[test]
-fn backward_checked() {
+fn forward_checked_signed() {
+    // In range
+    assert_eq!(Some(i7::new(61)), Step::forward_checked(i7::new(60), 1));
+    assert_eq!(Some(i7::new(63)), Step::forward_checked(i7::new(56), 7));
+    assert_eq!(Some(i7::new(-60)), Step::forward_checked(i7::new(-64), 4));
+    assert_eq!(Some(i7::new(0)), Step::forward_checked(i7::new(-10), 10));
+
+    // Out of range
+    assert_eq!(None, Step::forward_checked(i7::new(60), 8));
+
+    // Out of range for the underlying type
+    assert_eq!(None, Step::forward_checked(i7::new(60), 140));
+}
+
+#[cfg(feature = "step_trait")]
+#[test]
+fn backward_checked_unsigned() {
     // In range
     assert_eq!(Some(u7::new(1)), Step::backward_checked(u7::new(10), 9));
     assert_eq!(Some(u7::new(0)), Step::backward_checked(u7::new(10), 10));
@@ -3365,7 +3385,25 @@ fn backward_checked() {
 
 #[cfg(feature = "step_trait")]
 #[test]
-fn steps_between() {
+fn backward_checked_signed() {
+    // In range
+    assert_eq!(Some(i7::new(1)), Step::backward_checked(i7::new(10), 9));
+    assert_eq!(Some(i7::new(0)), Step::backward_checked(i7::new(10), 10));
+    assert_eq!(Some(i7::new(-64)), Step::backward_checked(i7::new(-60), 4));
+    assert_eq!(Some(i7::new(-10)), Step::backward_checked(i7::new(10), 20));
+
+    // Out of range
+    assert_eq!(None, Step::backward_checked(i7::new(-64), 1));
+    assert_eq!(None, Step::backward_checked(i7::new(5), 70));
+
+    // Out of range for the underlying type
+    assert_eq!(None, Step::backward_checked(i7::new(0), 129));
+    assert_eq!(None, Step::backward_checked(i7::new(-64), 65));
+}
+
+#[cfg(feature = "step_trait")]
+#[test]
+fn steps_between_unsigned() {
     assert_eq!(
         (0, Some(0)),
         Step::steps_between(&u50::new(50), &u50::new(50))
@@ -3378,14 +3416,53 @@ fn steps_between() {
     assert_eq!((0, None), Step::steps_between(&u24::new(9), &u24::new(5)));
 
     // this assumes usize is <= 64 bits. a test like this one exists in `core::iter::step`.
+    #[cfg(any(
+        target_pointer_width = "16",
+        target_pointer_width = "32",
+        target_pointer_width = "64"
+    ))]
+    {
+        assert_eq!(
+            (usize::MAX, Some(usize::MAX)),
+            Step::steps_between(&u125::new(0x7), &u125::new(0x1_0000_0000_0000_0006))
+        );
+        assert_eq!(
+            (usize::MAX, None),
+            Step::steps_between(&u125::new(0x7), &u125::new(0x1_0000_0000_0000_0007))
+        );
+    }
+}
+
+#[cfg(feature = "step_trait")]
+#[test]
+fn steps_between_signed() {
     assert_eq!(
-        (usize::MAX, Some(usize::MAX)),
-        Step::steps_between(&u125::new(0x7), &u125::new(0x1_0000_0000_0000_0006))
+        (0, Some(0)),
+        Step::steps_between(&i50::new(50), &i50::new(50))
     );
+
     assert_eq!(
-        (usize::MAX, None),
-        Step::steps_between(&u125::new(0x7), &u125::new(0x1_0000_0000_0000_0007))
+        (4, Some(4)),
+        Step::steps_between(&i24::new(5), &i24::new(9))
     );
+    assert_eq!((0, None), Step::steps_between(&i24::new(9), &i24::new(5)));
+
+    // this assumes usize is <= 64 bits. a test like this one exists in `core::iter::step`.
+    #[cfg(any(
+        target_pointer_width = "16",
+        target_pointer_width = "32",
+        target_pointer_width = "64"
+    ))]
+    {
+        assert_eq!(
+            (usize::MAX, Some(usize::MAX)),
+            Step::steps_between(&i125::new(0x7), &i125::new(0x1_0000_0000_0000_0006))
+        );
+        assert_eq!(
+            (usize::MAX, None),
+            Step::steps_between(&i125::new(0x7), &i125::new(0x1_0000_0000_0000_0007))
+        );
+    }
 }
 
 #[cfg(feature = "serde")]

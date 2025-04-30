@@ -6,7 +6,7 @@
 
 - New types for signed integers: `i1`, ..., `i127`. They have a similar API to unsigned integers, though a few
   features currently remain exclusive to unsigned integers:
-    * Support for the following optional Cargo features: `step_trait`, `borsh` and `schemars`,
+    * Support for the following optional Cargo features: `borsh` and `schemars`,
     * Overflowing arithmetic functions (`overflowing_add`, ...).
 - The old Number trait is now replaced with three traits: UnsignedInteger (equivalent to the old Number), SignedInteger
   and Integer (which can be either signed or unsigned).

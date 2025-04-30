@@ -1,11 +1,9 @@
 use crate::common::{
-    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
+    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, impl_step,
 };
 use crate::traits::{Integer, UnsignedInteger, sealed::Sealed};
 use crate::TryNewError;
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
-#[cfg(feature = "step_trait")]
-use core::iter::Step;
 #[cfg(feature = "num-traits")]
 use core::num::Wrapping;
 use core::ops::{
@@ -1692,36 +1690,6 @@ where
     }
 }
 
-#[cfg(feature = "step_trait")]
-impl<T, const BITS: usize> Step for UInt<T, BITS>
-where
-    Self: Integer<UnderlyingType = T>,
-    T: Copy + Step,
-{
-    #[inline]
-    fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
-        Step::steps_between(&start.value(), &end.value())
-    }
-
-    #[inline]
-    fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        if let Some(res) = Step::forward_checked(start.value(), count) {
-            Self::try_new(res).ok()
-        } else {
-            None
-        }
-    }
-
-    #[inline]
-    fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        if let Some(res) = Step::backward_checked(start.value(), count) {
-            Self::try_new(res).ok()
-        } else {
-            None
-        }
-    }
-}
-
 #[cfg(feature = "num-traits")]
 impl<T, const NUM_BITS: usize> num_traits::WrappingAdd for UInt<T, NUM_BITS>
 where
@@ -1786,6 +1754,10 @@ where
     }
 }
 
+// Implement `core::iter::Step` (if the `step_trait` feature is enabled).
+impl_step!(UInt);
+
+// Implement byte operations for UInt's with a bit width aligned to a byte boundary.
 bytes_operation_impl!(UInt<u32, 24>, u32);
 bytes_operation_impl!(UInt<u64, 24>, u64);
 bytes_operation_impl!(UInt<u128, 24>, u128);
