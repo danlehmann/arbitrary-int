@@ -153,34 +153,6 @@ fn add_no_overflow_signed() {
     let _ = i7::new(63) + i7::new(1);
 }
 
-#[cfg(feature = "num-traits")]
-#[test]
-fn num_traits_add_wrapping() {
-    let v1 = u7::new(120);
-    let v2 = u7::new(10);
-    let v3 = num_traits::WrappingAdd::wrapping_add(&v1, &v2);
-    assert_eq!(v3, u7::new(2));
-}
-
-#[cfg(feature = "num-traits")]
-#[test]
-fn num_traits_sub_wrapping() {
-    let v1 = u7::new(15);
-    let v2 = u7::new(20);
-    let v3 = num_traits::WrappingSub::wrapping_sub(&v1, &v2);
-    assert_eq!(v3, u7::new(123));
-}
-
-#[cfg(feature = "num-traits")]
-#[test]
-fn num_traits_bounded() {
-    use num_traits::bounds::Bounded;
-    assert_eq!(u7::MAX, u7::max_value());
-    assert_eq!(u119::MAX, u119::max_value());
-    assert_eq!(u7::new(0), u7::min_value());
-    assert_eq!(u119::new(0), u119::min_value());
-}
-
 #[test]
 fn addassign_unsigned() {
     let mut value = u9::new(500);
@@ -1259,31 +1231,6 @@ fn from_same_bit_widths() {
         u120::from(UInt::<u128, 120>::new(0b10101)),
         u120::new(0b10101)
     );
-}
-
-#[cfg(feature = "num-traits")]
-#[test]
-fn calculation_with_number_trait() {
-    fn increment_by_1<T: num_traits::WrappingAdd + Integer>(foo: T) -> T {
-        foo.wrapping_add(&T::from_(1u8))
-    }
-
-    fn increment_by_512<T: num_traits::WrappingAdd + Integer>(
-        foo: T,
-    ) -> Result<T, <<T as Integer>::UnderlyingType as TryFrom<u32>>::Error>
-    where
-        <<T as Integer>::UnderlyingType as TryFrom<u32>>::Error: core::fmt::Debug,
-    {
-        Ok(foo.wrapping_add(&T::new(512u32.try_into()?)))
-    }
-
-    assert_eq!(increment_by_1(0u16), 1u16);
-    assert_eq!(increment_by_1(u7::new(3)), u7::new(4));
-    assert_eq!(increment_by_1(u15::new(3)), u15::new(4));
-
-    assert_eq!(increment_by_512(0u16), Ok(512u16));
-    assert!(increment_by_512(u7::new(3)).is_err());
-    assert_eq!(increment_by_512(u15::new(3)), Ok(u15::new(515)));
 }
 
 #[test]
@@ -3781,6 +3728,119 @@ fn serde_signed() {
     assert_de_tokens(&i7::new(0), &[Token::U8(0)]);
     assert_de_tokens(&i7::new(15), &[Token::U8(15)]);
     assert_de_tokens(&i7::MAX, &[Token::U8(i7::MAX.value() as u8)]);
+}
+
+#[cfg(feature = "num-traits")]
+mod num_traits {
+    use arbitrary_int::prelude::*;
+    use num_traits::{bounds::Bounded, WrappingAdd, WrappingSub};
+
+    #[test]
+    fn wrapping_add_unsigned() {
+        let v1 = u7::new(120);
+        let v2 = u7::new(10);
+        let v3 = WrappingAdd::wrapping_add(&v1, &v2);
+        assert_eq!(v3, u7::new(2));
+    }
+
+    #[test]
+    fn wrapping_add_signed() {
+        let v1 = i7::new(60);
+        let v2 = i7::new(10);
+        let v3 = WrappingAdd::wrapping_add(&v1, &v2);
+        assert_eq!(v3, i7::new(-58));
+
+        let v1 = i7::new(-60);
+        let v2 = i7::new(-10);
+        let v3 = WrappingAdd::wrapping_add(&v1, &v2);
+        assert_eq!(v3, i7::new(58));
+    }
+
+    #[test]
+    fn wrapping_sub_unsigned() {
+        let v1 = u7::new(15);
+        let v2 = u7::new(20);
+        let v3 = WrappingSub::wrapping_sub(&v1, &v2);
+        assert_eq!(v3, u7::new(123));
+    }
+
+    #[test]
+    fn wrapping_sub_signed() {
+        let v1 = i7::new(-60);
+        let v2 = i7::new(10);
+        let v3 = WrappingSub::wrapping_sub(&v1, &v2);
+        assert_eq!(v3, i7::new(58));
+
+        let v1 = i7::new(60);
+        let v2 = i7::new(-10);
+        let v3 = WrappingSub::wrapping_sub(&v1, &v2);
+        assert_eq!(v3, i7::new(-58));
+    }
+
+    #[test]
+    fn num_traits_bounded_unsigned() {
+        assert_eq!(u7::MAX, u7::max_value());
+        assert_eq!(u119::MAX, u119::max_value());
+        assert_eq!(u7::MIN, u7::min_value());
+        assert_eq!(u119::MIN, u119::min_value());
+    }
+
+    #[test]
+    fn num_traits_bounded_signed() {
+        assert_eq!(i7::MAX, i7::max_value());
+        assert_eq!(i119::MAX, i119::max_value());
+        assert_eq!(i7::MIN, i7::min_value());
+        assert_eq!(i119::MIN, i119::min_value());
+    }
+
+    #[test]
+    fn calculation_with_number_trait_unsigned() {
+        fn increment_by_1<T: WrappingAdd + Integer>(foo: T) -> T {
+            foo.wrapping_add(&T::from_(1u8))
+        }
+
+        fn increment_by_512<T: WrappingAdd + Integer>(
+            foo: T,
+        ) -> Result<T, <<T as Integer>::UnderlyingType as TryFrom<u32>>::Error>
+        where
+            <<T as Integer>::UnderlyingType as TryFrom<u32>>::Error: core::fmt::Debug,
+        {
+            Ok(foo.wrapping_add(&T::new(512u32.try_into()?)))
+        }
+
+        assert_eq!(increment_by_1(0u16), 1u16);
+        assert_eq!(increment_by_1(u7::new(3)), u7::new(4));
+        assert_eq!(increment_by_1(u15::new(3)), u15::new(4));
+
+        assert_eq!(increment_by_512(0u16), Ok(512u16));
+        assert!(increment_by_512(u7::new(3)).is_err());
+        assert_eq!(increment_by_512(u15::new(3)), Ok(u15::new(515)));
+    }
+
+    #[test]
+    fn calculation_with_number_trait_signed() {
+        fn increment_by_1<T: WrappingAdd + Integer>(foo: T) -> T {
+            foo.wrapping_add(&T::from_(1i8))
+        }
+
+        fn increment_by_512<T: WrappingAdd + Integer>(
+            foo: T,
+        ) -> Result<T, <<T as Integer>::UnderlyingType as TryFrom<i32>>::Error>
+        where
+            <T as Integer>::UnderlyingType: TryFrom<i32>,
+            <<T as Integer>::UnderlyingType as TryFrom<i32>>::Error: core::fmt::Debug,
+        {
+            Ok(foo.wrapping_add(&T::new(512i32.try_into()?)))
+        }
+
+        assert_eq!(increment_by_1(0i16), 1i16);
+        assert_eq!(increment_by_1(i7::new(3)), i7::new(4));
+        assert_eq!(increment_by_1(i15::new(3)), i15::new(4));
+
+        assert_eq!(increment_by_512(0i16), Ok(512i16));
+        assert!(increment_by_512(i7::new(3)).is_err());
+        assert_eq!(increment_by_512(i15::new(3)), Ok(i15::new(515)));
+    }
 }
 
 #[cfg(feature = "borsh")]

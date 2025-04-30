@@ -1,11 +1,10 @@
 use crate::common::{
-    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, impl_step,
+    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, impl_num_traits,
+    impl_step,
 };
 use crate::traits::{sealed::Sealed, Integer, UnsignedInteger};
 use crate::TryNewError;
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
-#[cfg(feature = "num-traits")]
-use core::num::Wrapping;
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
@@ -1806,69 +1805,8 @@ where
     }
 }
 
-#[cfg(feature = "num-traits")]
-impl<T, const NUM_BITS: usize> num_traits::WrappingAdd for UInt<T, NUM_BITS>
-where
-    Self: Integer,
-    T: PartialEq
-        + Eq
-        + Copy
-        + Add<T, Output = T>
-        + Sub<T, Output = T>
-        + BitAnd<T, Output = T>
-        + Not<Output = T>
-        + Shr<usize, Output = T>
-        + Shl<usize, Output = T>
-        + From<u8>,
-    Wrapping<T>: Add<Wrapping<T>, Output = Wrapping<T>>,
-{
-    #[inline]
-    fn wrapping_add(&self, rhs: &Self) -> Self {
-        let sum = (Wrapping(self.value) + Wrapping(rhs.value)).0;
-        Self {
-            value: sum & Self::MASK,
-        }
-    }
-}
-
-#[cfg(feature = "num-traits")]
-impl<T, const NUM_BITS: usize> num_traits::WrappingSub for UInt<T, NUM_BITS>
-where
-    Self: Integer,
-    T: PartialEq
-        + Eq
-        + Copy
-        + Add<T, Output = T>
-        + Sub<T, Output = T>
-        + BitAnd<T, Output = T>
-        + Not<Output = T>
-        + Shr<usize, Output = T>
-        + Shl<usize, Output = T>
-        + From<u8>,
-    Wrapping<T>: Sub<Wrapping<T>, Output = Wrapping<T>>,
-{
-    #[inline]
-    fn wrapping_sub(&self, rhs: &Self) -> Self {
-        let sum = (Wrapping(self.value) - Wrapping(rhs.value)).0;
-        Self {
-            value: sum & Self::MASK,
-        }
-    }
-}
-
-#[cfg(feature = "num-traits")]
-impl<T, const NUM_BITS: usize> num_traits::bounds::Bounded for UInt<T, NUM_BITS>
-where
-    Self: Integer,
-{
-    fn min_value() -> Self {
-        Self::MIN
-    }
-
-    fn max_value() -> Self {
-        Self::MAX
-    }
-}
+// Implement support for the `num-traits` crate, if the feature is enabled.
+impl_num_traits!(UInt, u8, |value| value & Self::MASK);
 
 // Implement `core::iter::Step` (if the `step_trait` feature is enabled).
 impl_step!(UInt);
