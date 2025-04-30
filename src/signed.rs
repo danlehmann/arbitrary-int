@@ -162,6 +162,7 @@ impl<T: Copy, const BITS: usize> Int<T, BITS> {
     /// If you need a value within the specified bit range, use [`to_bits`](Self::to_bits).
     #[cfg(not(feature = "hint"))]
     #[inline]
+    #[must_use]
     pub const fn value(self) -> T {
         self.value
     }
@@ -172,6 +173,7 @@ impl<T: Copy, const BITS: usize> Int<T, BITS> {
     ///
     /// Must only be called with a value bigger or equal to [`Self::MIN`] and less than or equal to [`Self::MAX`].
     #[inline]
+    #[must_use]
     pub const unsafe fn new_unchecked(value: T) -> Self {
         Self { value }
     }
@@ -349,6 +351,7 @@ macro_rules! int_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn new(value: $type) -> Self {
                     assert!(value >= Self::MIN.value && value <= Self::MAX.value);
 
@@ -357,6 +360,7 @@ macro_rules! int_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_i8(value: i8) -> Self {
                     if Self::BITS < 8 {
                         assert!(value >= Self::MIN.value as i8 && value <= Self::MAX.value as i8);
@@ -366,6 +370,7 @@ macro_rules! int_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_i16(value: i16) -> Self {
                     if Self::BITS < 16 {
                         assert!(value >= Self::MIN.value as i16 && value <= Self::MAX.value as i16);
@@ -375,6 +380,7 @@ macro_rules! int_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_i32(value: i32) -> Self {
                     if Self::BITS < 32 {
                         assert!(value >= Self::MIN.value as i32 && value <= Self::MAX.value as i32);
@@ -384,6 +390,7 @@ macro_rules! int_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_i64(value: i64) -> Self {
                     if Self::BITS < 64 {
                         assert!(value >= Self::MIN.value as i64 && value <= Self::MAX.value as i64);
@@ -393,6 +400,7 @@ macro_rules! int_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_i128(value: i128) -> Self {
                     if Self::BITS < 128 {
                         assert!(value >= Self::MIN.value as i128 && value <= Self::MAX.value as i128);
@@ -485,6 +493,7 @@ macro_rules! int_impl {
                 ///
                 /// The given value must not exceed the bit width specified by [`Self::BITS`].
                 #[inline]
+                #[must_use]
                 pub const unsafe fn from_bits_unchecked(value: $unsigned_type) -> Self {
                     // First do a logical left shift to put the sign bit at the underlying type's MSB (copying the sign),
                     // then an arithmetic right shift to sign-extend the value into its original position.
@@ -506,6 +515,7 @@ macro_rules! int_impl {
                 /// If you need a value within the specified bit range, use [`to_bits`](Self::to_bits).
                 #[cfg(feature = "hint")]
                 #[inline]
+                #[must_use]
                 pub const fn value(self) -> $type {
                     // The hint feature requires the type to be const-comparable,
                     // which isn't possible in the generic version above. So we have

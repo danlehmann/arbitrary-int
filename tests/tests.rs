@@ -74,43 +74,43 @@ fn create_try_new() {
 #[test]
 #[should_panic]
 fn create_panic_u7() {
-    u7::new(128);
+    let _ = u7::new(128);
 }
 
 #[test]
 #[should_panic]
 fn create_panic_i7_positive() {
-    i7::new(64);
+    let _ = i7::new(64);
 }
 
 #[test]
 #[should_panic]
 fn create_panic_i7_negative() {
-    i7::new(-65);
+    let _ = i7::new(-65);
 }
 
 #[test]
 #[should_panic]
 fn create_panic_u15() {
-    u15::new(32768);
+    let _ = u15::new(32768);
 }
 
 #[test]
 #[should_panic]
 fn create_panic_u31() {
-    u31::new(2147483648);
+    let _ = u31::new(2147483648);
 }
 
 #[test]
 #[should_panic]
 fn create_panic_u63() {
-    u63::new(0x8000_0000_0000_0000);
+    let _ = u63::new(0x8000_0000_0000_0000);
 }
 
 #[test]
 #[should_panic]
 fn create_panic_u127() {
-    u127::new(0x8000_0000_0000_0000_0000_0000_0000_0000);
+    let _ = u127::new(0x8000_0000_0000_0000_0000_0000_0000_0000);
 }
 
 #[test]
@@ -4221,35 +4221,35 @@ fn from_flexible_catches_out_of_bounds_primitive_type() {
 #[test]
 #[should_panic]
 fn new_constructors_catch_out_bounds_0() {
-    u7::from_u8(0x80u8);
+    let _ = u7::from_u8(0x80u8);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn new_constructors_catch_out_bounds_1() {
-    u7::from_u32(0x80000060u32);
+    let _ = u7::from_u32(0x80000060u32);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn new_constructors_catch_out_bounds_2() {
-    u7::from_u16(0x8060u16);
+    let _ = u7::from_u16(0x8060u16);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn new_constructors_catch_out_bounds_3() {
-    u7::from_u64(0x80000000_00000060u64);
+    let _ = u7::from_u64(0x80000000_00000060u64);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn new_constructors_catch_out_bounds_4() {
-    u7::from_u128(0x80000000_00000000_00000000_00000060u128);
+    let _ = u7::from_u128(0x80000000_00000000_00000000_00000060u128);
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]

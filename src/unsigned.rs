@@ -1,6 +1,6 @@
 use crate::common::{
-    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_borsh,
-    impl_extract, impl_num_traits, impl_step,
+    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_borsh, impl_extract,
+    impl_num_traits, impl_step,
 };
 use crate::traits::{sealed::Sealed, Integer, UnsignedInteger};
 use crate::TryNewError;
@@ -146,6 +146,7 @@ impl<T: Copy, const BITS: usize> UInt<T, BITS> {
     /// Returns the type as a fundamental data type
     #[cfg(not(feature = "hint"))]
     #[inline]
+    #[must_use]
     pub const fn value(self) -> T {
         self.value
     }
@@ -153,8 +154,9 @@ impl<T: Copy, const BITS: usize> UInt<T, BITS> {
     /// Initializes a new value without checking the bounds
     ///
     /// # Safety
-    /// Must only be called with a value less than or equal to [Self::MAX](Self::MAX) value.
+    /// Must only be called with a value less than or equal to [`Self::MAX`](Self::MAX).
     #[inline]
+    #[must_use]
     pub const unsafe fn new_unchecked(value: T) -> Self {
         Self { value }
     }
@@ -236,7 +238,7 @@ macro_rules! uint_impl_num {
 
                 #[inline]
                 fn try_from_bits(value: Self::UnsignedUnderlyingType) -> Result<Self, TryNewError> {
-                    Ok(Self { value })
+                    Self::try_new(value)
                 }
 
                 #[inline]
@@ -335,6 +337,7 @@ macro_rules! uint_impl {
             impl<const BITS: usize> UInt<$type, BITS> {
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn new(value: $type) -> Self {
                     assert!(value <= Self::MAX.value);
 
@@ -343,6 +346,7 @@ macro_rules! uint_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_u8(value: u8) -> Self {
                     if Self::BITS < 8 {
                         assert!(value <= Self::MAX.value as u8);
@@ -352,6 +356,7 @@ macro_rules! uint_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_u16(value: u16) -> Self {
                     if Self::BITS < 16 {
                         assert!(value <= Self::MAX.value as u16);
@@ -361,6 +366,7 @@ macro_rules! uint_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_u32(value: u32) -> Self {
                     if Self::BITS < 32 {
                         assert!(value <= Self::MAX.value as u32);
@@ -370,6 +376,7 @@ macro_rules! uint_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_u64(value: u64) -> Self {
                     if Self::BITS < 64 {
                         assert!(value <= Self::MAX.value as u64);
@@ -379,6 +386,7 @@ macro_rules! uint_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_u128(value: u128) -> Self {
                     if Self::BITS < 128 {
                         assert!(value <= Self::MAX.value as u128);
@@ -396,9 +404,62 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Returns the bitwise representation of the value.
+                ///
+                /// For unsigned integers this method is equivalent to [`value`](Self::value),
+                /// it exists for symmetry with [`Int::to_bits`](crate::Int::to_bits).
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn to_bits(self) -> $type {
+                    self.value()
+                }
+
+                /// Convert the bitwise representation from [`to_bits`](Self::to_bits) to an instance.
+                ///
+                /// For unsigned integers this method is equivalent to [`new`](Self::new),
+                /// it exists for symmetry with [`Int::from_bits`](crate::Int::from_bits).
+                ///
+                /// # Panics
+                ///
+                /// Panics if the given value exceeds the bit width specified by [`BITS`](Self::BITS).
+                #[inline]
+                #[must_use]
+                pub const fn from_bits(value: $type) -> Self {
+                    Self::new(value)
+                }
+
+                /// Tries to convert the bitwise representation from [`to_bits`](Self::to_bits) to an instance.
+                ///
+                /// For unsigned integers this method is equivalent to [`try_new`](Self::try_new),
+                /// it exists for symmetry with [`Int::try_from_bits`](crate::Int::try_from_bits).
+                ///
+                /// # Errors
+                ///
+                /// Returns an error if the given value exceeds the bit width specified by [`BITS`](Self::BITS).
+                #[inline]
+                pub const fn try_from_bits(value: $type) -> Result<Self, TryNewError> {
+                    Self::try_new(value)
+                }
+
+                /// Converts the bitwise representation from [`to_bits`](Self::to_bits) to an instance,
+                /// without checking the bounds.
+                ///
+                /// For unsigned integers this method is equivalent to [`new_unchecked`](Self::new_unchecked),
+                /// it exists for symmetry with [`Int::from_bits_unchecked`](crate::Int::from_bits_unchecked).
+                ///
+                /// # Safety
+                ///
+                /// The given value must not exceed the bit width specified by [`Self::BITS`].
+                #[inline]
+                #[must_use]
+                pub const unsafe fn from_bits_unchecked(value: $type) -> Self {
+                    Self::new_unchecked(value)
+                }
+
                 /// Returns the type as a fundamental data type
                 #[cfg(feature = "hint")]
                 #[inline]
+                #[must_use]
                 pub const fn value(self) -> $type {
                     // The hint feature requires the type to be const-comparable,
                     // which isn't possible in the generic version above. So we have
