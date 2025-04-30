@@ -7,8 +7,6 @@ pub(crate) mod sealed {
     pub trait Sealed {}
 }
 
-// TODO: SignedUnderlyingType for consistency?
-
 /// The base trait for integer numbers, either built-in (u8, i8, u16, i16, u32, i32, u64, i64,
 /// u128, i128) or arbitrary-int (u1, i1, u7, i7 etc.).
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
@@ -183,7 +181,7 @@ pub trait Integer:
     #[must_use]
     fn value(self) -> Self::UnderlyingType;
 
-    /// Returns the bitwise representation of the value. This method should be used when e.g. writing to bitfields.
+    /// Returns the bitwise representation of the value. This method should be used when writing to bitfields.
     ///
     /// This is guaranteed to return the same value as [`value`](Self::value) for unsigned numbers.
     ///
@@ -192,9 +190,12 @@ pub trait Integer:
     ///
     /// ```
     /// # use arbitrary_int::prelude::*;
+    /// let value = u3::new(0b111);
+    /// assert_eq!(value.to_bits(), value.value());
+    ///
     /// let value = i3::new(-1);
-    /// assert_eq!(value.to_bits(), 0b111);              // 7
-    /// assert_eq!(value.value(), 0b1111_1111_u8 as i8); // -1
+    /// assert_eq!(value.to_bits(), 0b111); // 7
+    /// assert_eq!(value.value(), -1);      // 0b1111_1111
     /// ```
     ///
     /// To convert from the bitwise representation back to an instance, use [`from_bits`](Self::from_bits).
@@ -202,9 +203,17 @@ pub trait Integer:
     fn to_bits(self) -> Self::UnsignedUnderlyingType;
 
     /// Try to convert the bitwise representation from [`to_bits`](Self::to_bits) to an instance.
+    /// This should be used when constructing a value from a bitfield.
+    ///
+    /// This is guaranteed to return the same value as [`new`](Self::new) for unsigned numbers.
+    ///
+    /// For signed negative numbers, the returned number may differ from [`try_new`](Self::try_new) as
+    /// the value is sign-extended to the underlying type:
     ///
     /// ```
     /// # use arbitrary_int::prelude::*;
+    /// assert_eq!(u3::try_from_bits(0b111), u3::try_new(0b111));
+    ///
     /// i3::try_from_bits(0b1111).expect_err("value is > 3 bits");
     /// let value = i3::try_from_bits(0b111).expect("value is <= 3 bits");
     /// assert_eq!(value.value(), -1);
@@ -219,7 +228,7 @@ pub trait Integer:
     fn try_from_bits(value: Self::UnsignedUnderlyingType) -> Result<Self, TryNewError>;
 
     /// Converts the bitwise representation from [`to_bits`](Self::to_bits) to an instance,
-    /// without checking the bounds.
+    /// without checking the bounds. See [`from_bits`](Self::from_bits) for more information.
     ///
     /// # Safety
     ///
@@ -228,6 +237,7 @@ pub trait Integer:
     unsafe fn from_bits_unchecked(value: Self::UnsignedUnderlyingType) -> Self;
 
     /// Convert the bitwise representation from [`to_bits`](Self::to_bits) to an instance.
+    /// This should be used when constructing a value from a bitfield.
     ///
     /// ```
     /// # use arbitrary_int::prelude::*;
@@ -250,28 +260,40 @@ pub trait Integer:
         }
     }
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     fn as_u8(self) -> u8;
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     fn as_u16(self) -> u16;
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     fn as_u32(self) -> u32;
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     fn as_u64(self) -> u64;
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     fn as_u128(self) -> u128;
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     fn as_usize(self) -> usize;
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     fn as_i8(self) -> i8;
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     fn as_i16(self) -> i16;
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     fn as_i32(self) -> i32;
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     fn as_i64(self) -> i64;
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     fn as_i128(self) -> i128;
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     fn as_isize(self) -> isize;
 
     #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
@@ -281,12 +303,15 @@ pub trait Integer:
     }
 }
 
-/// The base trait for all signed numbers, either built-in (i8, i16, i32, i64, i128) or
+/// A marker trait for all signed numbers, either built-in (i8, i16, i32, i64, i128) or
 /// arbitrary-int (i1, i7 etc.).
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
-pub trait SignedInteger: Integer {}
+pub trait SignedInteger: Integer<SignedUnderlyingType = <Self as Integer>::UnderlyingType> {}
 
-/// The base trait for all unsigned numbers, either built-in (u8, u16, u32, u64, u128) or
+/// A marker trait for all unsigned numbers, either built-in (u8, u16, u32, u64, u128) or
 /// arbitrary-int (u1, u7 etc.).
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
-pub trait UnsignedInteger: Integer {}
+pub trait UnsignedInteger:
+    Integer<UnsignedUnderlyingType = <Self as Integer>::UnderlyingType>
+{
+}
