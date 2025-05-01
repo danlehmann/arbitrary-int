@@ -1,6 +1,7 @@
 use crate::{
     common::{
-        bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, impl_step,
+        bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
+        impl_num_traits, impl_step,
     },
     traits::{sealed::Sealed, Integer, SignedInteger},
     TryNewError,
@@ -1924,6 +1925,11 @@ where
 
 // Implement `core::iter::Step` (if the `step_trait` feature is enabled).
 impl_step!(Int);
+
+// Implement support for the `num-traits` crate, if the feature is enabled.
+impl_num_traits!(Int, i8, |value| {
+    (value << Self::UNUSED_BITS) >> Self::UNUSED_BITS
+});
 
 // Implement byte operations for Int's with a bit width aligned to a byte boundary.
 bytes_operation_impl!(Int<i32, 24>, i32);

@@ -286,3 +286,78 @@ macro_rules! impl_step {
 }
 
 pub(crate) use impl_step;
+
+/// Implements support for the `num-traits` crate, if the feature is enabled.
+macro_rules! impl_num_traits {
+    ($type:ident, $primitive_8:ty, |$result:ident| $limit_result:expr) => {
+        #[cfg(feature = "num-traits")]
+        impl<T, const BITS: usize> num_traits::WrappingAdd for $type<T, BITS>
+        where
+            Self: Integer,
+            T: PartialEq
+                + Eq
+                + Copy
+                + Add<T, Output = T>
+                + Sub<T, Output = T>
+                + BitAnd<T, Output = T>
+                + Not<Output = T>
+                + Shr<usize, Output = T>
+                + Shl<usize, Output = T>
+                + From<$primitive_8>,
+            core::num::Wrapping<T>: Add<core::num::Wrapping<T>, Output = core::num::Wrapping<T>>,
+        {
+            #[inline]
+            fn wrapping_add(&self, rhs: &Self) -> Self {
+                let $result =
+                    (core::num::Wrapping(self.value()) + core::num::Wrapping(rhs.value())).0;
+                Self {
+                    value: $limit_result,
+                }
+            }
+        }
+
+        #[cfg(feature = "num-traits")]
+        impl<T, const BITS: usize> num_traits::WrappingSub for $type<T, BITS>
+        where
+            Self: Integer,
+            T: PartialEq
+                + Eq
+                + Copy
+                + Add<T, Output = T>
+                + Sub<T, Output = T>
+                + BitAnd<T, Output = T>
+                + Not<Output = T>
+                + Shr<usize, Output = T>
+                + Shl<usize, Output = T>
+                + From<$primitive_8>,
+            core::num::Wrapping<T>: Sub<core::num::Wrapping<T>, Output = core::num::Wrapping<T>>,
+        {
+            #[inline]
+            fn wrapping_sub(&self, rhs: &Self) -> Self {
+                let $result =
+                    (core::num::Wrapping(self.value()) - core::num::Wrapping(rhs.value())).0;
+                Self {
+                    value: $limit_result,
+                }
+            }
+        }
+
+        #[cfg(feature = "num-traits")]
+        impl<T, const BITS: usize> num_traits::bounds::Bounded for $type<T, BITS>
+        where
+            Self: Integer,
+        {
+            #[inline]
+            fn min_value() -> Self {
+                Self::MIN
+            }
+
+            #[inline]
+            fn max_value() -> Self {
+                Self::MAX
+            }
+        }
+    };
+}
+
+pub(crate) use impl_num_traits;
