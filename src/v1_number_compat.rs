@@ -1,5 +1,5 @@
-use crate::TryNewError;
 use crate::traits::{Integer, UnsignedInteger};
+use crate::TryNewError;
 use core::fmt::Debug;
 
 /// Compatibility with arbitrary-int 1.x, which didn't support signed integers.
@@ -10,7 +10,7 @@ use core::fmt::Debug;
 /// It is suggested to import via `use arbitrary_int::prelude::*` as `use arbitrary_int::*` will
 /// pull in this trait as well, which causes clashes with `Integer`.
 #[deprecated(
-    since = "2.0",
+    since = "2.0.0",
     note = "Use [`UnsignedInteger`] or [`Integer`] instead. Suggested to import via `use arbitrary_int::prelude::*`."
 )]
 pub trait Number: UnsignedInteger<UnderlyingType = <Self as Number>::UnderlyingType> {

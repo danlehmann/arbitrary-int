@@ -1,5 +1,5 @@
-use core::fmt::Debug;
 use crate::TryNewError;
+use core::fmt::Debug;
 
 pub(crate) mod sealed {
     /// Ensures that outside users can not implement the traits provided by this crate.
@@ -10,14 +10,16 @@ pub(crate) mod sealed {
 /// The base trait for integer numbers, either built-in (u8, i8, u16, i16, u32, i32, u64, i64,
 /// u128, i128) or arbitrary-int (u1, i1, u7, i7 etc.).
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
-pub trait Integer: Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq + sealed::Sealed {
+pub trait Integer:
+    Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq + sealed::Sealed
+{
     type UnderlyingType: Integer
-    + Debug
-    + TryFrom<u8>
-    + TryFrom<u16>
-    + TryFrom<u32>
-    + TryFrom<u64>
-    + TryFrom<u128>;
+        + Debug
+        + TryFrom<u8>
+        + TryFrom<u16>
+        + TryFrom<u32>
+        + TryFrom<u64>
+        + TryFrom<u128>;
 
     /// Number of bits that can fit in this type
     const BITS: usize;
@@ -87,4 +89,3 @@ pub trait SignedInteger: Integer {}
 /// arbitrary-int (u1, u7 etc.).
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
 pub trait UnsignedInteger: Integer {}
-
