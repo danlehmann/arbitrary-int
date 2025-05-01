@@ -488,7 +488,7 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_add(self, rhs: Self) -> Self {
-                    let sum = self.value.wrapping_add(rhs.value);
+                    let sum = self.value().wrapping_add(rhs.value());
                     Self {
                         value: (sum << Self::UNUSED_BITS) >> Self::UNUSED_BITS,
                     }
@@ -509,7 +509,7 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_sub(self, rhs: Self) -> Self {
-                    let sum = self.value.wrapping_sub(rhs.value);
+                    let sum = self.value().wrapping_sub(rhs.value());
                     Self {
                         value: (sum << Self::UNUSED_BITS) >> Self::UNUSED_BITS,
                     }
@@ -530,7 +530,7 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_mul(self, rhs: Self) -> Self {
-                    let sum = self.value.wrapping_mul(rhs.value);
+                    let sum = self.value().wrapping_mul(rhs.value());
                     Self {
                         value: (sum << Self::UNUSED_BITS) >> Self::UNUSED_BITS,
                     }
@@ -560,7 +560,7 @@ macro_rules! int_impl {
                 #[inline]
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn wrapping_div(self, rhs: Self) -> Self {
-                    let sum = self.value.wrapping_div(rhs.value);
+                    let sum = self.value().wrapping_div(rhs.value());
                     Self {
                         // Unlike the unsigned implementation we do need to account for overflow here,
                         // `Self::MIN / -1` is equal to `Self::MAX + 1`.
@@ -624,7 +624,7 @@ macro_rules! int_impl {
                         // the downside would be that on weird CPUs that don't do wrapping_shl by
                         // default release builds would get slightly worse. Using << should give
                         // good release performance everywere
-                        value: (self.value << shift_amount) >> Self::UNUSED_BITS,
+                        value: (self.value() << shift_amount) >> Self::UNUSED_BITS,
                     }
                 }
 
@@ -657,7 +657,7 @@ macro_rules! int_impl {
                     };
 
                     Self {
-                        value: (self.value >> shift_amount),
+                        value: (self.value() >> shift_amount),
                     }
                 }
 
@@ -681,12 +681,12 @@ macro_rules! int_impl {
                         // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
                         // This is very unlikely to happen in practice, but checking allows us to use
                         // `wrapping_add` instead of `saturating_add` in the common case, which is faster.
-                        let value = self.value.saturating_add(rhs.value);
+                        let value = self.value().saturating_add(rhs.value());
                         Self { value }
                     } else {
                         // We're dealing with fewer bits than the underlying type (e.g. i7).
                         // That means the addition can never overflow the underlying type.
-                        let value = self.value.wrapping_add(rhs.value);
+                        let value = self.value().wrapping_add(rhs.value());
                         if value > Self::MAX.value {
                             Self::MAX
                         } else if value < Self::MIN.value {
@@ -717,12 +717,12 @@ macro_rules! int_impl {
                         // We are something like a Int::<i8; 8>, we can fallback to the base implementation.
                         // This is very unlikely to happen in practice, but checking allows us to use
                         // `wrapping_sub` instead of `saturating_sub` in the common case, which is faster.
-                        let value = self.value.saturating_sub(rhs.value);
+                        let value = self.value().saturating_sub(rhs.value());
                         Self { value }
                     } else {
                         // We're dealing with fewer bits than the underlying type (e.g. i7).
                         // That means the subtraction can never overflow the underlying type.
-                        let value = self.value.wrapping_sub(rhs.value);
+                        let value = self.value().wrapping_sub(rhs.value());
                         if value > Self::MAX.value {
                             Self::MAX
                         } else if value < Self::MIN.value {
@@ -752,10 +752,10 @@ macro_rules! int_impl {
                     let value = if (BITS << 1) <= (core::mem::size_of::<$type>() << 3) {
                         // We have half the bits (e.g. i4 * i4) of the base type, so we can't overflow the base type
                         // `wrapping_mul` likely provides the best performance on all cpus
-                        self.value.wrapping_mul(rhs.value)
+                        self.value().wrapping_mul(rhs.value())
                     } else {
                         // We have more than half the bits (e.g. i6 * i6)
-                        self.value.saturating_mul(rhs.value)
+                        self.value().saturating_mul(rhs.value())
                     };
 
                     if value > Self::MAX.value {
@@ -788,7 +788,7 @@ macro_rules! int_impl {
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_div(self, rhs: Self) -> Self {
                     // As `Self::MIN / -1` is equal to `Self::MAX + 1` we always need to check for overflow.
-                    let value = self.value.saturating_div(rhs.value);
+                    let value = self.value().saturating_div(rhs.value());
 
                     if value > Self::MAX.value {
                         Self::MAX
@@ -843,7 +843,7 @@ macro_rules! int_impl {
                 pub const fn saturating_pow(self, exp: u32) -> Self {
                     // It might be possible to handwrite this to be slightly faster as both
                     // `saturating_pow` has to do a bounds-check and then we do second one.
-                    let value = self.value.saturating_pow(exp);
+                    let value = self.value().saturating_pow(exp);
 
                     if value > Self::MAX.value {
                         Self::MAX
