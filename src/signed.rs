@@ -1,5 +1,7 @@
 use crate::{
-    common::{bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, impl_step},
+    common::{
+        bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, impl_step,
+    },
     traits::{sealed::Sealed, Integer, SignedInteger},
     TryNewError,
 };

@@ -1,7 +1,7 @@
 use crate::common::{
     bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, impl_step,
 };
-use crate::traits::{Integer, UnsignedInteger, sealed::Sealed};
+use crate::traits::{sealed::Sealed, Integer, UnsignedInteger};
 use crate::TryNewError;
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
 #[cfg(feature = "num-traits")]
