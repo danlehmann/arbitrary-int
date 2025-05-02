@@ -1924,7 +1924,7 @@ where
 }
 
 // Implement `core::iter::Sum` and `core::iter::Product`.
-impl_sum_product!(Int);
+impl_sum_product!(Int, 1_i8);
 
 // Implement `core::iter::Step` (if the `step_trait` feature is enabled).
 impl_step!(Int);

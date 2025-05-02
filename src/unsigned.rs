@@ -1806,7 +1806,7 @@ where
 }
 
 // Implement `core::iter::Sum` and `core::iter::Product`.
-impl_sum_product!(UInt);
+impl_sum_product!(UInt, 1_u8);
 
 // Implement support for the `num-traits` crate, if the feature is enabled.
 impl_num_traits!(UInt, u8, |value| value & Self::MASK);
