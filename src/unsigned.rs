@@ -1,6 +1,6 @@
 use crate::common::{
     bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, impl_num_traits,
-    impl_step,
+    impl_step, impl_sum_product,
 };
 use crate::traits::{sealed::Sealed, Integer, UnsignedInteger};
 use crate::TryNewError;
@@ -1804,6 +1804,9 @@ where
         Schema::Object(schema_object)
     }
 }
+
+// Implement `core::iter::Sum` and `core::iter::Product`.
+impl_sum_product!(UInt);
 
 // Implement support for the `num-traits` crate, if the feature is enabled.
 impl_num_traits!(UInt, u8, |value| value & Self::MASK);

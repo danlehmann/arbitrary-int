@@ -251,6 +251,36 @@ macro_rules! bytes_operation_impl {
 
 pub(crate) use bytes_operation_impl;
 
+/// Implements [`core::iter::Sum`] and [`core::iter::Product`] for an integer type.
+macro_rules! impl_sum_product {
+    ($type:ident) => {
+        // This implements `Sum` for owned values, for example when using an iterator from a fixed-sized array.
+        impl<T, const BITS: usize> core::iter::Sum for $type<T, BITS>
+        where
+            Self: Integer + Default + core::ops::Add<Output = Self>,
+        {
+            #[inline]
+            fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+                // Use `default()` to construct a value of zero.
+                iter.fold(Self::default(), |lhs, rhs| lhs + rhs)
+            }
+        }
+
+        // This implements `Sum` for borrowed values, for example when using an iterator from a slice.
+        impl<'a, T, const BITS: usize> core::iter::Sum<&'a Self> for $type<T, BITS>
+        where
+            Self: Integer + Default + core::ops::Add<Output = Self>,
+        {
+            #[inline]
+            fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+                iter.fold(Self::default(), |lhs, rhs| lhs + *rhs)
+            }
+        }
+    };
+}
+
+pub(crate) use impl_sum_product;
+
 macro_rules! impl_step {
     ($type:tt) => {
         #[cfg(feature = "step_trait")]

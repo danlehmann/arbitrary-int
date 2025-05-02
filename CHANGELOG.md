@@ -13,6 +13,7 @@
 - Various new extract functions: `extract_i8`, `extract_i16`, ..., `extract_i128`. These are the same as the
   equivalent `extract_u<N>` functions, but work with signed integers instead.
 - Add `quickcheck` and `arbitrary` support
+- Implement `core::iter::Sum`: `[u4::new(1); 10].iter().sum::<u4>() == u4::new(10)`
 
 ### Fixed
 
