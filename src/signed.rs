@@ -1,13 +1,13 @@
 use crate::{
     common::{
-        bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
+        bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_borsh, impl_extract,
         impl_num_traits, impl_step,
     },
     traits::{sealed::Sealed, Integer, SignedInteger},
     TryNewError,
 };
 use core::{
-    fmt::{self},
+    fmt,
     ops::{
         Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
         DivAssign, Mul, MulAssign, Neg, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
@@ -16,8 +16,8 @@ use core::{
 
 macro_rules! impl_signed_integer_native {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
-    // This macro will be invoked with `i8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
-    ($($type:ident $(as $const_keyword:ident)?),+) => {
+    // This macro will be invoked with `(i8, u8) as const, ...` if `const_convert_and_const_trait_impl` is enabled.
+    ($(($type:ident, $unsigned_type:ident) $(as $const_keyword:ident)?),+) => {
         $(
             impl $($const_keyword)? Sealed for $type {}
 
@@ -25,18 +25,47 @@ macro_rules! impl_signed_integer_native {
 
             impl $($const_keyword)? Integer for $type {
                 type UnderlyingType = $type;
+                type SignedUnderlyingType = $type;
+                type UnsignedUnderlyingType = $unsigned_type;
+
                 const BITS: usize = Self::BITS as usize;
                 const MIN: Self = Self::MIN;
                 const MAX: Self = Self::MAX;
 
                 #[inline]
-                fn new(value: Self::UnderlyingType) -> Self { value }
+                fn new(value: Self::UnderlyingType) -> Self {
+                    value
+                }
 
                 #[inline]
-                fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> { Ok(value) }
+                fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> {
+                    Ok(value)
+                }
 
                 #[inline]
-                fn value(self) -> Self::UnderlyingType { self }
+                fn value(self) -> Self::UnderlyingType {
+                    self
+                }
+
+                #[inline]
+                fn to_bits(self) -> $unsigned_type {
+                    self as $unsigned_type
+                }
+
+                #[inline]
+                fn from_bits(value: $unsigned_type) -> Self {
+                    value as Self
+                }
+
+                #[inline]
+                fn try_from_bits(value: $unsigned_type) -> Result<Self, TryNewError> {
+                    Ok(value as Self)
+                }
+
+                #[inline]
+                unsafe fn from_bits_unchecked(value: $unsigned_type) -> Self {
+                    value as Self
+                }
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
@@ -102,10 +131,10 @@ macro_rules! impl_signed_integer_native {
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-impl_signed_integer_native!(i8, i16, i32, i64, i128);
+impl_signed_integer_native!((i8, u8), (i16, u16), (i32, u32), (i64, u64), (i128, u128));
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
-impl_signed_integer_native!(i8 as const, i16 as const, i32 as const, i64 as const, i128 as const);
+impl_signed_integer_native!((i8, u8) as const, (i16, u16) as const, (i32, u32) as const, (i64, u64) as const, (i128, u128) as const);
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
 pub struct Int<T, const BITS: usize> {
@@ -130,9 +159,10 @@ impl<T: Copy, const BITS: usize> Int<T, BITS> {
     /// assert_eq!(value.count_ones(), 8);
     /// ```
     ///
-    /// If you need a value within the specified bit range, use [`Self::to_bits`].
+    /// If you need a value within the specified bit range, use [`to_bits`](Self::to_bits).
     #[cfg(not(feature = "hint"))]
     #[inline]
+    #[must_use]
     pub const fn value(self) -> T {
         self.value
     }
@@ -143,6 +173,7 @@ impl<T: Copy, const BITS: usize> Int<T, BITS> {
     ///
     /// Must only be called with a value bigger or equal to [`Self::MIN`] and less than or equal to [`Self::MAX`].
     #[inline]
+    #[must_use]
     pub const unsafe fn new_unchecked(value: T) -> Self {
         Self { value }
     }
@@ -150,8 +181,8 @@ impl<T: Copy, const BITS: usize> Int<T, BITS> {
 
 macro_rules! int_impl_num {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
-    // This macro will be invoked with `i8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
-    ($($type:ident $(as $const_keyword:ident)?),+) => {
+    // This macro will be invoked with `(i8, u8) as const, ...` if `const_convert_and_const_trait_impl` is enabled.
+    ($(($type:ident, $unsigned_type:ident) $(as $const_keyword:ident)?),+) => {
         $(
             impl<const BITS: usize> $($const_keyword)? Sealed for Int<$type, BITS> {}
 
@@ -159,6 +190,8 @@ macro_rules! int_impl_num {
 
             impl<const BITS: usize> $($const_keyword)? Integer for Int<$type, BITS> {
                 type UnderlyingType = $type;
+                type SignedUnderlyingType = $type;
+                type UnsignedUnderlyingType = $unsigned_type;
 
                 const BITS: usize = BITS;
 
@@ -187,6 +220,40 @@ macro_rules! int_impl_num {
                     Self { value }
                 }
 
+                #[inline]
+                fn value(self) -> $type {
+                    #[cfg(feature = "hint")]
+                    unsafe {
+                        core::hint::assert_unchecked(self.value >= Self::MIN.value);
+                        core::hint::assert_unchecked(self.value <= Self::MAX.value);
+                    }
+
+                    self.value
+                }
+
+                #[inline]
+                fn to_bits(self) -> $unsigned_type {
+                    (self.value() & Self::MASK) as $unsigned_type
+                }
+
+                #[inline]
+                fn try_from_bits(value: $unsigned_type) -> Result<Self, TryNewError> {
+                    if value & (!Self::MASK as $unsigned_type) == 0 {
+                        // First do a logical left shift to put the sign bit at the underlying type's MSB (copying the sign),
+                        // then an arithmetic right shift to sign-extend the value into its original position.
+                        Ok(Self { value: ((value << Self::UNUSED_BITS) as $type) >> Self::UNUSED_BITS })
+                    } else {
+                        Err(TryNewError {})
+                    }
+                }
+
+                #[inline]
+                unsafe fn from_bits_unchecked(value: $unsigned_type) -> Self {
+                    // First do a logical left shift to put the sign bit at the underlying type's MSB (copying the sign),
+                    // then an arithmetic right shift to sign-extend the value into its original position.
+                    Self { value: ((value << Self::UNUSED_BITS) as $type) >> Self::UNUSED_BITS }
+                }
+
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
                 fn from_<T: Integer>(value: T) -> Self {
@@ -206,63 +273,64 @@ macro_rules! int_impl_num {
                     }
                 }
 
+                #[inline]
                 fn as_u8(self) -> u8 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_u16(self) -> u16 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_u32(self) -> u32 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_u64(self) -> u64 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_u128(self) -> u128 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_usize(self) -> usize {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_i8(self) -> i8 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_i16(self) -> i16 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_i32(self) -> i32 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_i64(self) -> i64 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_i128(self) -> i128 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_isize(self) -> isize {
                     self.value() as _
-                }
-
-                #[inline]
-                fn value(self) -> $type {
-                    #[cfg(feature = "hint")]
-                    unsafe {
-                        core::hint::assert_unchecked(self.value >= Self::MIN.value);
-                        core::hint::assert_unchecked(self.value <= Self::MAX.value);
-                    }
-
-                    self.value
                 }
             }
         )+
@@ -270,10 +338,10 @@ macro_rules! int_impl_num {
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-int_impl_num!(i8, i16, i32, i64, i128);
+int_impl_num!((i8, u8), (i16, u16), (i32, u32), (i64, u64), (i128, u128));
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
-int_impl_num!(i8 as const, i16 as const, i32 as const, i64 as const, i128 as const);
+int_impl_num!((i8, u8) as const, (i16, u16) as const, (i32, u32) as const, (i64, u64) as const, (i128, u128) as const);
 
 macro_rules! int_impl {
     ($(($type:ident, $unsigned_type:ident, doctest = $doctest_attr:literal)),+) => {
@@ -283,6 +351,7 @@ macro_rules! int_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn new(value: $type) -> Self {
                     assert!(value >= Self::MIN.value && value <= Self::MAX.value);
 
@@ -291,6 +360,7 @@ macro_rules! int_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_i8(value: i8) -> Self {
                     if Self::BITS < 8 {
                         assert!(value >= Self::MIN.value as i8 && value <= Self::MAX.value as i8);
@@ -300,6 +370,7 @@ macro_rules! int_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_i16(value: i16) -> Self {
                     if Self::BITS < 16 {
                         assert!(value >= Self::MIN.value as i16 && value <= Self::MAX.value as i16);
@@ -309,6 +380,7 @@ macro_rules! int_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_i32(value: i32) -> Self {
                     if Self::BITS < 32 {
                         assert!(value >= Self::MIN.value as i32 && value <= Self::MAX.value as i32);
@@ -318,6 +390,7 @@ macro_rules! int_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_i64(value: i64) -> Self {
                     if Self::BITS < 64 {
                         assert!(value >= Self::MIN.value as i64 && value <= Self::MAX.value as i64);
@@ -327,6 +400,7 @@ macro_rules! int_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_i128(value: i128) -> Self {
                     if Self::BITS < 128 {
                         assert!(value >= Self::MIN.value as i128 && value <= Self::MAX.value as i128);
@@ -377,6 +451,7 @@ macro_rules! int_impl {
                 ///
                 /// Panics if the given value exceeds the bit width specified by [`BITS`](Self::BITS).
                 #[inline]
+                #[must_use]
                 pub const fn from_bits(value: $unsigned_type) -> Self {
                     assert!(value & (!Self::MASK as $unsigned_type) == 0);
 
@@ -418,6 +493,7 @@ macro_rules! int_impl {
                 ///
                 /// The given value must not exceed the bit width specified by [`Self::BITS`].
                 #[inline]
+                #[must_use]
                 pub const unsafe fn from_bits_unchecked(value: $unsigned_type) -> Self {
                     // First do a logical left shift to put the sign bit at the underlying type's MSB (copying the sign),
                     // then an arithmetic right shift to sign-extend the value into its original position.
@@ -439,6 +515,7 @@ macro_rules! int_impl {
                 /// If you need a value within the specified bit range, use [`to_bits`](Self::to_bits).
                 #[cfg(feature = "hint")]
                 #[inline]
+                #[must_use]
                 pub const fn value(self) -> $type {
                     // The hint feature requires the type to be const-comparable,
                     // which isn't possible in the generic version above. So we have
@@ -1922,6 +1999,9 @@ where
         }
     }
 }
+
+// Implement support for the `borsh` crate (if the feature is enabled)
+impl_borsh!(Int, "i");
 
 // Implement `core::iter::Step` (if the `step_trait` feature is enabled).
 impl_step!(Int);

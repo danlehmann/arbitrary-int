@@ -4,9 +4,8 @@
 
 ### Added
 
-- New types for signed integers: `i1`, ..., `i127`. They have a similar API to unsigned integers, though a few
-  features currently remain exclusive to unsigned integers:
-    * Support for the following optional Cargo features: `borsh` and `schemars`,
+- New types for signed integers: `i1`, ..., `i127`. They have a similar API to unsigned integers, though the `schemars`
+  feature currently remain exclusive to unsigned integers.
 - The old Number trait is now replaced with three traits: UnsignedInteger (equivalent to the old Number), SignedInteger
   and Integer (which can be either signed or unsigned).
 - prelude: `use arbitrary-int::prelude::*` to get everything (except for the deprecated Number trait).
@@ -16,7 +15,11 @@
 
 ### Fixed
 
-- `leading_zeros` and `trailing_zeros` now report the correct number of bits when a value of `MIN` is passed.
+- `leading_zeros` and `trailing_zeros` now report the correct number of bits for integers with a value of zero.
+- The implementation of `BorshSerialize` and `BorshDeserialize` now correctly handle writers/readers that can only
+  partially write/read all data after a single call to `borsh::io::Write::write()`/`borsh::io::Read::read()`.
+  This can happen if for example an `TcpStream` is waiting on the other end to send more data. The value would previously
+  be truncated, now it blocks until enough data is available.
 
 ## arbitrary-int 1.3.0
 

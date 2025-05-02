@@ -1,6 +1,6 @@
 use crate::common::{
-    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, impl_num_traits,
-    impl_step,
+    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_borsh, impl_extract,
+    impl_num_traits, impl_step,
 };
 use crate::traits::{sealed::Sealed, Integer, UnsignedInteger};
 use crate::TryNewError;
@@ -13,19 +13,13 @@ use core::ops::{
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[cfg(all(feature = "borsh", not(feature = "std")))]
-use alloc::{collections::BTreeMap, string::ToString};
-
-#[cfg(all(feature = "borsh", feature = "std"))]
-use std::{collections::BTreeMap, string::ToString};
-
 #[cfg(feature = "schemars")]
 use schemars::JsonSchema;
 
 macro_rules! impl_integer_native {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
     // This macro will be invoked with `u8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
-    ($($type:ident $(as $const_keyword:ident)?),+) => {
+    ($(($type:ident, $signed_type:ident) $(as $const_keyword:ident)?),+) => {
         $(
             #[allow(deprecated)]
             impl crate::v1_number_compat::Number for $type {
@@ -38,6 +32,9 @@ macro_rules! impl_integer_native {
 
             impl $($const_keyword)? Integer for $type {
                 type UnderlyingType = $type;
+                type UnsignedUnderlyingType = $type;
+                type SignedUnderlyingType = $signed_type;
+
                 const BITS: usize = Self::BITS as usize;
                 const MIN: Self = Self::MIN;
                 const MAX: Self = Self::MAX;
@@ -47,9 +44,6 @@ macro_rules! impl_integer_native {
 
                 #[inline]
                 fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> { Ok(value) }
-
-                #[inline]
-                fn value(self) -> Self::UnderlyingType { self }
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
@@ -72,6 +66,24 @@ macro_rules! impl_integer_native {
                         128 => value.as_u128() as Self,
                         _ => panic!("Unhandled Integer type")
                     }
+                }
+
+                #[inline]
+                fn value(self) -> Self::UnderlyingType { self }
+
+                #[inline]
+                fn try_from_bits(value: Self::UnsignedUnderlyingType) -> Result<Self, TryNewError> {
+                    Ok(value)
+                }
+
+                #[inline]
+                unsafe fn from_bits_unchecked(value: Self::UnsignedUnderlyingType) -> Self {
+                    value
+                }
+
+                #[inline]
+                fn to_bits(self) -> Self::UnsignedUnderlyingType {
+                    self.value()
                 }
 
                 #[inline]
@@ -115,10 +127,10 @@ macro_rules! impl_integer_native {
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-impl_integer_native!(u8, u16, u32, u64, u128);
+impl_integer_native!((u8, i8), (u16, i16), (u32, i32), (u64, i64), (u128, i128));
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
-impl_integer_native!(u8 as const, u16 as const, u32 as const, u64 as const, u128 as const);
+impl_integer_native!((u8, i8) as const, (u16, i16) as const, (u32, i32) as const, (u64, i64) as const, (u128, i128));
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
 pub struct UInt<T, const BITS: usize> {
@@ -134,6 +146,7 @@ impl<T: Copy, const BITS: usize> UInt<T, BITS> {
     /// Returns the type as a fundamental data type
     #[cfg(not(feature = "hint"))]
     #[inline]
+    #[must_use]
     pub const fn value(self) -> T {
         self.value
     }
@@ -141,8 +154,9 @@ impl<T: Copy, const BITS: usize> UInt<T, BITS> {
     /// Initializes a new value without checking the bounds
     ///
     /// # Safety
-    /// Must only be called with a value less than or equal to [Self::MAX](Self::MAX) value.
+    /// Must only be called with a value less than or equal to [`Self::MAX`](Self::MAX).
     #[inline]
+    #[must_use]
     pub const unsafe fn new_unchecked(value: T) -> Self {
         Self { value }
     }
@@ -164,7 +178,7 @@ where
 macro_rules! uint_impl_num {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
     // This macro will be invoked with `u8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
-    ($($type:ident $(as $const_keyword:ident)?),+) => {
+    ($(($type:ident, $signed_type:ident) $(as $const_keyword:ident)?),+) => {
         $(
             #[allow(deprecated)]
             impl<const BITS: usize> crate::v1_number_compat::Number for UInt<$type, BITS> {
@@ -177,6 +191,8 @@ macro_rules! uint_impl_num {
 
             impl<const BITS: usize> $($const_keyword)? Integer for UInt<$type, BITS> {
                 type UnderlyingType = $type;
+                type UnsignedUnderlyingType = $type;
+                type SignedUnderlyingType = $signed_type;
 
                 const BITS: usize = BITS;
 
@@ -220,50 +236,77 @@ macro_rules! uint_impl_num {
                     }
                 }
 
+                #[inline]
+                fn try_from_bits(value: Self::UnsignedUnderlyingType) -> Result<Self, TryNewError> {
+                    Self::try_new(value)
+                }
+
+                #[inline]
+                unsafe fn from_bits_unchecked(value: Self::UnsignedUnderlyingType) -> Self {
+                    Self { value }
+                }
+
+                #[inline]
+                fn to_bits(self) -> Self::UnsignedUnderlyingType {
+                    self.value()
+                }
+
+                #[inline]
                 fn as_u8(self) -> u8 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_u16(self) -> u16 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_u32(self) -> u32 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_u64(self) -> u64 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_u128(self) -> u128 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_usize(self) -> usize {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_i8(self) -> i8 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_i16(self) -> i16 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_i32(self) -> i32 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_i64(self) -> i64 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_i128(self) -> i128 {
                     self.value() as _
                 }
 
+                #[inline]
                 fn as_isize(self) -> isize {
                     self.value() as _
                 }
@@ -283,10 +326,10 @@ macro_rules! uint_impl_num {
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-uint_impl_num!(u8, u16, u32, u64, u128);
+uint_impl_num!((u8, i8), (u16, i16), (u32, i32), (u64, i64), (u128, i128));
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
-uint_impl_num!(u8 as const, u16 as const, u32 as const, u64 as const, u128 as const);
+uint_impl_num!((u8, i8) as const, (u16, i16) as const, (u32, i32) as const, (u64, i64) as const, (u128, i128));
 
 macro_rules! uint_impl {
     ($(($type:ident, doctest = $doctest_attr:literal)),+) => {
@@ -294,6 +337,7 @@ macro_rules! uint_impl {
             impl<const BITS: usize> UInt<$type, BITS> {
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn new(value: $type) -> Self {
                     assert!(value <= Self::MAX.value);
 
@@ -302,6 +346,7 @@ macro_rules! uint_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_u8(value: u8) -> Self {
                     if Self::BITS < 8 {
                         assert!(value <= Self::MAX.value as u8);
@@ -311,6 +356,7 @@ macro_rules! uint_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_u16(value: u16) -> Self {
                     if Self::BITS < 16 {
                         assert!(value <= Self::MAX.value as u16);
@@ -320,6 +366,7 @@ macro_rules! uint_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_u32(value: u32) -> Self {
                     if Self::BITS < 32 {
                         assert!(value <= Self::MAX.value as u32);
@@ -329,6 +376,7 @@ macro_rules! uint_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_u64(value: u64) -> Self {
                     if Self::BITS < 64 {
                         assert!(value <= Self::MAX.value as u64);
@@ -338,6 +386,7 @@ macro_rules! uint_impl {
 
                 /// Creates an instance. Panics if the given value is outside of the valid range
                 #[inline]
+                #[must_use]
                 pub const fn from_u128(value: u128) -> Self {
                     if Self::BITS < 128 {
                         assert!(value <= Self::MAX.value as u128);
@@ -355,9 +404,62 @@ macro_rules! uint_impl {
                     }
                 }
 
+                /// Returns the bitwise representation of the value.
+                ///
+                /// For unsigned integers this method is equivalent to [`value`](Self::value),
+                /// it exists for symmetry with [`Int::to_bits`](crate::Int::to_bits).
+                #[inline]
+                #[must_use = "this returns the result of the operation, without modifying the original"]
+                pub const fn to_bits(self) -> $type {
+                    self.value()
+                }
+
+                /// Convert the bitwise representation from [`to_bits`](Self::to_bits) to an instance.
+                ///
+                /// For unsigned integers this method is equivalent to [`new`](Self::new),
+                /// it exists for symmetry with [`Int::from_bits`](crate::Int::from_bits).
+                ///
+                /// # Panics
+                ///
+                /// Panics if the given value exceeds the bit width specified by [`BITS`](Self::BITS).
+                #[inline]
+                #[must_use]
+                pub const fn from_bits(value: $type) -> Self {
+                    Self::new(value)
+                }
+
+                /// Tries to convert the bitwise representation from [`to_bits`](Self::to_bits) to an instance.
+                ///
+                /// For unsigned integers this method is equivalent to [`try_new`](Self::try_new),
+                /// it exists for symmetry with [`Int::try_from_bits`](crate::Int::try_from_bits).
+                ///
+                /// # Errors
+                ///
+                /// Returns an error if the given value exceeds the bit width specified by [`BITS`](Self::BITS).
+                #[inline]
+                pub const fn try_from_bits(value: $type) -> Result<Self, TryNewError> {
+                    Self::try_new(value)
+                }
+
+                /// Converts the bitwise representation from [`to_bits`](Self::to_bits) to an instance,
+                /// without checking the bounds.
+                ///
+                /// For unsigned integers this method is equivalent to [`new_unchecked`](Self::new_unchecked),
+                /// it exists for symmetry with [`Int::from_bits_unchecked`](crate::Int::from_bits_unchecked).
+                ///
+                /// # Safety
+                ///
+                /// The given value must not exceed the bit width specified by [`Self::BITS`].
+                #[inline]
+                #[must_use]
+                pub const unsafe fn from_bits_unchecked(value: $type) -> Self {
+                    Self::new_unchecked(value)
+                }
+
                 /// Returns the type as a fundamental data type
                 #[cfg(feature = "hint")]
                 #[inline]
+                #[must_use]
                 pub const fn value(self) -> $type {
                     // The hint feature requires the type to be const-comparable,
                     // which isn't possible in the generic version above. So we have
@@ -1654,73 +1756,6 @@ where
     }
 }
 
-#[cfg(feature = "borsh")]
-impl<T, const BITS: usize> borsh::BorshSerialize for UInt<T, BITS>
-where
-    Self: Integer,
-    T: borsh::BorshSerialize,
-{
-    fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
-        let serialized_byte_count = (BITS + 7) / 8;
-        let mut buffer = [0u8; 16];
-        self.value.serialize(&mut &mut buffer[..])?;
-        writer.write(&buffer[0..serialized_byte_count])?;
-
-        Ok(())
-    }
-}
-
-#[cfg(feature = "borsh")]
-impl<
-        T: borsh::BorshDeserialize + PartialOrd<<UInt<T, BITS> as Integer>::UnderlyingType>,
-        const BITS: usize,
-    > borsh::BorshDeserialize for UInt<T, BITS>
-where
-    Self: Integer,
-{
-    fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> borsh::io::Result<Self> {
-        // Ideally, we'd want a buffer of size `BITS >> 3` or `size_of::<T>`, but that's not possible
-        // with arrays at present (feature(generic_const_exprs), once stable, will allow this).
-        // vec! would be an option, but an allocation is not expected at this level.
-        // Therefore, allocate a 16 byte buffer and take a slice out of it.
-        let serialized_byte_count = (BITS + 7) / 8;
-        let underlying_byte_count = core::mem::size_of::<T>();
-        let mut buf = [0u8; 16];
-
-        // Read from the source, advancing cursor by the exact right number of bytes
-        reader.read(&mut buf[..serialized_byte_count])?;
-
-        // Deserialize the underlying type. We have to pass in the correct number of bytes of the
-        // underlying type (or more, but let's be precise). The unused bytes are all still zero
-        let value = T::deserialize(&mut &buf[..underlying_byte_count])?;
-
-        if value >= Self::MIN.value() && value <= Self::MAX.value() {
-            Ok(Self { value })
-        } else {
-            Err(borsh::io::Error::new(
-                borsh::io::ErrorKind::InvalidData,
-                "Value out of range",
-            ))
-        }
-    }
-}
-
-#[cfg(feature = "borsh")]
-impl<T, const BITS: usize> borsh::BorshSchema for UInt<T, BITS> {
-    fn add_definitions_recursively(
-        definitions: &mut BTreeMap<borsh::schema::Declaration, borsh::schema::Definition>,
-    ) {
-        definitions.insert(
-            ["u", &BITS.to_string()].concat(),
-            borsh::schema::Definition::Primitive(((BITS + 7) / 8) as u8),
-        );
-    }
-
-    fn declaration() -> borsh::schema::Declaration {
-        ["u", &BITS.to_string()].concat()
-    }
-}
-
 #[cfg(feature = "serde")]
 impl<T, const BITS: usize> Serialize for UInt<T, BITS>
 where
@@ -1784,7 +1819,8 @@ impl<T, const BITS: usize> JsonSchema for UInt<T, BITS>
 where
     Self: Integer,
 {
-    fn schema_name() -> String {
+    fn schema_name() -> alloc::string::String {
+        use alloc::string::ToString;
         ["uint", &BITS.to_string()].concat()
     }
 
@@ -1793,7 +1829,7 @@ where
         let schema_object = SchemaObject {
             instance_type: Some(schemars::schema::InstanceType::Integer.into()),
             format: Some(Self::schema_name()),
-            number: Some(Box::new(NumberValidation {
+            number: Some(alloc::boxed::Box::new(NumberValidation {
                 // can be done with https://github.com/rust-lang/rfcs/pull/2484
                 // minimum: Some(Self::MIN.value().try_into().ok().unwrap()),
                 // maximum: Some(Self::MAX.value().try_into().ok().unwrap()),
@@ -1810,6 +1846,9 @@ impl_num_traits!(UInt, u8, |value| value & Self::MASK);
 
 // Implement `core::iter::Step` (if the `step_trait` feature is enabled).
 impl_step!(UInt);
+
+// Implement support for the `borsh` crate (if the feature is enabled)
+impl_borsh!(UInt, "u");
 
 // Implement byte operations for UInt's with a bit width aligned to a byte boundary.
 bytes_operation_impl!(UInt<u32, 24>, u32);
