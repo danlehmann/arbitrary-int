@@ -1,7 +1,7 @@
 use crate::{
     common::{
         bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
-        impl_num_traits, impl_step,
+        impl_num_traits, impl_step, impl_sum_product,
     },
     traits::{sealed::Sealed, Integer, SignedInteger},
     TryNewError,
@@ -1922,6 +1922,9 @@ where
         }
     }
 }
+
+// Implement `core::iter::Sum` and `core::iter::Product`.
+impl_sum_product!(Int, 1_i8);
 
 // Implement `core::iter::Step` (if the `step_trait` feature is enabled).
 impl_step!(Int);
