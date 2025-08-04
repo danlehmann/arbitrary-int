@@ -251,6 +251,58 @@ macro_rules! bytes_operation_impl {
 
 pub(crate) use bytes_operation_impl;
 
+/// Implements [`core::iter::Sum`] and [`core::iter::Product`] for an integer type.
+macro_rules! impl_sum_product {
+    ($type:ident, $one:literal) => {
+        // This implements `Sum` for owned values, for example when using an iterator from a fixed-sized array.
+        impl<T, const BITS: usize> core::iter::Sum for $type<T, BITS>
+        where
+            Self: Integer + Default + core::ops::Add<Output = Self>,
+        {
+            #[inline]
+            fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+                // Use `default()` to construct a value of zero.
+                iter.fold(Self::default(), |lhs, rhs| lhs + rhs)
+            }
+        }
+
+        // This implements `Sum` for borrowed values, for example when using an iterator from a slice.
+        impl<'a, T, const BITS: usize> core::iter::Sum<&'a Self> for $type<T, BITS>
+        where
+            Self: Integer + Default + core::ops::Add<Output = Self>,
+        {
+            #[inline]
+            fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+                iter.fold(Self::default(), |lhs, rhs| lhs + *rhs)
+            }
+        }
+
+        // We need to use `Integer::from_()` to construct a value of one,
+        // which isn't available with `const_convert_and_const_trait_impl`.
+        #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+        impl<T, const BITS: usize> core::iter::Product for $type<T, BITS>
+        where
+            Self: Integer + core::ops::Mul<Output = Self>,
+        {
+            #[inline]
+            fn product<I: Iterator<Item = Self>>(iter: I) -> Self {
+                iter.fold(Self::from_($one), |lhs, rhs| lhs * rhs)
+            }
+        }
+
+        #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+        impl<'a, T, const BITS: usize> core::iter::Product<&'a Self> for $type<T, BITS>
+        where
+            Self: Integer + core::ops::Mul<Output = Self>,
+        {
+            #[inline]
+            fn product<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+                iter.fold(Self::from_($one), |lhs, rhs| lhs * *rhs)
+            }
+        }
+    };
+}
+
 /// Implements support for the `schemars` crate, if the feature is enabled.
 macro_rules! impl_schemars {
     ($type:tt, $str_prefix:literal) => {
@@ -282,4 +334,116 @@ macro_rules! impl_schemars {
     };
 }
 
+pub(crate) use impl_sum_product;
+
+macro_rules! impl_step {
+    ($type:tt) => {
+        #[cfg(feature = "step_trait")]
+        impl<T, const BITS: usize> core::iter::Step for $type<T, BITS>
+        where
+            Self: Integer<UnderlyingType = T>,
+            T: Copy + core::iter::Step,
+        {
+            #[inline]
+            fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
+                core::iter::Step::steps_between(&start.value(), &end.value())
+            }
+
+            #[inline]
+            fn forward_checked(start: Self, count: usize) -> Option<Self> {
+                if let Some(res) = core::iter::Step::forward_checked(start.value(), count) {
+                    Self::try_new(res).ok()
+                } else {
+                    None
+                }
+            }
+
+            #[inline]
+            fn backward_checked(start: Self, count: usize) -> Option<Self> {
+                if let Some(res) = core::iter::Step::backward_checked(start.value(), count) {
+                    Self::try_new(res).ok()
+                } else {
+                    None
+                }
+            }
+        }
+    };
+}
+
+pub(crate) use impl_step;
+
+/// Implements support for the `num-traits` crate, if the feature is enabled.
+macro_rules! impl_num_traits {
+    ($type:ident, $primitive_8:ty, |$result:ident| $limit_result:expr) => {
+        #[cfg(feature = "num-traits")]
+        impl<T, const BITS: usize> num_traits::WrappingAdd for $type<T, BITS>
+        where
+            Self: Integer,
+            T: PartialEq
+                + Eq
+                + Copy
+                + Add<T, Output = T>
+                + Sub<T, Output = T>
+                + BitAnd<T, Output = T>
+                + Not<Output = T>
+                + Shr<usize, Output = T>
+                + Shl<usize, Output = T>
+                + From<$primitive_8>,
+            core::num::Wrapping<T>: Add<core::num::Wrapping<T>, Output = core::num::Wrapping<T>>,
+        {
+            #[inline]
+            fn wrapping_add(&self, rhs: &Self) -> Self {
+                let $result =
+                    (core::num::Wrapping(self.value()) + core::num::Wrapping(rhs.value())).0;
+                Self {
+                    value: $limit_result,
+                }
+            }
+        }
+
+        #[cfg(feature = "num-traits")]
+        impl<T, const BITS: usize> num_traits::WrappingSub for $type<T, BITS>
+        where
+            Self: Integer,
+            T: PartialEq
+                + Eq
+                + Copy
+                + Add<T, Output = T>
+                + Sub<T, Output = T>
+                + BitAnd<T, Output = T>
+                + Not<Output = T>
+                + Shr<usize, Output = T>
+                + Shl<usize, Output = T>
+                + From<$primitive_8>,
+            core::num::Wrapping<T>: Sub<core::num::Wrapping<T>, Output = core::num::Wrapping<T>>,
+        {
+            #[inline]
+            fn wrapping_sub(&self, rhs: &Self) -> Self {
+                let $result =
+                    (core::num::Wrapping(self.value()) - core::num::Wrapping(rhs.value())).0;
+                Self {
+                    value: $limit_result,
+                }
+            }
+        }
+
+        #[cfg(feature = "num-traits")]
+        impl<T, const BITS: usize> num_traits::bounds::Bounded for $type<T, BITS>
+        where
+            Self: Integer,
+        {
+            #[inline]
+            fn min_value() -> Self {
+                Self::MIN
+            }
+
+            #[inline]
+            fn max_value() -> Self {
+                Self::MAX
+            }
+        }
+    };
+}
+
+pub(crate) use impl_num_traits;
 pub(crate) use impl_schemars;

@@ -6,14 +6,15 @@
 
 - New types for signed integers: `i1`, ..., `i127`. They have a similar API to unsigned integers, though a few
   features currently remain exclusive to unsigned integers:
-    * Support for the following optional Cargo features: `step_trait` and `borsh`,
-    * Overflowing arithmetic functions (`overflowing_add`, ...).
+    * Support for the following optional Cargo features: `step_trait`
 - The old Number trait is now replaced with three traits: UnsignedInteger (equivalent to the old Number), SignedInteger
   and Integer (which can be either signed or unsigned).
 - prelude: `use arbitrary-int::prelude::*` to get everything (except for the deprecated Number trait).
 - Various new extract functions: `extract_i8`, `extract_i16`, ..., `extract_i128`. These are the same as the
   equivalent `extract_u<N>` functions, but work with signed integers instead.
 - Add `quickcheck` and `arbitrary` support
+- Support `core::iter::Sum`: `[u7::new(1); 10].iter().sum::<u7>() == u7::new(10)`
+- Support `core::iter::Product`: `[i7::new(2); 4].iter().product::<i7>() == i7::new(16)`
 
 ### Fixed
 
