@@ -311,7 +311,8 @@ macro_rules! impl_schemars {
         where
             Self: Integer,
         {
-            fn schema_name() -> String {
+            fn schema_name() -> alloc::string::String {
+                use alloc::string::ToString;
                 [$str_prefix, &BITS.to_string()].concat()
             }
 
@@ -320,7 +321,7 @@ macro_rules! impl_schemars {
                 let schema_object = SchemaObject {
                     instance_type: Some(InstanceType::Integer.into()),
                     format: Some(Self::schema_name()),
-                    number: Some(Box::new(NumberValidation {
+                    number: Some(alloc::boxed::Box::new(NumberValidation {
                         // Can be done with https://github.com/rust-lang/rfcs/pull/2484
                         // minimum: Some(Self::MIN.value().try_into().ok().unwrap()),
                         // maximum: Some(Self::MAX.value().try_into().ok().unwrap()),
