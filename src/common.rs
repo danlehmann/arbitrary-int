@@ -303,6 +303,37 @@ macro_rules! impl_sum_product {
     };
 }
 
+/// Implements support for the `schemars` crate, if the feature is enabled.
+macro_rules! impl_schemars {
+    ($type:tt, $str_prefix:literal) => {
+        #[cfg(feature = "schemars")]
+        impl<T, const BITS: usize> schemars::JsonSchema for $type<T, BITS>
+        where
+            Self: Integer,
+        {
+            fn schema_name() -> String {
+                [$str_prefix, &BITS.to_string()].concat()
+            }
+
+            fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+                use schemars::schema::{InstanceType, NumberValidation, Schema, SchemaObject};
+                let schema_object = SchemaObject {
+                    instance_type: Some(InstanceType::Integer.into()),
+                    format: Some(Self::schema_name()),
+                    number: Some(Box::new(NumberValidation {
+                        // Can be done with https://github.com/rust-lang/rfcs/pull/2484
+                        // minimum: Some(Self::MIN.value().try_into().ok().unwrap()),
+                        // maximum: Some(Self::MAX.value().try_into().ok().unwrap()),
+                        ..Default::default()
+                    })),
+                    ..Default::default()
+                };
+                Schema::Object(schema_object)
+            }
+        }
+    };
+}
+
 pub(crate) use impl_sum_product;
 
 macro_rules! impl_step {
@@ -415,3 +446,4 @@ macro_rules! impl_num_traits {
 }
 
 pub(crate) use impl_num_traits;
+pub(crate) use impl_schemars;

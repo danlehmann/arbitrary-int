@@ -1,6 +1,6 @@
 use crate::common::{
     bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, impl_num_traits,
-    impl_step, impl_sum_product,
+    impl_schemars, impl_step, impl_sum_product,
 };
 use crate::traits::{sealed::Sealed, Integer, UnsignedInteger};
 use crate::TryNewError;
@@ -18,9 +18,6 @@ use alloc::{collections::BTreeMap, string::ToString};
 
 #[cfg(all(feature = "borsh", feature = "std"))]
 use std::{collections::BTreeMap, string::ToString};
-
-#[cfg(feature = "schemars")]
-use schemars::JsonSchema;
 
 macro_rules! impl_integer_native {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
@@ -1779,32 +1776,6 @@ where
     }
 }
 
-#[cfg(feature = "schemars")]
-impl<T, const BITS: usize> JsonSchema for UInt<T, BITS>
-where
-    Self: Integer,
-{
-    fn schema_name() -> String {
-        ["uint", &BITS.to_string()].concat()
-    }
-
-    fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-        use schemars::schema::{NumberValidation, Schema, SchemaObject};
-        let schema_object = SchemaObject {
-            instance_type: Some(schemars::schema::InstanceType::Integer.into()),
-            format: Some(Self::schema_name()),
-            number: Some(Box::new(NumberValidation {
-                // can be done with https://github.com/rust-lang/rfcs/pull/2484
-                // minimum: Some(Self::MIN.value().try_into().ok().unwrap()),
-                // maximum: Some(Self::MAX.value().try_into().ok().unwrap()),
-                ..Default::default()
-            })),
-            ..Default::default()
-        };
-        Schema::Object(schema_object)
-    }
-}
-
 // Implement `core::iter::Sum` and `core::iter::Product`.
 impl_sum_product!(UInt, 1_u8);
 
@@ -1815,6 +1786,10 @@ impl_num_traits!(UInt, u8, |value| value & Self::MASK);
 impl_step!(UInt);
 
 // Implement byte operations for UInt's with a bit width aligned to a byte boundary.
+
+// Support for the `schemars` crate, if the feature is enabled.
+impl_schemars!(UInt, "uint");
+
 bytes_operation_impl!(UInt<u32, 24>, u32);
 bytes_operation_impl!(UInt<u64, 24>, u64);
 bytes_operation_impl!(UInt<u128, 24>, u128);

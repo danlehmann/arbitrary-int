@@ -3955,7 +3955,7 @@ mod borsh_tests {
 
 #[cfg(feature = "schemars")]
 #[test]
-fn schemars() {
+fn schemars_unsigned() {
     use schemars::schema_for;
     let mut u8 = schema_for!(u8);
     let u9 = schema_for!(u9);
@@ -3977,6 +3977,32 @@ fn schemars() {
     u8.schema.metadata = u9.schema.metadata.clone();
     u8.schema.number = u9.schema.number.clone();
     assert_eq!(u8, u9);
+}
+
+#[cfg(feature = "schemars")]
+#[test]
+fn schemars_signed() {
+    use schemars::schema_for;
+    let mut i8 = schema_for!(i8);
+    let i9 = schema_for!(i9);
+    assert_eq!(
+        i8.schema.format.clone().unwrap().replace("8", "9"),
+        i9.schema.format.clone().unwrap()
+    );
+    i8.schema.format = i9.schema.format.clone();
+    assert_eq!(
+        i8.schema
+            .metadata
+            .clone()
+            .unwrap()
+            .title
+            .unwrap()
+            .replace("8", "9"),
+        i9.schema.metadata.clone().unwrap().title.unwrap()
+    );
+    i8.schema.metadata = i9.schema.metadata.clone();
+    i8.schema.number = i9.schema.number.clone();
+    assert_eq!(i8, i9);
 }
 
 #[test]
