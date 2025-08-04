@@ -15,7 +15,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 macro_rules! impl_integer_native {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
-    // This macro will be invoked with `u8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
+    // This macro will be invoked with `(u8,i8) as const, ...` if `const_convert_and_const_trait_impl` is enabled.
     ($(($type:ident, $signed_type:ident) $(as $const_keyword:ident)?),+) => {
         $(
             #[allow(deprecated)]
@@ -162,7 +162,7 @@ where
 
 macro_rules! uint_impl_num {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
-    // This macro will be invoked with `u8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
+    // This macro will be invoked with `(u8, i8) as const, ...` if `const_convert_and_const_trait_impl` is enabled.
     ($(($type:ident, $signed_type:ident) $(as $const_keyword:ident)?),+) => {
         $(
             #[allow(deprecated)]
