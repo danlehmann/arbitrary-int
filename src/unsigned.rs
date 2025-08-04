@@ -13,9 +13,6 @@ use core::ops::{
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[cfg(feature = "schemars")]
-use schemars::JsonSchema;
-
 macro_rules! impl_integer_native {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
     // This macro will be invoked with `u8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
@@ -1811,33 +1808,6 @@ where
             let err = InvalidUIntValueError::<Self> { value };
             Err(serde::de::Error::custom(err))
         }
-    }
-}
-
-#[cfg(feature = "schemars")]
-impl<T, const BITS: usize> JsonSchema for UInt<T, BITS>
-where
-    Self: Integer,
-{
-    fn schema_name() -> alloc::string::String {
-        use alloc::string::ToString;
-        ["uint", &BITS.to_string()].concat()
-    }
-
-    fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-        use schemars::schema::{NumberValidation, Schema, SchemaObject};
-        let schema_object = SchemaObject {
-            instance_type: Some(schemars::schema::InstanceType::Integer.into()),
-            format: Some(Self::schema_name()),
-            number: Some(alloc::boxed::Box::new(NumberValidation {
-                // can be done with https://github.com/rust-lang/rfcs/pull/2484
-                // minimum: Some(Self::MIN.value().try_into().ok().unwrap()),
-                // maximum: Some(Self::MAX.value().try_into().ok().unwrap()),
-                ..Default::default()
-            })),
-            ..Default::default()
-        };
-        Schema::Object(schema_object)
     }
 }
 
