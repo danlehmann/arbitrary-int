@@ -1776,32 +1776,6 @@ where
     }
 }
 
-#[cfg(feature = "schemars")]
-impl<T, const BITS: usize> JsonSchema for UInt<T, BITS>
-where
-    Self: Integer,
-{
-    fn schema_name() -> String {
-        ["uint", &BITS.to_string()].concat()
-    }
-
-    fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-        use schemars::schema::{NumberValidation, Schema, SchemaObject};
-        let schema_object = SchemaObject {
-            instance_type: Some(schemars::schema::InstanceType::Integer.into()),
-            format: Some(Self::schema_name()),
-            number: Some(Box::new(NumberValidation {
-                // can be done with https://github.com/rust-lang/rfcs/pull/2484
-                // minimum: Some(Self::MIN.value().try_into().ok().unwrap()),
-                // maximum: Some(Self::MAX.value().try_into().ok().unwrap()),
-                ..Default::default()
-            })),
-            ..Default::default()
-        };
-        Schema::Object(schema_object)
-    }
-}
-
 // Implement `core::iter::Sum` and `core::iter::Product`.
 impl_sum_product!(UInt, 1_u8);
 
