@@ -16,8 +16,8 @@ use core::{
 
 macro_rules! impl_signed_integer_native {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
-    // This macro will be invoked with `i8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
-    ($($type:ident $(as $const_keyword:ident)?),+) => {
+    // This macro will be invoked with `(i8, u*) as const, ...` if `const_convert_and_const_trait_impl` is enabled.
+    ($(($type:ident, $unsigned_type:ident) $(as $const_keyword:ident)?),+) => {
         $(
             impl $($const_keyword)? Sealed for $type {}
 
@@ -25,9 +25,13 @@ macro_rules! impl_signed_integer_native {
 
             impl $($const_keyword)? Integer for $type {
                 type UnderlyingType = $type;
+                type UnsignedInteger = $unsigned_type;
+                type SignedInteger = $type;
+
                 const BITS: usize = Self::BITS as usize;
                 const MIN: Self = Self::MIN;
                 const MAX: Self = Self::MAX;
+
 
                 #[inline]
                 fn new(value: Self::UnderlyingType) -> Self { value }
@@ -47,9 +51,8 @@ macro_rules! impl_signed_integer_native {
                     Self::masked_new(value)
                 }
 
-                #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
-                fn masked_new<T: Integer>(value: T) -> Self {
+                fn masked_new<T: $(~ $const_keyword)? Integer>(value: T) -> Self {
                     // Primitive types don't need masking
                     match Self::BITS {
                         8 => value.as_i8() as Self,
@@ -96,16 +99,22 @@ macro_rules! impl_signed_integer_native {
 
                 #[inline]
                 fn as_isize(self) -> isize { self as isize }
+
+                #[inline]
+                fn to_unsigned(self) -> Self::UnsignedInteger { self as Self::UnsignedInteger }
+
+                #[inline]
+                fn from_unsigned(value: Self::UnsignedInteger) -> Self { value as Self }
             }
         )+
     };
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-impl_signed_integer_native!(i8, i16, i32, i64, i128);
+impl_signed_integer_native!((i8, u8), (i16, u16), (i32, u32), (i64, u64), (i128, u128));
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
-impl_signed_integer_native!(i8 as const, i16 as const, i32 as const, i64 as const, i128 as const);
+impl_signed_integer_native!((i8, u8) as const, (i16, u16) as const, (i32, u32) as const, (i64, u64) as const, (i128, u128) as const);
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
 pub struct Int<T, const BITS: usize> {
@@ -151,7 +160,7 @@ impl<T: Copy, const BITS: usize> Int<T, BITS> {
 macro_rules! int_impl_num {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
     // This macro will be invoked with `i8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
-    ($($type:ident $(as $const_keyword:ident)?),+) => {
+    ($(($type:ident, $unsigned_type:ident) $(as $const_keyword:ident)?),+) => {
         $(
             impl<const BITS: usize> $($const_keyword)? Sealed for Int<$type, BITS> {}
 
@@ -159,6 +168,8 @@ macro_rules! int_impl_num {
 
             impl<const BITS: usize> $($const_keyword)? Integer for Int<$type, BITS> {
                 type UnderlyingType = $type;
+                type SignedInteger = Self;
+                type UnsignedInteger = crate::UInt<$unsigned_type, BITS>;
 
                 const BITS: usize = BITS;
 
@@ -196,8 +207,7 @@ macro_rules! int_impl_num {
                     Self { value: Self::UnderlyingType::masked_new(value) }
                 }
 
-                #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-                fn masked_new<T: Integer>(value: T) -> Self {
+                fn masked_new<T: $(~ $const_keyword)? Integer>(value: T) -> Self {
                     if Self::BITS < T::BITS {
                         let value = (value.as_::<Self::UnderlyingType>() << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
                         Self { value: Self::UnderlyingType::masked_new(value) }
@@ -255,6 +265,15 @@ macro_rules! int_impl_num {
                 }
 
                 #[inline]
+                fn to_unsigned(self) -> Self::UnsignedInteger { Self::UnsignedInteger::masked_new(self.value as $unsigned_type) }
+
+                #[inline]
+                fn from_unsigned(value: Self::UnsignedInteger) -> Self {
+                    Self::masked_new(value.value() as $type)
+                }
+
+
+                #[inline]
                 fn value(self) -> $type {
                     #[cfg(feature = "hint")]
                     unsafe {
@@ -270,10 +289,10 @@ macro_rules! int_impl_num {
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-int_impl_num!(i8, i16, i32, i64, i128);
+int_impl_num!((i8, u8), (i16, u16), (i32, u32), (i64, u64), (i128, u128));
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
-int_impl_num!(i8 as const, i16 as const, i32 as const, i64 as const, i128 as const);
+int_impl_num!((i8, u8) as const, (i16, u16) as const, (i32, u32) as const, (i64, u64) as const, (i128, u128) as const);
 
 macro_rules! int_impl {
     ($(($type:ident, $unsigned_type:ident, doctest = $doctest_attr:literal)),+) => {
@@ -1864,6 +1883,8 @@ where
     }
 }
 
+impl_borsh!(Int, "i");
+
 // Serde's invalid_value error (https://rust-lang.github.io/hashbrown/serde/de/trait.Error.html#method.invalid_value)
 // takes an Unexpected (https://rust-lang.github.io/hashbrown/serde/de/enum.Unexpected.html) which only accepts a 64 bit
 // integer. This is a problem for us because we want to support 128 bit integers. To work around this we define our own
@@ -1968,6 +1989,7 @@ from_native_impl!(Int(i32), [i8, i16, i32, i64, i128]);
 from_native_impl!(Int(i64), [i8, i16, i32, i64, i128]);
 from_native_impl!(Int(i128), [i8, i16, i32, i64, i128]);
 
+use crate::common::impl_borsh;
 pub use aliases::*;
 
 #[allow(non_camel_case_types)]

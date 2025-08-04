@@ -303,6 +303,8 @@ macro_rules! impl_sum_product {
     };
 }
 
+pub(crate) use impl_sum_product;
+
 /// Implements support for the `schemars` crate, if the feature is enabled.
 macro_rules! impl_schemars {
     ($type:tt, $str_prefix:literal) => {
@@ -311,7 +313,8 @@ macro_rules! impl_schemars {
         where
             Self: Integer,
         {
-            fn schema_name() -> String {
+            fn schema_name() -> alloc::string::String {
+                use alloc::string::ToString;
                 [$str_prefix, &BITS.to_string()].concat()
             }
 
@@ -320,7 +323,7 @@ macro_rules! impl_schemars {
                 let schema_object = SchemaObject {
                     instance_type: Some(InstanceType::Integer.into()),
                     format: Some(Self::schema_name()),
-                    number: Some(Box::new(NumberValidation {
+                    number: Some(alloc::boxed::Box::new(NumberValidation {
                         // Can be done with https://github.com/rust-lang/rfcs/pull/2484
                         // minimum: Some(Self::MIN.value().try_into().ok().unwrap()),
                         // maximum: Some(Self::MAX.value().try_into().ok().unwrap()),
@@ -334,7 +337,102 @@ macro_rules! impl_schemars {
     };
 }
 
-pub(crate) use impl_sum_product;
+pub(crate) use impl_schemars;
+
+/// Implement support for the `borsh` crate (if the feature is enabled)
+macro_rules! impl_borsh {
+    ($type:ident, $declaration_prefix:literal) => {
+        #[cfg(feature = "borsh")]
+        impl<T: Integer, const BITS: usize> borsh::BorshSerialize for $type<T, BITS>
+        where
+            Self: Integer,
+            <<Self as Integer>::UnsignedInteger as Integer>::UnderlyingType: borsh::BorshSerialize,
+        {
+            fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
+                // Ideally, we'd want a buffer of size `BITS >> 3` or `size_of::<T>`, but that's not possible
+                // with arrays at present (`feature(generic_const_exprs)`, once stable, will allow this).
+                const BUFFER_SIZE: usize = size_of::<u128>();
+                let mut buffer = [0_u8; BUFFER_SIZE];
+                const {
+                    // This causes a compiler error if the buffer isn't big enough. That isn't possible with any
+                    // of the types provided by this crate, but it can't hurt to double check.
+                    assert!(core::mem::size_of::<T>() <= BUFFER_SIZE);
+                }
+
+                let serialized_byte_count = BITS.div_ceil(8);
+                self.to_unsigned().value().serialize(&mut &mut buffer[..])?;
+                writer.write_all(&buffer[..serialized_byte_count])
+            }
+        }
+
+        #[cfg(feature = "borsh")]
+        impl<T: borsh::BorshDeserialize, const BITS: usize> borsh::BorshDeserialize
+            for $type<T, BITS>
+        where
+            Self: Integer,
+            <<Self as Integer>::UnsignedInteger as Integer>::UnderlyingType:
+                borsh::BorshDeserialize,
+        {
+            fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> borsh::io::Result<Self> {
+                // Ideally, we'd want a buffer of size `BITS >> 3` or `size_of::<T>`, but that's not possible
+                // with arrays at present (`feature(generic_const_exprs)`, once stable, will allow this).
+                const BUFFER_SIZE: usize = size_of::<u128>();
+                let mut buffer = [0_u8; BUFFER_SIZE];
+                const {
+                    // This causes a compiler error if the buffer isn't big enough. That isn't possible with any
+                    // of the types provided by this crate, but it can't hurt to double check.
+                    assert!(core::mem::size_of::<T>() <= BUFFER_SIZE);
+                }
+                let serialized_byte_count = BITS.div_ceil(8);
+                let underlying_byte_count = core::mem::size_of::<T>();
+
+                // Read from the source, advancing cursor by the exact right number of bytes
+                reader.read_exact(&mut buffer[..serialized_byte_count])?;
+
+                // Deserialize the underlying type into an unsigned underlying type. We have to pass
+                // in the correct number of bytes of the underlying type (or more, but let's be
+                // precise). The unused bytes are all still zero.
+                let value =
+                    <<Self as Integer>::UnsignedInteger as Integer>::UnderlyingType::deserialize(
+                        &mut &buffer[..underlying_byte_count],
+                    )?;
+
+                // We can use try_new to range check this to the correct number of bits (e.g. from
+                // u16 to u13). We're still unsigned, but that range-check is also correct for
+                // signed numbers as the upper bits are all zero.
+                if let Ok(value) = <<Self as Integer>::UnsignedInteger>::try_new(value) {
+                    Ok(Self::from_unsigned(value))
+                } else {
+                    Err(borsh::io::Error::new(
+                        borsh::io::ErrorKind::InvalidData,
+                        "Value out of range",
+                    ))
+                }
+            }
+        }
+
+        #[cfg(feature = "borsh")]
+        impl<T, const BITS: usize> borsh::BorshSchema for $type<T, BITS> {
+            fn add_definitions_recursively(
+                definitions: &mut alloc::collections::btree_map::BTreeMap<
+                    borsh::schema::Declaration,
+                    borsh::schema::Definition,
+                >,
+            ) {
+                let byte_count = BITS.div_ceil(8) as u8;
+                let def = borsh::schema::Definition::Primitive(byte_count);
+                definitions.insert(Self::declaration(), def);
+            }
+
+            fn declaration() -> borsh::schema::Declaration {
+                use alloc::string::ToString;
+                [$declaration_prefix, &BITS.to_string()].concat()
+            }
+        }
+    };
+}
+
+pub(crate) use impl_borsh;
 
 macro_rules! impl_step {
     ($type:tt) => {
@@ -446,4 +544,3 @@ macro_rules! impl_num_traits {
 }
 
 pub(crate) use impl_num_traits;
-pub(crate) use impl_schemars;

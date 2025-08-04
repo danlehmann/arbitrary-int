@@ -1,6 +1,6 @@
 use crate::common::{
-    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract, impl_num_traits,
-    impl_schemars, impl_step, impl_sum_product,
+    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_borsh, impl_extract,
+    impl_num_traits, impl_schemars, impl_step, impl_sum_product,
 };
 use crate::traits::{sealed::Sealed, Integer, UnsignedInteger};
 use crate::TryNewError;
@@ -13,16 +13,10 @@ use core::ops::{
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[cfg(all(feature = "borsh", not(feature = "std")))]
-use alloc::{collections::BTreeMap, string::ToString};
-
-#[cfg(all(feature = "borsh", feature = "std"))]
-use std::{collections::BTreeMap, string::ToString};
-
 macro_rules! impl_integer_native {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
     // This macro will be invoked with `u8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
-    ($($type:ident $(as $const_keyword:ident)?),+) => {
+    ($(($type:ident, $signed_type:ident) $(as $const_keyword:ident)?),+) => {
         $(
             #[allow(deprecated)]
             impl crate::v1_number_compat::Number for $type {
@@ -35,6 +29,9 @@ macro_rules! impl_integer_native {
 
             impl $($const_keyword)? Integer for $type {
                 type UnderlyingType = $type;
+                type UnsignedInteger = $type;
+                type SignedInteger = $signed_type;
+
                 const BITS: usize = Self::BITS as usize;
                 const MIN: Self = Self::MIN;
                 const MAX: Self = Self::MAX;
@@ -50,16 +47,15 @@ macro_rules! impl_integer_native {
 
                 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
-                fn from_<T: Integer>(value: T) -> Self {
+                fn from_<T: $(~ $const_keyword)? Integer>(value: T) -> Self {
                     if T::BITS > Self::BITS as usize {
                         assert!(value <= T::masked_new(Self::MAX));
                     }
                     Self::masked_new(value)
                 }
 
-                #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
-                fn masked_new<T: Integer>(value: T) -> Self {
+                fn masked_new<T: $(~ $const_keyword)? Integer>(value: T) -> Self {
                     // Primitive types don't need masking
                     match Self::BITS {
                         8 => value.as_u8() as Self,
@@ -106,16 +102,22 @@ macro_rules! impl_integer_native {
 
                 #[inline]
                 fn as_isize(self) -> isize { self as isize }
+
+                #[inline]
+                fn to_unsigned(self) -> Self::UnsignedInteger { self }
+
+                #[inline]
+                fn from_unsigned(value: Self::UnsignedInteger) -> Self { value }
             }
         )+
     };
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-impl_integer_native!(u8, u16, u32, u64, u128);
+impl_integer_native!((u8, i8), (u16, i16), (u32, i32), (u64, i64), (u128, i128));
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
-impl_integer_native!(u8 as const, u16 as const, u32 as const, u64 as const, u128 as const);
+impl_integer_native!((u8, i8) as const, (u16, i16) as const, (u32, i32) as const, (u64, i64) as const, (u128, i128) as const);
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
 pub struct UInt<T, const BITS: usize> {
@@ -161,7 +163,7 @@ where
 macro_rules! uint_impl_num {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
     // This macro will be invoked with `u8 as const, ...` if `const_convert_and_const_trait_impl` is enabled.
-    ($($type:ident $(as $const_keyword:ident)?),+) => {
+    ($(($type:ident, $signed_type:ident) $(as $const_keyword:ident)?),+) => {
         $(
             #[allow(deprecated)]
             impl<const BITS: usize> crate::v1_number_compat::Number for UInt<$type, BITS> {
@@ -174,6 +176,8 @@ macro_rules! uint_impl_num {
 
             impl<const BITS: usize> $($const_keyword)? Integer for UInt<$type, BITS> {
                 type UnderlyingType = $type;
+                type SignedInteger = crate::Int<$signed_type, BITS>;
+                type UnsignedInteger = Self;
 
                 const BITS: usize = BITS;
 
@@ -208,8 +212,7 @@ macro_rules! uint_impl_num {
                     Self { value: Self::UnderlyingType::masked_new(value) }
                 }
 
-                #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-                fn masked_new<T: Integer>(value: T) -> Self {
+                fn masked_new<T: $(~ $const_keyword)? Integer>(value: T) -> Self {
                     if Self::BITS < T::BITS {
                         Self { value: Self::UnderlyingType::masked_new(value.as_::<Self::UnderlyingType>() & Self::MASK) }
                     } else {
@@ -266,6 +269,12 @@ macro_rules! uint_impl_num {
                 }
 
                 #[inline]
+                fn to_unsigned(self) -> Self::UnsignedInteger { self }
+
+                #[inline]
+                fn from_unsigned(value: Self::UnsignedInteger) -> Self { value }
+
+                #[inline]
                 fn value(self) -> $type {
                     #[cfg(feature = "hint")]
                     unsafe {
@@ -280,10 +289,10 @@ macro_rules! uint_impl_num {
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-uint_impl_num!(u8, u16, u32, u64, u128);
+uint_impl_num!((u8, i8), (u16, i16), (u32, i32), (u64, i64), (u128, i128));
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
-uint_impl_num!(u8 as const, u16 as const, u32 as const, u64 as const, u128 as const);
+uint_impl_num!((u8, i8) as const, (u16, i16) as const, (u32, i32) as const, (u64, i64) as const, (u128, i128) as const);
 
 macro_rules! uint_impl {
     ($(($type:ident, doctest = $doctest_attr:literal)),+) => {
@@ -1651,72 +1660,7 @@ where
     }
 }
 
-#[cfg(feature = "borsh")]
-impl<T, const BITS: usize> borsh::BorshSerialize for UInt<T, BITS>
-where
-    Self: Integer,
-    T: borsh::BorshSerialize,
-{
-    fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
-        let serialized_byte_count = (BITS + 7) / 8;
-        let mut buffer = [0u8; 16];
-        self.value.serialize(&mut &mut buffer[..])?;
-        writer.write(&buffer[0..serialized_byte_count])?;
-
-        Ok(())
-    }
-}
-
-#[cfg(feature = "borsh")]
-impl<
-        T: borsh::BorshDeserialize + PartialOrd<<UInt<T, BITS> as Integer>::UnderlyingType>,
-        const BITS: usize,
-    > borsh::BorshDeserialize for UInt<T, BITS>
-where
-    Self: Integer,
-{
-    fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> borsh::io::Result<Self> {
-        // Ideally, we'd want a buffer of size `BITS >> 3` or `size_of::<T>`, but that's not possible
-        // with arrays at present (feature(generic_const_exprs), once stable, will allow this).
-        // vec! would be an option, but an allocation is not expected at this level.
-        // Therefore, allocate a 16 byte buffer and take a slice out of it.
-        let serialized_byte_count = (BITS + 7) / 8;
-        let underlying_byte_count = core::mem::size_of::<T>();
-        let mut buf = [0u8; 16];
-
-        // Read from the source, advancing cursor by the exact right number of bytes
-        reader.read(&mut buf[..serialized_byte_count])?;
-
-        // Deserialize the underlying type. We have to pass in the correct number of bytes of the
-        // underlying type (or more, but let's be precise). The unused bytes are all still zero
-        let value = T::deserialize(&mut &buf[..underlying_byte_count])?;
-
-        if value >= Self::MIN.value() && value <= Self::MAX.value() {
-            Ok(Self { value })
-        } else {
-            Err(borsh::io::Error::new(
-                borsh::io::ErrorKind::InvalidData,
-                "Value out of range",
-            ))
-        }
-    }
-}
-
-#[cfg(feature = "borsh")]
-impl<T, const BITS: usize> borsh::BorshSchema for UInt<T, BITS> {
-    fn add_definitions_recursively(
-        definitions: &mut BTreeMap<borsh::schema::Declaration, borsh::schema::Definition>,
-    ) {
-        definitions.insert(
-            ["u", &BITS.to_string()].concat(),
-            borsh::schema::Definition::Primitive(((BITS + 7) / 8) as u8),
-        );
-    }
-
-    fn declaration() -> borsh::schema::Declaration {
-        ["u", &BITS.to_string()].concat()
-    }
-}
+impl_borsh!(UInt, "u");
 
 #[cfg(feature = "serde")]
 impl<T, const BITS: usize> Serialize for UInt<T, BITS>
