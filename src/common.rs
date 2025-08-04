@@ -251,6 +251,91 @@ macro_rules! bytes_operation_impl {
 
 pub(crate) use bytes_operation_impl;
 
+/// Implements [`core::iter::Sum`] and [`core::iter::Product`] for an integer type.
+macro_rules! impl_sum_product {
+    ($type:ident, $one:literal) => {
+        // This implements `Sum` for owned values, for example when using an iterator from a fixed-sized array.
+        impl<T, const BITS: usize> core::iter::Sum for $type<T, BITS>
+        where
+            Self: Integer + Default + core::ops::Add<Output = Self>,
+        {
+            #[inline]
+            fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+                // Use `default()` to construct a value of zero.
+                iter.fold(Self::default(), |lhs, rhs| lhs + rhs)
+            }
+        }
+
+        // This implements `Sum` for borrowed values, for example when using an iterator from a slice.
+        impl<'a, T, const BITS: usize> core::iter::Sum<&'a Self> for $type<T, BITS>
+        where
+            Self: Integer + Default + core::ops::Add<Output = Self>,
+        {
+            #[inline]
+            fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+                iter.fold(Self::default(), |lhs, rhs| lhs + *rhs)
+            }
+        }
+
+        // We need to use `Integer::from_()` to construct a value of one,
+        // which isn't available with `const_convert_and_const_trait_impl`.
+        #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+        impl<T, const BITS: usize> core::iter::Product for $type<T, BITS>
+        where
+            Self: Integer + core::ops::Mul<Output = Self>,
+        {
+            #[inline]
+            fn product<I: Iterator<Item = Self>>(iter: I) -> Self {
+                iter.fold(Self::from_($one), |lhs, rhs| lhs * rhs)
+            }
+        }
+
+        #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+        impl<'a, T, const BITS: usize> core::iter::Product<&'a Self> for $type<T, BITS>
+        where
+            Self: Integer + core::ops::Mul<Output = Self>,
+        {
+            #[inline]
+            fn product<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+                iter.fold(Self::from_($one), |lhs, rhs| lhs * *rhs)
+            }
+        }
+    };
+}
+
+/// Implements support for the `schemars` crate, if the feature is enabled.
+macro_rules! impl_schemars {
+    ($type:tt, $str_prefix:literal) => {
+        #[cfg(feature = "schemars")]
+        impl<T, const BITS: usize> schemars::JsonSchema for $type<T, BITS>
+        where
+            Self: Integer,
+        {
+            fn schema_name() -> String {
+                [$str_prefix, &BITS.to_string()].concat()
+            }
+
+            fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+                use schemars::schema::{InstanceType, NumberValidation, Schema, SchemaObject};
+                let schema_object = SchemaObject {
+                    instance_type: Some(InstanceType::Integer.into()),
+                    format: Some(Self::schema_name()),
+                    number: Some(Box::new(NumberValidation {
+                        // Can be done with https://github.com/rust-lang/rfcs/pull/2484
+                        // minimum: Some(Self::MIN.value().try_into().ok().unwrap()),
+                        // maximum: Some(Self::MAX.value().try_into().ok().unwrap()),
+                        ..Default::default()
+                    })),
+                    ..Default::default()
+                };
+                Schema::Object(schema_object)
+            }
+        }
+    };
+}
+
+pub(crate) use impl_sum_product;
+
 /// Implement [`core::iter::Step`] (if the `step_trait` feature is enabled).
 macro_rules! impl_step {
     ($type:tt) => {
@@ -456,3 +541,4 @@ macro_rules! impl_num_traits {
 }
 
 pub(crate) use impl_num_traits;
+pub(crate) use impl_schemars;

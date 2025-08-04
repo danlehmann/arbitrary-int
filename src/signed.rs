@@ -1,7 +1,7 @@
 use crate::{
     common::{
         bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_borsh, impl_extract,
-        impl_num_traits, impl_step,
+        impl_num_traits, impl_schemars, impl_step, impl_sum_product,
     },
     traits::{sealed::Sealed, Integer, SignedInteger},
     TryNewError,
@@ -2003,6 +2003,9 @@ where
 // Implement support for the `borsh` crate (if the feature is enabled)
 impl_borsh!(Int, "i");
 
+// Implement `core::iter::Sum` and `core::iter::Product`.
+impl_sum_product!(Int, 1_i8);
+
 // Implement `core::iter::Step` (if the `step_trait` feature is enabled).
 impl_step!(Int);
 
@@ -2010,6 +2013,9 @@ impl_step!(Int);
 impl_num_traits!(Int, i8, |value| {
     (value << Self::UNUSED_BITS) >> Self::UNUSED_BITS
 });
+
+// Support for the `schemars` crate, if the feature is enabled.
+impl_schemars!(Int, "int");
 
 // Implement byte operations for Int's with a bit width aligned to a byte boundary.
 bytes_operation_impl!(Int<i32, 24>, i32);
