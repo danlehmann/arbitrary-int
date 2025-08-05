@@ -253,9 +253,9 @@ pub(crate) use bytes_operation_impl;
 
 /// Implements [`core::iter::Sum`] and [`core::iter::Product`] for an integer type.
 macro_rules! impl_sum_product {
-    ($type:ident, $one:literal) => {
+    ($type:ident, $one:literal, $trait:ident) => {
         // This implements `Sum` for owned values, for example when using an iterator from a fixed-sized array.
-        impl<T, const BITS: usize> core::iter::Sum for $type<T, BITS>
+        impl<T: BuiltinInteger + $trait, const BITS: usize> core::iter::Sum for $type<T, BITS>
         where
             Self: Integer + Default + core::ops::Add<Output = Self>,
         {
@@ -267,7 +267,8 @@ macro_rules! impl_sum_product {
         }
 
         // This implements `Sum` for borrowed values, for example when using an iterator from a slice.
-        impl<'a, T, const BITS: usize> core::iter::Sum<&'a Self> for $type<T, BITS>
+        impl<'a, T: BuiltinInteger + $trait, const BITS: usize> core::iter::Sum<&'a Self>
+            for $type<T, BITS>
         where
             Self: Integer + Default + core::ops::Add<Output = Self>,
         {
@@ -280,7 +281,7 @@ macro_rules! impl_sum_product {
         // We need to use `Integer::from_()` to construct a value of one,
         // which isn't available with `const_convert_and_const_trait_impl`.
         #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-        impl<T, const BITS: usize> core::iter::Product for $type<T, BITS>
+        impl<T: BuiltinInteger + $trait, const BITS: usize> core::iter::Product for $type<T, BITS>
         where
             Self: Integer + core::ops::Mul<Output = Self>,
         {
@@ -291,7 +292,8 @@ macro_rules! impl_sum_product {
         }
 
         #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-        impl<'a, T, const BITS: usize> core::iter::Product<&'a Self> for $type<T, BITS>
+        impl<'a, T: BuiltinInteger + $trait, const BITS: usize> core::iter::Product<&'a Self>
+            for $type<T, BITS>
         where
             Self: Integer + core::ops::Mul<Output = Self>,
         {
@@ -307,9 +309,9 @@ pub(crate) use impl_sum_product;
 
 /// Implements support for the `schemars` crate, if the feature is enabled.
 macro_rules! impl_schemars {
-    ($type:tt, $str_prefix:literal) => {
+    ($type:tt, $str_prefix:literal, $trait:ident) => {
         #[cfg(feature = "schemars")]
-        impl<T, const BITS: usize> schemars::JsonSchema for $type<T, BITS>
+        impl<T: BuiltinInteger + $trait, const BITS: usize> schemars::JsonSchema for $type<T, BITS>
         where
             Self: Integer,
         {
@@ -341,9 +343,9 @@ pub(crate) use impl_schemars;
 
 /// Implement support for the `borsh` crate (if the feature is enabled)
 macro_rules! impl_borsh {
-    ($type:ident, $declaration_prefix:literal) => {
+    ($type:ident, $declaration_prefix:literal, $trait:ident) => {
         #[cfg(feature = "borsh")]
-        impl<T: Integer, const BITS: usize> borsh::BorshSerialize for $type<T, BITS>
+        impl<T: BuiltinInteger + $trait, const BITS: usize> borsh::BorshSerialize for $type<T, BITS>
         where
             Self: Integer,
             <<Self as Integer>::UnsignedInteger as Integer>::UnderlyingType: borsh::BorshSerialize,
@@ -366,8 +368,8 @@ macro_rules! impl_borsh {
         }
 
         #[cfg(feature = "borsh")]
-        impl<T: borsh::BorshDeserialize, const BITS: usize> borsh::BorshDeserialize
-            for $type<T, BITS>
+        impl<T: BuiltinInteger + $trait + borsh::BorshDeserialize, const BITS: usize>
+            borsh::BorshDeserialize for $type<T, BITS>
         where
             Self: Integer,
             <<Self as Integer>::UnsignedInteger as Integer>::UnderlyingType:
@@ -412,7 +414,7 @@ macro_rules! impl_borsh {
         }
 
         #[cfg(feature = "borsh")]
-        impl<T, const BITS: usize> borsh::BorshSchema for $type<T, BITS> {
+        impl<T: BuiltinInteger + $trait, const BITS: usize> borsh::BorshSchema for $type<T, BITS> {
             fn add_definitions_recursively(
                 definitions: &mut alloc::collections::btree_map::BTreeMap<
                     borsh::schema::Declaration,
@@ -435,9 +437,9 @@ macro_rules! impl_borsh {
 pub(crate) use impl_borsh;
 
 macro_rules! impl_step {
-    ($type:tt) => {
+    ($type:tt,  $trait:ident) => {
         #[cfg(feature = "step_trait")]
-        impl<T, const BITS: usize> core::iter::Step for $type<T, BITS>
+        impl<T: BuiltinInteger + $trait, const BITS: usize> core::iter::Step for $type<T, BITS>
         where
             Self: Integer<UnderlyingType = T>,
             T: Copy + core::iter::Step,
@@ -472,9 +474,10 @@ pub(crate) use impl_step;
 
 /// Implements support for the `num-traits` crate, if the feature is enabled.
 macro_rules! impl_num_traits {
-    ($type:ident, $primitive_8:ty, |$result:ident| $limit_result:expr) => {
+    ($type:ident, $trait:ident, $primitive_8:ty, |$result:ident| $limit_result:expr) => {
         #[cfg(feature = "num-traits")]
-        impl<T, const BITS: usize> num_traits::WrappingAdd for $type<T, BITS>
+        impl<T: BuiltinInteger + $trait, const BITS: usize> num_traits::WrappingAdd
+            for $type<T, BITS>
         where
             Self: Integer,
             T: PartialEq
@@ -500,7 +503,8 @@ macro_rules! impl_num_traits {
         }
 
         #[cfg(feature = "num-traits")]
-        impl<T, const BITS: usize> num_traits::WrappingSub for $type<T, BITS>
+        impl<T: BuiltinInteger + $trait, const BITS: usize> num_traits::WrappingSub
+            for $type<T, BITS>
         where
             Self: Integer,
             T: PartialEq
@@ -526,7 +530,8 @@ macro_rules! impl_num_traits {
         }
 
         #[cfg(feature = "num-traits")]
-        impl<T, const BITS: usize> num_traits::bounds::Bounded for $type<T, BITS>
+        impl<T: BuiltinInteger + $trait, const BITS: usize> num_traits::bounds::Bounded
+            for $type<T, BITS>
         where
             Self: Integer,
         {

@@ -3,15 +3,13 @@ use crate::{
         bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
         impl_num_traits, impl_schemars, impl_step, impl_sum_product,
     },
-    traits::{sealed::Sealed, Integer, SignedInteger},
+    traits::{sealed::Sealed, BuiltinInteger, Integer, SignedInteger},
     TryNewError,
 };
-use core::{
-    fmt::{self},
-    ops::{
-        Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
-        DivAssign, Mul, MulAssign, Neg, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
-    },
+use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
+use core::ops::{
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
+    Mul, MulAssign, Neg, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
 macro_rules! impl_signed_integer_native {
@@ -23,15 +21,17 @@ macro_rules! impl_signed_integer_native {
 
             impl $($const_keyword)? SignedInteger for $type {}
 
+            impl $($const_keyword)? BuiltinInteger for $type {}
+
             impl $($const_keyword)? Integer for $type {
                 type UnderlyingType = $type;
                 type UnsignedInteger = $unsigned_type;
                 type SignedInteger = $type;
 
                 const BITS: usize = Self::BITS as usize;
+                const ZERO: Self = 0;
                 const MIN: Self = Self::MIN;
                 const MAX: Self = Self::MAX;
-
 
                 #[inline]
                 fn new(value: Self::UnderlyingType) -> Self { value }
@@ -117,11 +117,11 @@ impl_signed_integer_native!((i8, u8), (i16, u16), (i32, u32), (i64, u64), (i128,
 impl_signed_integer_native!((i8, u8) as const, (i16, u16) as const, (i32, u32) as const, (i64, u64) as const, (i128, u128) as const);
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
-pub struct Int<T, const BITS: usize> {
+pub struct Int<T: SignedInteger + BuiltinInteger, const BITS: usize> {
     value: T,
 }
 
-impl<T: Copy, const BITS: usize> Int<T, BITS> {
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> Int<T, BITS> {
     /// The number of bits in the underlying type that are not present in this type.
     const UNUSED_BITS: usize = (core::mem::size_of::<T>() << 3) - Self::BITS;
 
@@ -172,6 +172,8 @@ macro_rules! int_impl_num {
                 type UnsignedInteger = crate::UInt<$unsigned_type, BITS>;
 
                 const BITS: usize = BITS;
+
+                const ZERO: Self = Self { value: 0 };
 
                 const MIN: Self = Self { value: -Self::MAX.value - 1 };
 
@@ -1535,10 +1537,9 @@ int_impl!(
 );
 
 // Arithmetic operator implementations
-impl<T, const BITS: usize> Add for Int<T, BITS>
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> Add for Int<T, BITS>
 where
-    Self: Integer,
-    T: PartialEq + Copy + Add<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    T: Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     type Output = Self;
 
@@ -1550,10 +1551,9 @@ where
     }
 }
 
-impl<T, const BITS: usize> AddAssign for Int<T, BITS>
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> AddAssign for Int<T, BITS>
 where
-    Self: Integer,
-    T: PartialEq + Copy + Add<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    T: Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     fn add_assign(&mut self, rhs: Self) {
         // Delegate to the Add implementation above.
@@ -1561,10 +1561,9 @@ where
     }
 }
 
-impl<T, const BITS: usize> Sub for Int<T, BITS>
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> Sub for Int<T, BITS>
 where
-    Self: Integer,
-    T: PartialEq + Copy + Sub<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    T: Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     type Output = Self;
 
@@ -1576,10 +1575,9 @@ where
     }
 }
 
-impl<T, const BITS: usize> SubAssign for Int<T, BITS>
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> SubAssign for Int<T, BITS>
 where
-    Self: Integer,
-    T: PartialEq + Copy + Sub<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    T: Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     fn sub_assign(&mut self, rhs: Self) {
         // Delegate to the Sub implementation above.
@@ -1587,10 +1585,9 @@ where
     }
 }
 
-impl<T, const BITS: usize> Mul for Int<T, BITS>
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> Mul for Int<T, BITS>
 where
-    Self: Integer,
-    T: PartialEq + Copy + Mul<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    T: Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     type Output = Self;
 
@@ -1602,10 +1599,9 @@ where
     }
 }
 
-impl<T, const BITS: usize> MulAssign for Int<T, BITS>
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> MulAssign for Int<T, BITS>
 where
     Self: Integer,
-    T: PartialEq + Copy + Mul<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     fn mul_assign(&mut self, rhs: Self) {
         // Delegate to the Mul implementation above.
@@ -1613,10 +1609,9 @@ where
     }
 }
 
-impl<T, const BITS: usize> Div for Int<T, BITS>
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> Div for Int<T, BITS>
 where
-    Self: Integer,
-    T: PartialEq + Copy + Div<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    T: Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     type Output = Self;
 
@@ -1630,10 +1625,9 @@ where
     }
 }
 
-impl<T, const BITS: usize> DivAssign for Int<T, BITS>
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> DivAssign for Int<T, BITS>
 where
-    Self: Integer,
-    T: PartialEq + Copy + Div<T, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    T: Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     fn div_assign(&mut self, rhs: Self) {
         // Delegate to the Div implementation above.
@@ -1641,10 +1635,10 @@ where
     }
 }
 
-impl<T, const BITS: usize> Neg for Int<T, BITS>
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> Neg for Int<T, BITS>
 where
     Self: Integer<UnderlyingType = T>,
-    T: PartialEq + Copy + Neg<Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    T: Shl<usize, Output = T> + Shr<usize, Output = T>,
 {
     type Output = Self;
 
@@ -1658,11 +1652,7 @@ where
 }
 
 // Bitwise operator implementations
-impl<T, const BITS: usize> BitAnd for Int<T, BITS>
-where
-    Self: Integer,
-    T: PartialEq + Copy + BitAnd<T, Output = T>,
-{
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> BitAnd for Int<T, BITS> {
     type Output = Self;
 
     fn bitand(self, rhs: Self) -> Self::Output {
@@ -1671,21 +1661,13 @@ where
     }
 }
 
-impl<T, const BITS: usize> BitAndAssign for Int<T, BITS>
-where
-    Self: Integer,
-    T: PartialEq + Copy + BitAndAssign<T>,
-{
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> BitAndAssign for Int<T, BITS> {
     fn bitand_assign(&mut self, rhs: Self) {
         self.value &= rhs.value;
     }
 }
 
-impl<T, const BITS: usize> BitOr for Int<T, BITS>
-where
-    Self: Integer,
-    T: PartialEq + Copy + BitOr<T, Output = T>,
-{
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> BitOr for Int<T, BITS> {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self::Output {
@@ -1694,21 +1676,13 @@ where
     }
 }
 
-impl<T, const BITS: usize> BitOrAssign for Int<T, BITS>
-where
-    Self: Integer,
-    T: PartialEq + Copy + BitOrAssign<T>,
-{
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> BitOrAssign for Int<T, BITS> {
     fn bitor_assign(&mut self, rhs: Self) {
         self.value |= rhs.value;
     }
 }
 
-impl<T, const BITS: usize> BitXor for Int<T, BITS>
-where
-    Self: Integer,
-    T: PartialEq + Copy + BitXor<T, Output = T>,
-{
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> BitXor for Int<T, BITS> {
     type Output = Self;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
@@ -1717,21 +1691,13 @@ where
     }
 }
 
-impl<T, const BITS: usize> BitXorAssign for Int<T, BITS>
-where
-    Self: Integer,
-    T: PartialEq + Copy + BitXorAssign<T>,
-{
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> BitXorAssign for Int<T, BITS> {
     fn bitxor_assign(&mut self, rhs: Self) {
         self.value ^= rhs.value;
     }
 }
 
-impl<T, const BITS: usize> Not for Int<T, BITS>
-where
-    Self: Integer,
-    T: PartialEq + Copy + Not<Output = T>,
-{
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> Not for Int<T, BITS> {
     type Output = Self;
 
     fn not(self) -> Self::Output {
@@ -1740,10 +1706,10 @@ where
     }
 }
 
-impl<T, TSHIFTBITS, const BITS: usize> Shl<TSHIFTBITS> for Int<T, BITS>
+impl<T: SignedInteger + BuiltinInteger, TSHIFTBITS, const BITS: usize> Shl<TSHIFTBITS>
+    for Int<T, BITS>
 where
-    Self: Integer,
-    T: Copy + Shl<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    T: Shl<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
     TSHIFTBITS: TryInto<usize> + Copy,
 {
     type Output = Self;
@@ -1763,10 +1729,11 @@ where
     }
 }
 
-impl<T, TSHIFTBITS, const BITS: usize> ShlAssign<TSHIFTBITS> for Int<T, BITS>
+impl<T: SignedInteger + BuiltinInteger, TSHIFTBITS, const BITS: usize> ShlAssign<TSHIFTBITS>
+    for Int<T, BITS>
 where
     Self: Integer,
-    T: Copy + Shl<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    T: Shl<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
     TSHIFTBITS: TryInto<usize> + Copy,
 {
     fn shl_assign(&mut self, rhs: TSHIFTBITS) {
@@ -1775,10 +1742,11 @@ where
     }
 }
 
-impl<T, TSHIFTBITS, const BITS: usize> Shr<TSHIFTBITS> for Int<T, BITS>
+impl<T: SignedInteger + BuiltinInteger, TSHIFTBITS, const BITS: usize> Shr<TSHIFTBITS>
+    for Int<T, BITS>
 where
     Self: Integer,
-    T: Copy + Shr<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    T: Shr<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
     TSHIFTBITS: TryInto<usize> + Copy,
 {
     type Output = Self;
@@ -1799,10 +1767,11 @@ where
     }
 }
 
-impl<T, TSHIFTBITS, const BITS: usize> ShrAssign<TSHIFTBITS> for Int<T, BITS>
+impl<T: SignedInteger + BuiltinInteger, TSHIFTBITS, const BITS: usize> ShrAssign<TSHIFTBITS>
+    for Int<T, BITS>
 where
     Self: Integer,
-    T: Copy + Shr<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
+    T: Shr<TSHIFTBITS, Output = T> + Shl<usize, Output = T> + Shr<usize, Output = T>,
     TSHIFTBITS: TryInto<usize> + Copy,
 {
     fn shr_assign(&mut self, rhs: TSHIFTBITS) {
@@ -1812,68 +1781,50 @@ where
 }
 
 // Delegated trait implementations
-impl<T, const BITS: usize> fmt::Display for Int<T, BITS>
-where
-    T: fmt::Display,
-{
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> Display for Int<T, BITS> {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.value.fmt(f)
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        Display::fmt(&self.value, f)
     }
 }
 
-impl<T, const BITS: usize> fmt::Debug for Int<T, BITS>
-where
-    T: fmt::Debug,
-{
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> Debug for Int<T, BITS> {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.value.fmt(f)
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        Debug::fmt(&self.value, f)
     }
 }
 
-impl<T, const BITS: usize> fmt::LowerHex for Int<T, BITS>
-where
-    T: fmt::LowerHex,
-{
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> LowerHex for Int<T, BITS> {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.value.fmt(f)
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        LowerHex::fmt(&self.value, f)
     }
 }
 
-impl<T, const BITS: usize> fmt::UpperHex for Int<T, BITS>
-where
-    T: fmt::UpperHex,
-{
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> UpperHex for Int<T, BITS> {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.value.fmt(f)
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        UpperHex::fmt(&self.value, f)
     }
 }
 
-impl<T, const BITS: usize> fmt::Octal for Int<T, BITS>
-where
-    T: fmt::Octal,
-{
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> Octal for Int<T, BITS> {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.value.fmt(f)
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        Octal::fmt(&self.value, f)
     }
 }
 
-impl<T, const BITS: usize> fmt::Binary for Int<T, BITS>
-where
-    T: fmt::Binary,
-{
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> Binary for Int<T, BITS> {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.value.fmt(f)
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        Binary::fmt(&self.value, f)
     }
 }
 
 #[cfg(feature = "defmt")]
-impl<T, const BITS: usize> defmt::Format for Int<T, BITS>
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> defmt::Format for Int<T, BITS>
 where
     T: defmt::Format,
 {
@@ -1883,7 +1834,7 @@ where
     }
 }
 
-impl_borsh!(Int, "i");
+impl_borsh!(Int, "i", SignedInteger);
 
 // Serde's invalid_value error (https://rust-lang.github.io/hashbrown/serde/de/trait.Error.html#method.invalid_value)
 // takes an Unexpected (https://rust-lang.github.io/hashbrown/serde/de/enum.Unexpected.html) which only accepts a 64 bit
@@ -1891,21 +1842,13 @@ impl_borsh!(Int, "i");
 // error type using the Int's underlying type which implements Display and then use serde::de::Error::custom to create
 // an error with our custom type.
 #[cfg(feature = "serde")]
-struct InvalidIntValueError<T>
-where
-    T: Integer,
-    T::UnderlyingType: fmt::Display,
-{
+struct InvalidIntValueError<T: SignedInteger> {
     value: T::UnderlyingType,
 }
 
 #[cfg(feature = "serde")]
-impl<T> fmt::Display for InvalidIntValueError<T>
-where
-    T: Integer,
-    T::UnderlyingType: fmt::Display,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl<T: SignedInteger> Display for InvalidIntValueError<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "invalid value: integer `{}`, expected a value between `{}` and `{}`",
@@ -1917,7 +1860,7 @@ where
 }
 
 #[cfg(feature = "serde")]
-impl<T, const BITS: usize> serde::Serialize for Int<T, BITS>
+impl<T: SignedInteger + BuiltinInteger, const BITS: usize> serde::Serialize for Int<T, BITS>
 where
     T: serde::Serialize,
 {
@@ -1927,10 +1870,11 @@ where
 }
 
 #[cfg(feature = "serde")]
-impl<'de, T, const BITS: usize> serde::Deserialize<'de> for Int<T, BITS>
+impl<'de, T: SignedInteger + BuiltinInteger, const BITS: usize> serde::Deserialize<'de>
+    for Int<T, BITS>
 where
-    Self: Integer<UnderlyingType = T>,
-    T: fmt::Display + PartialOrd + serde::Deserialize<'de>,
+    Self: SignedInteger<UnderlyingType = T>,
+    T: serde::Deserialize<'de>,
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = T::deserialize(deserializer)?;
@@ -1945,18 +1889,18 @@ where
 }
 
 // Implement `core::iter::Sum` and `core::iter::Product`.
-impl_sum_product!(Int, 1_i8);
+impl_sum_product!(Int, 1_i8, SignedInteger);
 
 // Implement `core::iter::Step` (if the `step_trait` feature is enabled).
-impl_step!(Int);
+impl_step!(Int, SignedInteger);
 
 // Implement support for the `num-traits` crate, if the feature is enabled.
-impl_num_traits!(Int, i8, |value| {
+impl_num_traits!(Int, SignedInteger, i8, |value| {
     (value << Self::UNUSED_BITS) >> Self::UNUSED_BITS
 });
 
 // Support for the `schemars` crate, if the feature is enabled.
-impl_schemars!(Int, "int");
+impl_schemars!(Int, "int", SignedInteger);
 
 // Implement byte operations for Int's with a bit width aligned to a byte boundary.
 bytes_operation_impl!(Int<i32, 24>, i32);

@@ -1,5 +1,9 @@
 use crate::TryNewError;
-use core::fmt::Debug;
+use core::fmt::{Binary, Debug, Display, LowerHex, Octal, UpperHex};
+use core::ops::{
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
+    Mul, MulAssign, Neg, Not, Sub, SubAssign,
+};
 
 pub(crate) mod sealed {
     /// Ensures that outside users can not implement the traits provided by this crate.
@@ -28,13 +32,47 @@ macro_rules! define_as {
     };
 }
 
+/// Trait that is only implemented for `u8`, `u16`, `u32`, `u64`, `u128` and their signed
+/// counterparts `i8`, `i16`, `i32`, `i64`, `i128`.
+#[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
+pub trait BuiltinInteger: sealed::Sealed {}
+
 /// The base trait for integer numbers, either built-in (u8, i8, u16, i16, u32, i32, u64, i64,
 /// u128, i128) or arbitrary-int (u1, i1, u7, i7 etc.).
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
 pub trait Integer:
-    Sized + Copy + Clone + PartialOrd + Ord + PartialEq + Eq + sealed::Sealed
+    Sized
+    + Copy
+    + Clone
+    + PartialOrd
+    + Ord
+    + PartialEq
+    + Eq
+    + Debug
+    + Display
+    + LowerHex
+    + UpperHex
+    + Octal
+    + Binary
+    + sealed::Sealed
+    + Add<Self, Output = Self>
+    + AddAssign<Self>
+    + Sub<Self, Output = Self>
+    + SubAssign<Self>
+    + Div<Self, Output = Self>
+    + DivAssign<Self>
+    + Mul<Self, Output = Self>
+    + MulAssign<Self>
+    + Not<Output = Self>
+    + BitAnd<Self, Output = Self>
+    + BitAndAssign<Self>
+    + BitOr<Self, Output = Self>
+    + BitOrAssign<Self>
+    + BitXor<Self, Output = Self>
+    + BitXorAssign<Self>
 {
     type UnderlyingType: Integer
+        + BuiltinInteger
         + Debug
         + TryFrom<u8>
         + TryFrom<u16>
@@ -56,6 +94,9 @@ pub trait Integer:
 
     /// Number of bits that can fit in this type
     const BITS: usize;
+
+    /// The number 0
+    const ZERO: Self;
 
     /// Minimum value that can be represented by this type
     const MIN: Self;
@@ -121,7 +162,7 @@ pub trait Integer:
 /// The base trait for all signed numbers, either built-in (i8, i16, i32, i64, i128) or
 /// arbitrary-int (i1, i7 etc.).
 #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
-pub trait SignedInteger: Integer {}
+pub trait SignedInteger: Integer + Neg<Output = Self> {}
 
 /// The base trait for all unsigned numbers, either built-in (u8, u16, u32, u64, u128) or
 /// arbitrary-int (u1, u7 etc.).
