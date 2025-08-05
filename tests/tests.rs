@@ -3846,10 +3846,76 @@ mod num_traits {
 #[cfg(feature = "borsh")]
 mod borsh_tests {
     use arbitrary_int::prelude::*;
+    use borsh::io::{Read, Write};
     use borsh::schema::BorshSchemaContainer;
     use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
     use std::fmt::Debug;
 
+    // `borsh::io::Read`/`borsh::io::Write` can read/write fewer bytes than requested per call.
+    // (This happens for example if a `TcpStream` is waiting on the other end to send more data).
+    // Simulate that behavior by reading 1 byte at a time and periodically returning `Interrupted`.
+
+    #[derive(Default)]
+    struct SlowReaderWriter {
+        data: [u8; 16],
+        pos: usize,
+        interrupt: bool,
+    }
+
+    impl SlowReaderWriter {
+        fn maybe_interrupt(&mut self) -> borsh::io::Result<()> {
+            if self.interrupt {
+                // This error should be ignored. From the `Read` documentation (also applies to `Write`):
+                //
+                // > An error of the ErrorKind::Interrupted kind is non-fatal and the read operation should
+                // > be retried if there is nothing else to do.
+                //
+                // Since neither `Read` nor `Write` are asynchronous or buffer any data for future calls,
+                // `Int`/`UInt` need to block until enough data is available / all data has been written.
+                self.interrupt = false;
+                Err(borsh::io::Error::new(borsh::io::ErrorKind::Interrupted, ""))
+            } else {
+                self.interrupt = true;
+                Ok(())
+            }
+        }
+    }
+
+    impl Read for SlowReaderWriter {
+        fn read(&mut self, buf: &mut [u8]) -> borsh::io::Result<usize> {
+            self.maybe_interrupt()?;
+            let Some(dst) = buf.first_mut() else {
+                return Ok(0);
+            };
+            let Some(byte) = self.data.get(self.pos).copied() else {
+                return Ok(0);
+            };
+            *dst = byte;
+            self.pos += 1;
+            Ok(1)
+        }
+    }
+
+    impl Write for SlowReaderWriter {
+        fn write(&mut self, buf: &[u8]) -> borsh::io::Result<usize> {
+            self.maybe_interrupt()?;
+            let Some(byte) = buf.first().copied() else {
+                return Ok(0);
+            };
+            let Some(dst) = self.data.get_mut(self.pos) else {
+                return Ok(0);
+            };
+            *dst = byte;
+            self.pos += 1;
+            Ok(1)
+        }
+
+        fn flush(&mut self) -> borsh::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[track_caller]
     fn test_roundtrip<T: Integer + BorshSerialize + BorshDeserialize + PartialEq + Eq + Debug>(
         input: T,
         expected_buffer: &[u8],
@@ -3869,24 +3935,64 @@ mod borsh_tests {
         let output2 = T::deserialize(&mut &buf[buf.len() / 2..]).unwrap();
         assert_eq!(input, output);
         assert_eq!(input, output2);
+
+        // Serialize the input into a writer that only accepts 1 byte at a time and may return `Interrupted`
+        let mut reader_writer = SlowReaderWriter::default();
+        input.serialize(&mut reader_writer).unwrap();
+        assert_eq!(
+            &reader_writer.data[..expected_buffer.len()],
+            expected_buffer
+        );
+        // Deserializing it using the data we've just written, using a reader with the same behavior
+        reader_writer.pos = 0;
+        let output3 = T::deserialize_reader(&mut reader_writer).unwrap();
+        assert_eq!(output3, input);
     }
 
     #[test]
     fn test_serialize_deserialize() {
-        // Run against plain u64 first (not an arbitrary_int)
+        // Run against plain u64/i64 first (not an arbitrary_int)
         test_roundtrip(
             0x12345678_9ABCDEF0u64,
             &[0xF0, 0xDE, 0xBC, 0x9A, 0x78, 0x56, 0x34, 0x12],
         );
+        test_roundtrip(-100i32, &[0x9C, 0xFF, 0xFF, 0xFF]);
+        test_roundtrip(i31::new(-100), &[0x9C, 0xFF, 0xFF, 0x7F]);
 
         // Now try various arbitrary ints
         test_roundtrip(u1::new(0b0), &[0]);
         test_roundtrip(u1::new(0b1), &[1]);
+        test_roundtrip(i1::new(0), &[0]);
+        test_roundtrip(i1::new(-1), &[1]);
         test_roundtrip(u6::new(0b101101), &[0b101101]);
+        test_roundtrip(i6::from_bits(0b101101), &[0b101101]);
         test_roundtrip(u14::new(0b110101_11001101), &[0b11001101, 0b110101]);
+        test_roundtrip(i14::from_bits(0b110101_11001101), &[0b11001101, 0b110101]);
         test_roundtrip(
             u72::new(0x36_01234567_89ABCDEF),
             &[0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01, 0x36],
+        );
+        test_roundtrip(
+            i72::from_bits(0x36_01234567_89ABCDEF),
+            &[0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01, 0x36],
+        );
+
+        test_roundtrip(u24::MAX, &u24::MAX.to_le_bytes());
+        test_roundtrip(i24::MAX, &i24::MAX.to_le_bytes());
+
+        test_roundtrip(u24::MIN, &u24::MIN.to_le_bytes());
+        test_roundtrip(i24::MIN, &i24::MIN.to_le_bytes());
+
+        test_roundtrip(u24::new(0xAB_CD_EF), &u24::new(0xAB_CD_EF).to_le_bytes());
+        test_roundtrip(
+            i24::from_bits(0xAB_CD_EF),
+            &i24::from_bits(0xAB_CD_EF).to_le_bytes(),
+        );
+
+        test_roundtrip(u24::new(0x12_34_56), &u24::new(0x12_34_56).to_le_bytes());
+        test_roundtrip(
+            i24::from_bits(0x12_34_56),
+            &i24::from_bits(0x12_34_56).to_le_bytes(),
         );
 
         // Pick a byte boundary (80; test one below and one above to ensure we get the right number
@@ -3896,7 +4002,15 @@ mod borsh_tests {
             &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
         );
         test_roundtrip(
+            i79::new(-1),
+            &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
+        );
+        test_roundtrip(
             u80::MAX,
+            &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
+        );
+        test_roundtrip(
+            i80::new(-1),
             &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
         );
         test_roundtrip(
@@ -3905,8 +4019,43 @@ mod borsh_tests {
                 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01,
             ],
         );
+        test_roundtrip(
+            i81::new(-1),
+            &[
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01,
+            ],
+        );
 
-        // Test actual u128 and arbitrary u128 (which is a legal one, though not a predefined)
+        // Test MIN/MAX for signed integers
+        test_roundtrip(
+            i79::MAX,
+            &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x3F],
+        );
+        test_roundtrip(
+            i80::MAX,
+            &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
+        );
+        test_roundtrip(
+            i81::MAX,
+            &[
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0,
+            ],
+        );
+
+        test_roundtrip(
+            i79::MIN,
+            &[0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40],
+        );
+        test_roundtrip(
+            i80::MIN,
+            &[0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x80],
+        );
+        test_roundtrip(
+            i81::MIN,
+            &[0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 1],
+        );
+
+        // Test actual u128 and arbitrary u128 (which is a legal one, though not predefined)
         test_roundtrip(
             u128::MAX,
             &[
@@ -3916,6 +4065,21 @@ mod borsh_tests {
         );
         test_roundtrip(
             UInt::<u128, 128>::MAX,
+            &[
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF,
+            ],
+        );
+        // Test actual i128 and arbitrary i128 (which is a legal one, though not predefined)
+        test_roundtrip(
+            i128::new(-1),
+            &[
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF,
+            ],
+        );
+        test_roundtrip(
+            Int::<i128, 128>::new(-1),
             &[
                 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                 0xFF, 0xFF,
@@ -4027,6 +4191,48 @@ fn new_and_as_specific_types() {
     assert_eq!(f.as_usize(), 42);
 }
 
+#[test]
+fn to_unsigned() {
+    // to_unsigned on unsigned type is a no-op
+    assert_eq!(u6::new(42).to_unsigned(), u6::new(42));
+    assert_eq!(u6::new(63).to_unsigned(), u6::new(63));
+
+    // to_unsigned on signed type possibly flips the sign bit
+    assert_eq!(i6::new(26).to_unsigned(), u6::new(26));
+    assert_eq!(i6::new(-32).to_unsigned(), u6::new(32));
+    assert_eq!(i6::new(-31).to_unsigned(), u6::new(33));
+    assert_eq!(i6::new(-1).to_unsigned(), u6::new(63));
+
+    // to_unsigned on builtin unsigned types
+    assert_eq!(1u8.to_unsigned(), 1u8);
+    assert_eq!(255u8.to_unsigned(), 255u8);
+
+    // to_unsigned on builtin signed types
+    assert_eq!(1i8.to_unsigned(), 1u8);
+    assert_eq!((-2i8).to_unsigned(), 254u8);
+}
+
+#[test]
+fn from_unsigned() {
+    // to_unsigned on unsigned type is a no-op
+    assert_eq!(u6::from_unsigned(u6::new(42)), u6::new(42));
+    assert_eq!(u6::from_unsigned(u6::new(63)), u6::new(63));
+
+    // to_unsigned on signed type possibly flips the sign bit
+    assert_eq!(i6::from_unsigned(u6::new(26)), i6::new(26));
+    assert_eq!(i6::from_unsigned(u6::new(32)), i6::new(-32));
+    assert_eq!(i6::from_unsigned(u6::new(33)), i6::new(-31));
+    assert_eq!(i6::from_unsigned(u6::new(63)), i6::new(-1));
+
+    // to_unsigned on builtin unsigned types
+    assert_eq!(u8::from_unsigned(1u8), 1u8);
+    assert_eq!(u8::from_unsigned(255u8), 255u8);
+
+    // to_unsigned on builtin signed types
+    assert_eq!(i8::from_unsigned(1u8), 1i8);
+    assert_eq!(i8::from_unsigned(254u8), -2i8);
+}
+
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn from_flexible() {
@@ -4096,7 +4302,6 @@ fn new_constructors_catch_out_bounds_4() {
     u7::from_u128(0x80000000_00000000_00000000_00000060u128);
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn new_masked_unsigned() {
     let a = u10::new(0b11_01010111);
@@ -4106,7 +4311,6 @@ fn new_masked_unsigned() {
     assert_eq!(c.as_u32(), 0b1010111);
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn new_masked_signed() {
     assert_eq!(i14::masked_new(-1).value(), -1);
