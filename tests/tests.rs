@@ -66,6 +66,14 @@ fn create_simple_signed() {
 }
 
 #[test]
+fn zeroes() {
+    assert_eq!(i5::ZERO, i5::new(0));
+    assert_eq!(u5::ZERO, u5::new(0));
+    assert_eq!(i8::ZERO, 0);
+    assert_eq!(u8::ZERO, 0);
+}
+
+#[test]
 fn create_try_new() {
     assert_eq!(u7::try_new(190).expect_err("No error seen"), TryNewError {});
     assert_eq!(i7::try_new(127).expect_err("No error seen"), TryNewError {});
@@ -3492,8 +3500,10 @@ fn rotate_right_signed() {
 #[cfg(feature = "step_trait")]
 #[test]
 fn range_agrees_with_underlying_unsigned() {
-    fn compare_range<T, const BITS: usize>(arb_start: UInt<T, BITS>, arb_end: UInt<T, BITS>)
-    where
+    fn compare_range<T: UnsignedInteger + BuiltinInteger + Step, const BITS: usize>(
+        arb_start: UInt<T, BITS>,
+        arb_end: UInt<T, BITS>,
+    ) where
         UInt<T, BITS>: Step + Integer,
         <UInt<T, BITS> as Integer>::UnderlyingType: Step,
     {
@@ -3515,8 +3525,10 @@ fn range_agrees_with_underlying_unsigned() {
 #[cfg(feature = "step_trait")]
 #[test]
 fn range_agrees_with_underlying_signed() {
-    fn compare_range<T, const BITS: usize>(arb_start: Int<T, BITS>, arb_end: Int<T, BITS>)
-    where
+    fn compare_range<T: SignedInteger + BuiltinInteger + Step, const BITS: usize>(
+        arb_start: Int<T, BITS>,
+        arb_end: Int<T, BITS>,
+    ) where
         Int<T, BITS>: Step + Integer,
         <Int<T, BITS> as Integer>::UnderlyingType: Step,
     {
