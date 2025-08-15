@@ -2,16 +2,13 @@ use crate::common::{
     bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_borsh, impl_extract,
     impl_num_traits, impl_schemars, impl_step, impl_sum_product,
 };
-use crate::traits::{sealed::Sealed, Integer, UnsignedInteger};
+use crate::traits::{sealed::Sealed, BuiltinInteger, Integer, UnsignedInteger};
 use crate::TryNewError;
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
-
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 macro_rules! impl_integer_native {
     // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
@@ -25,6 +22,8 @@ macro_rules! impl_integer_native {
 
             impl $($const_keyword)? Sealed for $type {}
 
+            impl $($const_keyword)? BuiltinInteger for $type {}
+
             impl $($const_keyword)? UnsignedInteger for $type {}
 
             impl $($const_keyword)? Integer for $type {
@@ -33,6 +32,7 @@ macro_rules! impl_integer_native {
                 type SignedInteger = $signed_type;
 
                 const BITS: usize = Self::BITS as usize;
+                const ZERO: Self = 0;
                 const MIN: Self = Self::MIN;
                 const MAX: Self = Self::MAX;
 
@@ -120,11 +120,11 @@ impl_integer_native!((u8, i8), (u16, i16), (u32, i32), (u64, i64), (u128, i128))
 impl_integer_native!((u8, i8) as const, (u16, i16) as const, (u32, i32) as const, (u64, i64) as const, (u128, i128) as const);
 
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
-pub struct UInt<T, const BITS: usize> {
+pub struct UInt<T: UnsignedInteger + BuiltinInteger, const BITS: usize> {
     value: T,
 }
 
-impl<T: Copy, const BITS: usize> UInt<T, BITS> {
+impl<T: UnsignedInteger + BuiltinInteger, const BITS: usize> UInt<T, BITS> {
     /// The number of bits in the underlying type that are not present in this type.
     const UNUSED_BITS: usize = (core::mem::size_of::<T>() << 3) - Self::BITS;
 
@@ -147,7 +147,7 @@ impl<T: Copy, const BITS: usize> UInt<T, BITS> {
     }
 }
 
-impl<T, const BITS: usize> UInt<T, BITS>
+impl<T: UnsignedInteger + BuiltinInteger, const BITS: usize> UInt<T, BITS>
 where
     Self: Integer,
     T: Copy,
@@ -180,6 +180,8 @@ macro_rules! uint_impl_num {
                 type UnsignedInteger = Self;
 
                 const BITS: usize = BITS;
+
+                const ZERO: Self = Self { value: 0 };
 
                 const MIN: Self = Self { value: 0 };
 
@@ -1264,23 +1266,16 @@ uint_impl!(
 );
 
 // Arithmetic implementations
-impl<T, const BITS: usize> Add for UInt<T, BITS>
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> Add for UInt<T, BITS>
 where
-    Self: Integer,
-    T: PartialEq
-        + Copy
-        + BitAnd<T, Output = T>
-        + Not<Output = T>
-        + Add<T, Output = T>
-        + Sub<T, Output = T>
-        + From<u8>,
+    Self: UnsignedInteger,
 {
     type Output = UInt<T, BITS>;
 
     fn add(self, rhs: Self) -> Self::Output {
         let sum = self.value + rhs.value;
         #[cfg(debug_assertions)]
-        if (sum & !Self::MASK) != T::from(0) {
+        if (sum & !Self::MASK) != T::ZERO {
             panic!("attempt to add with overflow");
         }
         Self {
@@ -1289,32 +1284,23 @@ where
     }
 }
 
-impl<T, const BITS: usize> AddAssign for UInt<T, BITS>
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> AddAssign for UInt<T, BITS>
 where
-    Self: Integer,
-    T: PartialEq
-        + Eq
-        + Not<Output = T>
-        + Copy
-        + AddAssign<T>
-        + BitAnd<T, Output = T>
-        + BitAndAssign<T>
-        + From<u8>,
+    Self: UnsignedInteger,
 {
     fn add_assign(&mut self, rhs: Self) {
         self.value += rhs.value;
         #[cfg(debug_assertions)]
-        if (self.value & !Self::MASK) != T::from(0) {
+        if (self.value & !Self::MASK) != T::ZERO {
             panic!("attempt to add with overflow");
         }
         self.value &= Self::MASK;
     }
 }
 
-impl<T, const BITS: usize> Sub for UInt<T, BITS>
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> Sub for UInt<T, BITS>
 where
     Self: Integer,
-    T: Copy + BitAnd<T, Output = T> + Sub<T, Output = T>,
 {
     type Output = UInt<T, BITS>;
 
@@ -1326,10 +1312,9 @@ where
     }
 }
 
-impl<T, const BITS: usize> SubAssign for UInt<T, BITS>
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> SubAssign for UInt<T, BITS>
 where
     Self: Integer,
-    T: Copy + SubAssign<T> + BitAnd<T, Output = T> + BitAndAssign<T> + Sub<T, Output = T>,
 {
     fn sub_assign(&mut self, rhs: Self) {
         // No need for extra overflow checking as the regular minus operator already handles it for us
@@ -1338,10 +1323,9 @@ where
     }
 }
 
-impl<T, const BITS: usize> Mul for UInt<T, BITS>
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> Mul for UInt<T, BITS>
 where
     Self: Integer,
-    T: PartialEq + Copy + BitAnd<T, Output = T> + Not<Output = T> + Mul<T, Output = T> + From<u8>,
 {
     type Output = UInt<T, BITS>;
 
@@ -1351,7 +1335,7 @@ where
         // is unavoidable
         let product = self.value * rhs.value;
         #[cfg(debug_assertions)]
-        if (product & !Self::MASK) != T::from(0) {
+        if (product & !Self::MASK) != T::ZERO {
             panic!("attempt to multiply with overflow");
         }
         Self {
@@ -1360,33 +1344,21 @@ where
     }
 }
 
-impl<T, const BITS: usize> MulAssign for UInt<T, BITS>
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> MulAssign for UInt<T, BITS>
 where
     Self: Integer,
-    T: PartialEq
-        + Eq
-        + Not<Output = T>
-        + Copy
-        + MulAssign<T>
-        + BitAnd<T, Output = T>
-        + BitAndAssign<T>
-        + From<u8>,
 {
     fn mul_assign(&mut self, rhs: Self) {
         self.value *= rhs.value;
         #[cfg(debug_assertions)]
-        if (self.value & !Self::MASK) != T::from(0) {
+        if (self.value & !Self::MASK) != T::ZERO {
             panic!("attempt to multiply with overflow");
         }
         self.value &= Self::MASK;
     }
 }
 
-impl<T, const BITS: usize> Div for UInt<T, BITS>
-where
-    Self: Integer,
-    T: PartialEq + Div<T, Output = T>,
-{
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> Div for UInt<T, BITS> {
     type Output = UInt<T, BITS>;
 
     fn div(self, rhs: Self) -> Self::Output {
@@ -1398,26 +1370,13 @@ where
     }
 }
 
-impl<T, const BITS: usize> DivAssign for UInt<T, BITS>
-where
-    Self: Integer,
-    T: PartialEq + DivAssign<T>,
-{
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> DivAssign for UInt<T, BITS> {
     fn div_assign(&mut self, rhs: Self) {
         self.value /= rhs.value;
     }
 }
 
-impl<T, const BITS: usize> BitAnd for UInt<T, BITS>
-where
-    Self: Integer,
-    T: Copy
-        + BitAnd<T, Output = T>
-        + Sub<T, Output = T>
-        + Shl<usize, Output = T>
-        + Shr<usize, Output = T>
-        + From<u8>,
-{
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> BitAnd for UInt<T, BITS> {
     type Output = UInt<T, BITS>;
 
     fn bitand(self, rhs: Self) -> Self::Output {
@@ -1427,19 +1386,13 @@ where
     }
 }
 
-impl<T, const BITS: usize> BitAndAssign for UInt<T, BITS>
-where
-    T: Copy + BitAndAssign<T> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
-{
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> BitAndAssign for UInt<T, BITS> {
     fn bitand_assign(&mut self, rhs: Self) {
         self.value &= rhs.value;
     }
 }
 
-impl<T, const BITS: usize> BitOr for UInt<T, BITS>
-where
-    T: Copy + BitOr<T, Output = T> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
-{
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> BitOr for UInt<T, BITS> {
     type Output = UInt<T, BITS>;
 
     fn bitor(self, rhs: Self) -> Self::Output {
@@ -1449,19 +1402,13 @@ where
     }
 }
 
-impl<T, const BITS: usize> BitOrAssign for UInt<T, BITS>
-where
-    T: Copy + BitOrAssign<T> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
-{
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> BitOrAssign for UInt<T, BITS> {
     fn bitor_assign(&mut self, rhs: Self) {
         self.value |= rhs.value;
     }
 }
 
-impl<T, const BITS: usize> BitXor for UInt<T, BITS>
-where
-    T: Copy + BitXor<T, Output = T> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
-{
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> BitXor for UInt<T, BITS> {
     type Output = UInt<T, BITS>;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
@@ -1471,25 +1418,15 @@ where
     }
 }
 
-impl<T, const BITS: usize> BitXorAssign for UInt<T, BITS>
-where
-    T: Copy + BitXorAssign<T> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
-{
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> BitXorAssign for UInt<T, BITS> {
     fn bitxor_assign(&mut self, rhs: Self) {
         self.value ^= rhs.value;
     }
 }
 
-impl<T, const BITS: usize> Not for UInt<T, BITS>
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> Not for UInt<T, BITS>
 where
     Self: Integer,
-    T: Copy
-        + BitAnd<T, Output = T>
-        + BitXor<T, Output = T>
-        + Sub<T, Output = T>
-        + Shl<usize, Output = T>
-        + Shr<usize, Output = T>
-        + From<u8>,
 {
     type Output = UInt<T, BITS>;
 
@@ -1500,17 +1437,13 @@ where
     }
 }
 
-impl<T, TSHIFTBITS, const BITS: usize> Shl<TSHIFTBITS> for UInt<T, BITS>
+impl<
+        T: BuiltinInteger + UnsignedInteger + Shl<TSHIFTBITS, Output = T>,
+        TSHIFTBITS: TryInto<usize> + Copy,
+        const BITS: usize,
+    > Shl<TSHIFTBITS> for UInt<T, BITS>
 where
     Self: Integer,
-    T: Copy
-        + BitAnd<T, Output = T>
-        + Shl<TSHIFTBITS, Output = T>
-        + Sub<T, Output = T>
-        + Shl<usize, Output = T>
-        + Shr<usize, Output = T>
-        + From<u8>,
-    TSHIFTBITS: TryInto<usize> + Copy,
 {
     type Output = UInt<T, BITS>;
 
@@ -1528,18 +1461,13 @@ where
     }
 }
 
-impl<T, TSHIFTBITS, const BITS: usize> ShlAssign<TSHIFTBITS> for UInt<T, BITS>
+impl<
+        T: BuiltinInteger + UnsignedInteger + ShlAssign<TSHIFTBITS>,
+        TSHIFTBITS: TryInto<usize> + Copy,
+        const BITS: usize,
+    > ShlAssign<TSHIFTBITS> for UInt<T, BITS>
 where
     Self: Integer,
-    T: Copy
-        + BitAnd<T, Output = T>
-        + BitAndAssign<T>
-        + ShlAssign<TSHIFTBITS>
-        + Sub<T, Output = T>
-        + Shr<usize, Output = T>
-        + Shl<usize, Output = T>
-        + From<u8>,
-    TSHIFTBITS: TryInto<usize> + Copy,
 {
     fn shl_assign(&mut self, rhs: TSHIFTBITS) {
         // With debug assertions, the << and >> operators throw an exception if the shift amount
@@ -1553,10 +1481,11 @@ where
     }
 }
 
-impl<T, TSHIFTBITS, const BITS: usize> Shr<TSHIFTBITS> for UInt<T, BITS>
-where
-    T: Copy + Shr<TSHIFTBITS, Output = T> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
-    TSHIFTBITS: TryInto<usize> + Copy,
+impl<
+        T: BuiltinInteger + UnsignedInteger + Shr<TSHIFTBITS, Output = T>,
+        TSHIFTBITS: TryInto<usize> + Copy,
+        const BITS: usize,
+    > Shr<TSHIFTBITS> for UInt<T, BITS>
 {
     type Output = UInt<T, BITS>;
 
@@ -1573,10 +1502,11 @@ where
     }
 }
 
-impl<T, TSHIFTBITS, const BITS: usize> ShrAssign<TSHIFTBITS> for UInt<T, BITS>
-where
-    T: Copy + ShrAssign<TSHIFTBITS> + Sub<T, Output = T> + Shl<usize, Output = T> + From<u8>,
-    TSHIFTBITS: TryInto<usize> + Copy,
+impl<
+        T: BuiltinInteger + UnsignedInteger + ShrAssign<TSHIFTBITS>,
+        TSHIFTBITS: TryInto<usize> + Copy,
+        const BITS: usize,
+    > ShrAssign<TSHIFTBITS> for UInt<T, BITS>
 {
     fn shr_assign(&mut self, rhs: TSHIFTBITS) {
         // With debug assertions, the << and >> operators throw an exception if the shift amount
@@ -1589,68 +1519,50 @@ where
     }
 }
 
-impl<T, const BITS: usize> Display for UInt<T, BITS>
-where
-    T: Display,
-{
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> Display for UInt<T, BITS> {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        self.value.fmt(f)
+        Display::fmt(&self.value, f)
     }
 }
 
-impl<T, const BITS: usize> Debug for UInt<T, BITS>
-where
-    T: Debug,
-{
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> Debug for UInt<T, BITS> {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        self.value.fmt(f)
+        Debug::fmt(&self.value, f)
     }
 }
 
-impl<T, const BITS: usize> LowerHex for UInt<T, BITS>
-where
-    T: LowerHex,
-{
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> LowerHex for UInt<T, BITS> {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        self.value.fmt(f)
+        LowerHex::fmt(&self.value, f)
     }
 }
 
-impl<T, const BITS: usize> UpperHex for UInt<T, BITS>
-where
-    T: UpperHex,
-{
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> UpperHex for UInt<T, BITS> {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        self.value.fmt(f)
+        UpperHex::fmt(&self.value, f)
     }
 }
 
-impl<T, const BITS: usize> Octal for UInt<T, BITS>
-where
-    T: Octal,
-{
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> Octal for UInt<T, BITS> {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        self.value.fmt(f)
+        Octal::fmt(&self.value, f)
     }
 }
 
-impl<T, const BITS: usize> Binary for UInt<T, BITS>
-where
-    T: Binary,
-{
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> Binary for UInt<T, BITS> {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        self.value.fmt(f)
+        Binary::fmt(&self.value, f)
     }
 }
 
 #[cfg(feature = "defmt")]
-impl<T, const BITS: usize> defmt::Format for UInt<T, BITS>
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> defmt::Format for UInt<T, BITS>
 where
     T: defmt::Format,
 {
@@ -1660,14 +1572,14 @@ where
     }
 }
 
-impl_borsh!(UInt, "u");
+impl_borsh!(UInt, "u", UnsignedInteger);
 
 #[cfg(feature = "serde")]
-impl<T, const BITS: usize> Serialize for UInt<T, BITS>
+impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> serde::Serialize for UInt<T, BITS>
 where
-    T: Serialize,
+    T: serde::Serialize,
 {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self.value.serialize(serializer)
     }
 }
@@ -1678,20 +1590,12 @@ where
 // we define our own error type using the UInt's underlying type which implements Display and then use
 // serde::de::Error::custom to create an error with our custom type.
 #[cfg(feature = "serde")]
-struct InvalidUIntValueError<T>
-where
-    T: Integer,
-    T::UnderlyingType: Display,
-{
+struct InvalidUIntValueError<T: UnsignedInteger> {
     value: T::UnderlyingType,
 }
 
 #[cfg(feature = "serde")]
-impl<T> Display for InvalidUIntValueError<T>
-where
-    T: Integer,
-    T::UnderlyingType: Display,
-{
+impl<T: UnsignedInteger> Display for InvalidUIntValueError<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
@@ -1703,12 +1607,13 @@ where
 }
 
 #[cfg(feature = "serde")]
-impl<'de, T, const BITS: usize> Deserialize<'de> for UInt<T, BITS>
+impl<'de, T: BuiltinInteger + UnsignedInteger, const BITS: usize> serde::Deserialize<'de>
+    for UInt<T, BITS>
 where
-    Self: Integer<UnderlyingType = T>,
-    T: Display + PartialOrd + Deserialize<'de>,
+    Self: UnsignedInteger<UnderlyingType = T>,
+    T: serde::Deserialize<'de>,
 {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = T::deserialize(deserializer)?;
 
         if value <= Self::MAX.value {
@@ -1721,18 +1626,18 @@ where
 }
 
 // Implement `core::iter::Sum` and `core::iter::Product`.
-impl_sum_product!(UInt, 1_u8);
+impl_sum_product!(UInt, 1_u8, UnsignedInteger);
 
 // Implement support for the `num-traits` crate, if the feature is enabled.
-impl_num_traits!(UInt, u8, |value| value & Self::MASK);
+impl_num_traits!(UInt, UnsignedInteger, u8, |value| value & Self::MASK);
 
 // Implement `core::iter::Step` (if the `step_trait` feature is enabled).
-impl_step!(UInt);
+impl_step!(UInt, UnsignedInteger);
 
 // Implement byte operations for UInt's with a bit width aligned to a byte boundary.
 
 // Support for the `schemars` crate, if the feature is enabled.
-impl_schemars!(UInt, "uint");
+impl_schemars!(UInt, "uint", UnsignedInteger);
 
 bytes_operation_impl!(UInt<u32, 24>, u32);
 bytes_operation_impl!(UInt<u64, 24>, u64);

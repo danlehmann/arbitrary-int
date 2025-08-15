@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use arbitrary::{unstructured, Arbitrary, Result, Unstructured};
 
-impl<'a, T, const BITS: usize> Arbitrary<'a> for UInt<T, BITS>
+impl<'a, T: UnsignedInteger + BuiltinInteger, const BITS: usize> Arbitrary<'a> for UInt<T, BITS>
 where
     T: unstructured::Int,
     Self: UnsignedInteger<UnderlyingType = T>,
@@ -12,7 +12,7 @@ where
     }
 }
 
-impl<'a, T, const BITS: usize> Arbitrary<'a> for Int<T, BITS>
+impl<'a, T: SignedInteger + BuiltinInteger, const BITS: usize> Arbitrary<'a> for Int<T, BITS>
 where
     T: unstructured::Int,
     Self: SignedInteger<UnderlyingType = T>,
