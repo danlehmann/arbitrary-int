@@ -1,6 +1,6 @@
 # Changelog
 
-## arbitrary-int 2.0.0 (unreleased)
+## arbitrary-int 2.0.0
 
 ### Added
 
