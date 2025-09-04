@@ -4181,6 +4181,58 @@ fn schemars_signed() {
     assert_eq!(i8, i9);
 }
 
+#[cfg(feature = "bytemuck")]
+mod bytemuck {
+    use arbitrary_int::prelude::*;
+
+    #[test]
+    fn cast_to_uint() {
+        // Exercises UInt: CheckedBitPattern impl
+        assert_eq!(bytemuck::checked::cast::<u8, u6>(42), u6::new(42));
+        assert_eq!(
+            bytemuck::checked::try_cast::<u8, u6>(127),
+            Err(bytemuck::checked::CheckedCastError::InvalidBitPattern),
+        );
+        assert_eq!(
+            bytemuck::checked::try_cast::<i8, u6>(-2),
+            Err(bytemuck::checked::CheckedCastError::InvalidBitPattern),
+        );
+    }
+
+    #[test]
+    fn cast_to_sint() {
+        // Exercises Int: CheckedBitPattern impl
+        assert_eq!(bytemuck::checked::cast::<i8, i6>(-1), i6::new(-1));
+        assert_eq!(
+            bytemuck::checked::try_cast::<i8, i6>(-120),
+            Err(bytemuck::checked::CheckedCastError::InvalidBitPattern),
+        );
+    }
+
+    #[test]
+    fn cast_from_uint() {
+        // Exercises UInt: NoUninit impl
+        assert_eq!(bytemuck::cast::<u6, u8>(u6::new(42)), 42u8);
+        assert_eq!(bytemuck::cast::<u12, u16>(u12::new(1728)), 1728u16);
+    }
+
+    #[test]
+    fn cast_from_sint() {
+        // Exercises Int: NoUninit impl
+        // Relies on the fact an Int is represented by sign-extension internally,
+        // which may change in the future
+        assert_eq!(bytemuck::cast::<i6, u8>(i6::new(-1)), u8::MAX);
+    }
+
+    #[test]
+    fn fill_zeroes() {
+        // Exercises UInt: Zeroable impl
+        let mut data = [u6::new(17); 12];
+        bytemuck::fill_zeroes(&mut data);
+        assert!(data.iter().all(|x| *x == u6::ZERO));
+    }
+}
+
 #[test]
 fn new_and_as_specific_types() {
     let a = u6::new(42);

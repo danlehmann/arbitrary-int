@@ -549,3 +549,67 @@ macro_rules! impl_num_traits {
 }
 
 pub(crate) use impl_num_traits;
+
+macro_rules! impl_bytemuck_basic {
+    ($type:ident, $trait:ident $({
+        $(#[$zeroable_attr:meta])*
+        impl Zeroable for ... {}
+        $(#[$no_uninit_attr:meta])*
+        impl NoUninit for ... {}
+        $(#[$checked_bit_pattern_attr:meta])*
+        impl CheckedBitPattern for ... {}
+    })?) => {
+        #[cfg(feature = "bytemuck")]
+        $($(#[$zeroable_attr])*)*
+        unsafe impl<T: BuiltinInteger + bytemuck::Zeroable + $trait, const BITS: usize>
+            bytemuck::Zeroable for $type<T, BITS>
+        {
+        }
+        // There are never any uninitialized bytes, since a UInt/Int is a #[repr(transparent)] wrapper around T
+        #[cfg(feature = "bytemuck")]
+        $($(#[$no_uninit_attr])*)*
+        unsafe impl<T: BuiltinInteger + bytemuck::NoUninit + $trait, const BITS: usize>
+            bytemuck::NoUninit for $type<T, BITS>
+        {
+        }
+        #[cfg(feature = "bytemuck")]
+        $($(#[$checked_bit_pattern_attr])*)*
+        unsafe impl<T: BuiltinInteger + bytemuck::AnyBitPattern + $trait, const BITS: usize>
+            bytemuck::CheckedBitPattern for $type<T, BITS>
+            where Self: Integer<UnderlyingType = T>
+        {
+            type Bits = T;
+
+            #[inline]
+            fn is_valid_bit_pattern(bits: &Self::Bits) -> bool {
+                // this works for both signed & unsigned ints
+                <Self as Integer>::try_new(*bits).is_ok()
+            }
+        }
+    };
+}
+macro_rules! impl_bytemuck_full {
+    ($type:ident, $trait:ident $({
+        $(#[$contig_attr:meta])*
+        impl Contiguous for ... {}
+        $($extra:tt)*
+    })?) => {
+        $crate::common::impl_bytemuck_basic!($type, $trait $({
+            $($extra)*
+        })*);
+        #[cfg(feature = "bytemuck")]
+        $($(#[$contig_attr])*)*
+        unsafe impl<T: BuiltinInteger + Copy + Ord + $trait + 'static, const BITS: usize>
+            bytemuck::Contiguous for $type<T, BITS>
+        where
+            Self: Integer,
+        {
+            type Int = T;
+            const MAX_VALUE: Self::Int = <Self as Integer>::MAX.value();
+            const MIN_VALUE: Self::Int = <Self as Integer>::MIN.value();
+        }
+    };
+}
+
+pub(crate) use impl_bytemuck_basic;
+pub(crate) use impl_bytemuck_full;
