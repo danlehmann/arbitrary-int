@@ -116,7 +116,25 @@ impl_signed_integer_native!((i8, u8), (i16, u16), (i32, u32), (i64, u64), (i128,
 #[cfg(feature = "const_convert_and_const_trait_impl")]
 impl_signed_integer_native!((i8, u8) as const, (i16, u16) as const, (i32, u32) as const, (i64, u64) as const, (i128, u128) as const);
 
+/// A signed integer of arbitrary bit length.
+///
+/// # In-Memory Representation
+/// The specific in-memory representation that would be seen by calling [`core::mem::transmute`] is unspecified.
+/// but satisfies the following guarantees:
+/// - An `Int<T, BITS>` has the same size/alignment as `T`
+/// - An `Int` has no uninitialized bytes or padding (satisfies [`bytemuck::NoUninit`]).
+/// - If the value of a `Int<T, BITS>` is non-negative,
+///   then it will the same representation as `UInt<T, BITS>`
+///
+/// When `cfg(feature = "bytemuck")` is enabled, the appropriate traits are implemented
+/// based on the above guarantees.
+/// It is not possible to implement [`bytemuck::Contiguous`] because that would be
+/// incompatible with a zero-extended memory representation.
+///
+/// Since the underlying representation is unspecified, it may change in a patch version
+/// without being considered a breaking change.
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
+#[repr(transparent)]
 pub struct Int<T: SignedInteger + BuiltinInteger, const BITS: usize> {
     value: T,
 }
@@ -1823,6 +1841,16 @@ impl<T: SignedInteger + BuiltinInteger, const BITS: usize> Binary for Int<T, BIT
     }
 }
 
+impl_bytemuck_basic!(Int, SignedInteger {
+    /// A [`Int`] initialized to zero has a zero value.
+    impl Zeroable for ... {}
+    /// A [`Int`] has no uninitialized bytes or padding.
+    impl NoUninit for ... {}
+    /// It is possible to check whether an in-memory representation of an [`Int`] is valid,
+    /// although the specific meaning of that representation is not specified.
+    impl CheckedBitPattern for ... {}
+});
+
 #[cfg(feature = "defmt")]
 impl<T: SignedInteger + BuiltinInteger, const BITS: usize> defmt::Format for Int<T, BITS>
 where
@@ -1933,7 +1961,7 @@ from_native_impl!(Int(i32), [i8, i16, i32, i64, i128]);
 from_native_impl!(Int(i64), [i8, i16, i32, i64, i128]);
 from_native_impl!(Int(i128), [i8, i16, i32, i64, i128]);
 
-use crate::common::impl_borsh;
+use crate::common::{impl_borsh, impl_bytemuck_basic};
 pub use aliases::*;
 
 #[allow(non_camel_case_types)]

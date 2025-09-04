@@ -1,6 +1,6 @@
 use crate::common::{
-    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_borsh, impl_extract,
-    impl_num_traits, impl_schemars, impl_step, impl_sum_product,
+    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_borsh,
+    impl_bytemuck_full, impl_extract, impl_num_traits, impl_schemars, impl_step, impl_sum_product,
 };
 use crate::traits::{sealed::Sealed, BuiltinInteger, Integer, UnsignedInteger};
 use crate::TryNewError;
@@ -119,7 +119,18 @@ impl_integer_native!((u8, i8), (u16, i16), (u32, i32), (u64, i64), (u128, i128))
 #[cfg(feature = "const_convert_and_const_trait_impl")]
 impl_integer_native!((u8, i8) as const, (u16, i16) as const, (u32, i32) as const, (u64, i64) as const, (u128, i128) as const);
 
+/// An unsigned integer of arbitrary bit length.
+///
+/// # Representation
+/// The result of [`Self::value`]`is guaranteed to match the in-memory representation
+/// that would be seen by [`mem::transmute`] or [`bytemuck::cast`].
+/// So as long as the value is valid, it is safe to transmute back and forth from `T`,
+///
+/// Note that a signed [`crate::Int`] has an unspecified in-memory representation.
+///
+/// When `cfg(feature = "bytemuck")` is set, the appropriate bytemuck traits will be implemented.
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
+#[repr(transparent)]
 pub struct UInt<T: UnsignedInteger + BuiltinInteger, const BITS: usize> {
     value: T,
 }
@@ -1560,6 +1571,19 @@ impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> Binary for UInt<T, 
         Binary::fmt(&self.value, f)
     }
 }
+
+impl_bytemuck_full!(UInt, UnsignedInteger {
+    /// The possible values of a [`UInt`] are contiguous,
+    /// as is their in-memory representation.
+    impl Contiguous for ... {}
+    /// Zero-initializing a [`UInt`] gives the value [`UInt::ZERO`]
+    impl Zeroable for ... {}
+    /// A `UInt<T, BITS>` has no uninitialized bytes or padding.
+    impl NoUninit for ... {}
+    /// The bitwise representation of a `UInt` can be checked for validity,
+    /// by checking the value is is less than [`Self::MAX`]
+    impl CheckedBitPattern for ... {}
+});
 
 #[cfg(feature = "defmt")]
 impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> defmt::Format for UInt<T, BITS>
