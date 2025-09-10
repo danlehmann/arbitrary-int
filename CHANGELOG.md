@@ -1,6 +1,7 @@
 # Changelog
 
 - Added Rust MSRV v1.83
+- Bumped `defmt` dependency to v1
 
 ## arbitrary-int 2.0.0
 
