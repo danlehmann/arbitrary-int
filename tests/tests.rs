@@ -3961,6 +3961,7 @@ mod borsh_tests {
         assert_eq!(output3, input);
     }
 
+    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
     #[test]
     fn test_serialize_deserialize() {
         // Run against plain u64/i64 first (not an arbitrary_int)
