@@ -353,7 +353,7 @@ macro_rules! impl_borsh {
             fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
                 // Ideally, we'd want a buffer of size `BITS >> 3` or `size_of::<T>`, but that's not possible
                 // with arrays at present (`feature(generic_const_exprs)`, once stable, will allow this).
-                const BUFFER_SIZE: usize = size_of::<u128>();
+                const BUFFER_SIZE: usize = core::mem::size_of::<u128>();
                 let mut buffer = [0_u8; BUFFER_SIZE];
                 const {
                     // This causes a compiler error if the buffer isn't big enough. That isn't possible with any
@@ -361,7 +361,7 @@ macro_rules! impl_borsh {
                     assert!(core::mem::size_of::<T>() <= BUFFER_SIZE);
                 }
 
-                let serialized_byte_count = BITS.div_ceil(8);
+                let serialized_byte_count = (BITS + 7) >> 3;
                 self.to_unsigned().value().serialize(&mut &mut buffer[..])?;
                 writer.write_all(&buffer[..serialized_byte_count])
             }
@@ -378,14 +378,14 @@ macro_rules! impl_borsh {
             fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> borsh::io::Result<Self> {
                 // Ideally, we'd want a buffer of size `BITS >> 3` or `size_of::<T>`, but that's not possible
                 // with arrays at present (`feature(generic_const_exprs)`, once stable, will allow this).
-                const BUFFER_SIZE: usize = size_of::<u128>();
+                const BUFFER_SIZE: usize = core::mem::size_of::<u128>();
                 let mut buffer = [0_u8; BUFFER_SIZE];
                 const {
                     // This causes a compiler error if the buffer isn't big enough. That isn't possible with any
                     // of the types provided by this crate, but it can't hurt to double check.
                     assert!(core::mem::size_of::<T>() <= BUFFER_SIZE);
                 }
-                let serialized_byte_count = BITS.div_ceil(8);
+                let serialized_byte_count = (BITS + 7) >> 3;
                 let underlying_byte_count = core::mem::size_of::<T>();
 
                 // Read from the source, advancing cursor by the exact right number of bytes
@@ -421,7 +421,7 @@ macro_rules! impl_borsh {
                     borsh::schema::Definition,
                 >,
             ) {
-                let byte_count = BITS.div_ceil(8) as u8;
+                let byte_count = ((BITS + 7) >> 3) as u8;
                 let def = borsh::schema::Definition::Primitive(byte_count);
                 definitions.insert(Self::declaration(), def);
             }
