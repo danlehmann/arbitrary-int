@@ -1,5 +1,7 @@
 # Changelog
 
+- Added Rust MSRV v1.83
+
 ## arbitrary-int 2.0.0
 
 ### Added
