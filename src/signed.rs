@@ -133,6 +133,9 @@ impl_signed_integer_native!((i8, u8) as const, (i16, u16) as const, (i32, u32) a
 ///
 /// Since the underlying representation is unspecified, it may change in a patch version
 /// without being considered a breaking change.
+///
+/// [`bytemuck::NoUninit`]: https://docs.rs/bytemuck/1/bytemuck/trait.NoUninit.html
+/// [`bytemuck::Contiguous`]: https://docs.rs/bytemuck/1/bytemuck/trait.Contiguous.html
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
 #[repr(transparent)]
 pub struct Int<T: SignedInteger + BuiltinInteger, const BITS: usize> {
