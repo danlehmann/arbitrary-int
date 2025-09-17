@@ -60,6 +60,7 @@ macro_rules! from_arbitrary_int_impl {
         )+
     };
 }
+pub(crate) use from_arbitrary_int_impl;
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 macro_rules! impl_from_arbitrary_uint_for_int {
@@ -77,6 +78,9 @@ macro_rules! impl_from_arbitrary_uint_for_int {
 }
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+pub(crate) use impl_from_arbitrary_uint_for_int;
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 macro_rules! impl_from_uint_for_arbitrary_int {
     ($from:ty, $ty:ident([$($into:ty),+])) => {
         $(
@@ -90,6 +94,8 @@ macro_rules! impl_from_uint_for_arbitrary_int {
         )+
     };
 }
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+pub(crate) use impl_from_uint_for_arbitrary_int;
 
 #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 macro_rules! impl_from_arbitrary_uint_for_arbitrary_int {
@@ -106,10 +112,8 @@ macro_rules! impl_from_arbitrary_uint_for_arbitrary_int {
     };
 }
 
-pub(crate) use from_arbitrary_int_impl;
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 pub(crate) use impl_from_arbitrary_uint_for_arbitrary_int;
-pub(crate) use impl_from_arbitrary_uint_for_int;
-pub(crate) use impl_from_uint_for_arbitrary_int;
 
 #[cfg(feature = "const_convert_and_const_trait_impl")]
 macro_rules! from_native_impl {
