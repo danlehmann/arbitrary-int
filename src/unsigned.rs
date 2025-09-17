@@ -1,6 +1,6 @@
 use crate::common::{
     bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_borsh, impl_extract,
-    impl_num_traits, impl_schemars, impl_step, impl_sum_product,
+    impl_num_traits, impl_schemars_0_8, impl_schemars_1, impl_step, impl_sum_product,
 };
 use crate::traits::{sealed::Sealed, BuiltinInteger, Integer, UnsignedInteger};
 use crate::TryNewError;
@@ -102,6 +102,10 @@ macro_rules! impl_integer_native {
 
                 #[inline]
                 fn as_isize(self) -> isize { self as isize }
+
+                #[cfg(feature = "schemars_0_8")]
+                #[inline]
+                fn as_f64(self) -> f64 { self as f64 }
 
                 #[inline]
                 fn to_unsigned(self) -> Self::UnsignedInteger { self }
@@ -267,6 +271,11 @@ macro_rules! uint_impl_num {
                 }
 
                 fn as_isize(self) -> isize {
+                    self.value() as _
+                }
+
+                #[cfg(feature = "schemars_0_8")]
+                fn as_f64(self) -> f64 {
                     self.value() as _
                 }
 
@@ -1637,7 +1646,8 @@ impl_step!(UInt, UnsignedInteger);
 // Implement byte operations for UInt's with a bit width aligned to a byte boundary.
 
 // Support for the `schemars` crate, if the feature is enabled.
-impl_schemars!(UInt, "uint", UnsignedInteger);
+impl_schemars_0_8!(UInt, "uint", UnsignedInteger);
+impl_schemars_1!(UInt, "uint", UnsignedInteger);
 
 bytes_operation_impl!(UInt<u32, 24>, u32);
 bytes_operation_impl!(UInt<u64, 24>, u64);

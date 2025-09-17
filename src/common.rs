@@ -307,11 +307,41 @@ macro_rules! impl_sum_product {
 
 pub(crate) use impl_sum_product;
 
-/// Implements support for the `schemars` crate, if the feature is enabled.
-macro_rules! impl_schemars {
+macro_rules! impl_schemars_1 {
     ($type:tt, $str_prefix:literal, $trait:ident) => {
-        #[cfg(feature = "schemars")]
-        impl<T: BuiltinInteger + $trait, const BITS: usize> schemars::JsonSchema for $type<T, BITS>
+        #[cfg(feature = "schemars_1")]
+        impl<T: BuiltinInteger + Integer + serde::Serialize + $trait, const BITS: usize> ::schemars_1::JsonSchema
+            for $type<T, BITS>
+        where
+            Self: Integer,
+        {
+            fn schema_name() -> std::borrow::Cow<'static, str> {
+                use alloc::string::ToString;
+                [$str_prefix, &BITS.to_string()].concat().into()
+            }
+
+            fn schema_id() -> std::borrow::Cow<'static, str> {
+                concat!(module_path!(), "::arbitrary-int").into()
+            }
+
+            fn json_schema(_gen: &mut ::schemars_1::SchemaGenerator) -> ::schemars_1::Schema {
+                use ::schemars_1::json_schema;
+                json_schema!({
+                    "type": "number",
+                    "minimum": Self::MIN,
+                    "maximum": Self::MAX,
+                })
+            }
+        }
+    }
+}
+
+/// Implements support for the `schemars` crate, if the feature is enabled.
+macro_rules! impl_schemars_0_8 {
+    ($type:tt, $str_prefix:literal, $trait:ident) => {
+        #[cfg(feature = "schemars_0_8")]
+        impl<T: BuiltinInteger + Integer + $trait, const BITS: usize> ::schemars_0_8::JsonSchema
+            for $type<T, BITS>
         where
             Self: Integer,
         {
@@ -320,15 +350,23 @@ macro_rules! impl_schemars {
                 [$str_prefix, &BITS.to_string()].concat()
             }
 
-            fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-                use schemars::schema::{InstanceType, NumberValidation, Schema, SchemaObject};
+            fn json_schema(
+                _gen: &mut ::schemars_0_8::gen::SchemaGenerator,
+            ) -> ::schemars_0_8::schema::Schema {
+                use ::schemars_0_8::schema::{
+                    InstanceType, NumberValidation, Schema, SchemaObject,
+                };
+
+                // aligns with `serde_json with arbitrary_precision enabled`
+                // without `arbitrary_precision`, out of range numbers error serde at runtime
+                let max = Self::MAX.value().as_f64();
+                let min = Self::MIN.value().as_f64();
                 let schema_object = SchemaObject {
                     instance_type: Some(InstanceType::Integer.into()),
                     format: Some(Self::schema_name()),
                     number: Some(alloc::boxed::Box::new(NumberValidation {
-                        // Can be done with https://github.com/rust-lang/rfcs/pull/2484
-                        // minimum: Some(Self::MIN.value().try_into().ok().unwrap()),
-                        // maximum: Some(Self::MAX.value().try_into().ok().unwrap()),
+                        minimum: Some(min),
+                        maximum: Some(max),
                         ..Default::default()
                     })),
                     ..Default::default()
@@ -339,7 +377,8 @@ macro_rules! impl_schemars {
     };
 }
 
-pub(crate) use impl_schemars;
+pub(crate) use impl_schemars_0_8;
+pub(crate) use impl_schemars_1;
 
 /// Implement support for the `borsh` crate (if the feature is enabled)
 macro_rules! impl_borsh {

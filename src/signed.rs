@@ -1,7 +1,7 @@
 use crate::{
     common::{
         bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
-        impl_num_traits, impl_schemars, impl_step, impl_sum_product,
+        impl_num_traits, impl_schemars_0_8, impl_schemars_1, impl_step, impl_sum_product,
     },
     traits::{sealed::Sealed, BuiltinInteger, Integer, SignedInteger},
     TryNewError,
@@ -99,6 +99,10 @@ macro_rules! impl_signed_integer_native {
 
                 #[inline]
                 fn as_isize(self) -> isize { self as isize }
+
+                #[cfg(feature = "schemars_0_8")]
+                #[inline]
+                fn as_f64(self) -> f64 { self as f64 }
 
                 #[inline]
                 fn to_unsigned(self) -> Self::UnsignedInteger { self as Self::UnsignedInteger }
@@ -263,6 +267,11 @@ macro_rules! int_impl_num {
                 }
 
                 fn as_isize(self) -> isize {
+                    self.value() as _
+                }
+
+                #[cfg(feature = "schemars_0_8")]
+                fn as_f64(self) -> f64 {
                     self.value() as _
                 }
 
@@ -1900,7 +1909,8 @@ impl_num_traits!(Int, SignedInteger, i8, |value| {
 });
 
 // Support for the `schemars` crate, if the feature is enabled.
-impl_schemars!(Int, "int", SignedInteger);
+impl_schemars_0_8!(Int, "int", SignedInteger);
+impl_schemars_1!(Int, "int", SignedInteger);
 
 // Implement byte operations for Int's with a bit width aligned to a byte boundary.
 bytes_operation_impl!(Int<i32, 24>, i32);

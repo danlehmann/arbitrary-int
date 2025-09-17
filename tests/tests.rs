@@ -4130,11 +4130,26 @@ mod borsh_tests {
     }
 }
 
-#[cfg(feature = "schemars")]
+#[cfg(feature = "schemars_1")]
 #[test]
-fn schemars_unsigned() {
-    use schemars::schema_for;
+fn schemars_1_unsigned() {
+    use ::schemars_1::schema_for;
+    let mut u9 = schema_for!(u9);
+    assert!(
+        u9.as_object().as_ref().expect("object")["type"]
+            .clone()
+            .to_string()
+            == "\"number\""
+    );
+}
+
+#[cfg(feature = "schemars_0_8")]
+#[test]
+fn schemars_0_8_unsigned() {
+    use ::schemars_0_8::schema_for;
+    use schemars_0_8::JsonSchema;
     let mut u8 = schema_for!(u8);
+
     let u9 = schema_for!(u9);
     assert_eq!(
         u8.schema.format.clone().unwrap().replace("8", "9"),
@@ -4154,12 +4169,32 @@ fn schemars_unsigned() {
     u8.schema.metadata = u9.schema.metadata.clone();
     u8.schema.number = u9.schema.number.clone();
     assert_eq!(u8, u9);
+
+    assert_eq!(
+        u9::MAX.value() as f64,
+        u9.schema
+            .number
+            .as_ref()
+            .expect("numeric range")
+            .maximum
+            .expect("defined")
+    );
+
+    assert_eq!(
+        u9::MIN.value() as f64,
+        u9.schema
+            .number
+            .as_ref()
+            .expect("numeric range")
+            .minimum
+            .expect("defined")
+    );
 }
 
-#[cfg(feature = "schemars")]
+#[cfg(feature = "schemars_0_8")]
 #[test]
-fn schemars_signed() {
-    use schemars::schema_for;
+fn schemars_0_8_signed() {
+    use ::schemars_0_8::schema_for;
     let mut i8 = schema_for!(i8);
     let i9 = schema_for!(i9);
     assert_eq!(

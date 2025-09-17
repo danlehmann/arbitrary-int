@@ -146,6 +146,9 @@ pub trait Integer:
 
     fn as_isize(self) -> isize;
 
+    #[cfg(feature = "schemars_0_8")]
+    fn as_f64(self) -> f64;
+
     /// Converts the number to its unsigned equivalent. For types that have fewer bits
     /// than the underlying type, this involves a zero extension. Types that are
     /// already unsigned will return themselves.
