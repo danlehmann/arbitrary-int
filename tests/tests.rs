@@ -4134,7 +4134,7 @@ mod borsh_tests {
 #[test]
 fn schemars_1_unsigned() {
     use ::schemars_1::schema_for;
-    let mut u9 = schema_for!(u9);
+    let u9 = schema_for!(u9);
     assert!(
         u9.as_object().as_ref().expect("object")["type"]
             .clone()
@@ -4147,7 +4147,6 @@ fn schemars_1_unsigned() {
 #[test]
 fn schemars_0_8_unsigned() {
     use ::schemars_0_8::schema_for;
-    use schemars_0_8::JsonSchema;
     let mut u8 = schema_for!(u8);
 
     let u9 = schema_for!(u9);
