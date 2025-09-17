@@ -1342,6 +1342,12 @@ fn into_native_ints_fewer_bits() {
 
 #[test]
 fn convert_signed_from_unsigned() {
+    // just to be sure native behavior is as expected
+    let _ = i128::from(u64::MAX);
+    let _ = i128::from(u32::MAX);
+    let _ = i64::from(u32::MAX);
+
+    // all possible combinations of types in From impl
     let _ = i128::from(u63::MAX);
     let _ = i127::from(u63::MAX);
     let _ = i127::from(u64::MAX);
