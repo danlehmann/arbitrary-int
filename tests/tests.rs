@@ -1340,6 +1340,7 @@ fn into_native_ints_fewer_bits() {
     );
 }
 
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn convert_signed_from_unsigned() {
     // just to be sure native behavior is as expected
