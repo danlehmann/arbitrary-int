@@ -1341,6 +1341,13 @@ fn into_native_ints_fewer_bits() {
 }
 
 #[test]
+fn convert_signed_from_unsigned() {
+    let _ = i128::from(u63::MAX);
+    let _ = i127::from(u63::MAX);
+    let _ = i127::from(u64::MAX);
+}
+
+#[test]
 #[allow(clippy::bool_assert_comparison)]
 fn from_into_bool() {
     assert_eq!(u1::from(true), u1::new(1));

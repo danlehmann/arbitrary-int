@@ -1,7 +1,8 @@
 use crate::{
     common::{
         bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
-        impl_num_traits, impl_schemars, impl_step, impl_sum_product,
+        impl_from_arbitrary_uint_for_int, impl_from_uint_for_arbitrary_int, impl_num_traits,
+        impl_schemars, impl_step, impl_sum_product,
     },
     traits::{sealed::Sealed, BuiltinInteger, Integer, SignedInteger},
     TryNewError,
@@ -1932,6 +1933,19 @@ from_native_impl!(Int(i16), [i8, i16, i32, i64, i128]);
 from_native_impl!(Int(i32), [i8, i16, i32, i64, i128]);
 from_native_impl!(Int(i64), [i8, i16, i32, i64, i128]);
 from_native_impl!(Int(i128), [i8, i16, i32, i64, i128]);
+
+impl_from_uint_for_arbitrary_int!(u8, Int([i8, i16, i32, i64, i128]));
+impl_from_uint_for_arbitrary_int!(u16, Int([i8, i16, i32, i64, i128]));
+impl_from_uint_for_arbitrary_int!(u32, Int([i16, i32, i64, i128]));
+impl_from_uint_for_arbitrary_int!(u64, Int([i32, i64, i128]));
+impl_from_uint_for_arbitrary_int!(u128, Int([i64, i128]));
+
+use crate::unsigned::UInt;
+impl_from_arbitrary_uint_for_int!(UInt(u8), [i8, i16, i32, i64, i128]);
+impl_from_arbitrary_uint_for_int!(UInt(u16), [i8, i16, i32, i64, i128]);
+impl_from_arbitrary_uint_for_int!(UInt(u32), [i16, i32, i64, i128]);
+impl_from_arbitrary_uint_for_int!(UInt(u64), [i32, i64, i128]);
+impl_from_arbitrary_uint_for_int!(UInt(u128), [i64, i128]);
 
 use crate::common::impl_borsh;
 pub use aliases::*;

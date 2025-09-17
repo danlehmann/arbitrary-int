@@ -1,6 +1,7 @@
 use crate::common::{
     bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_borsh, impl_extract,
-    impl_num_traits, impl_schemars, impl_step, impl_sum_product,
+    impl_from_arbitrary_uint_for_arbitrary_int, impl_num_traits, impl_schemars, impl_step,
+    impl_sum_product,
 };
 use crate::traits::{sealed::Sealed, BuiltinInteger, Integer, UnsignedInteger};
 use crate::TryNewError;
@@ -1668,6 +1669,13 @@ from_native_impl!(UInt(u16), [u8, u16, u32, u64, u128]);
 from_native_impl!(UInt(u32), [u8, u16, u32, u64, u128]);
 from_native_impl!(UInt(u64), [u8, u16, u32, u64, u128]);
 from_native_impl!(UInt(u128), [u8, u16, u32, u64, u128]);
+
+use crate::Int;
+impl_from_arbitrary_uint_for_arbitrary_int!(UInt(u128), Int([i64, i128]));
+impl_from_arbitrary_uint_for_arbitrary_int!(UInt(u64), Int([i32, i64, i128]));
+impl_from_arbitrary_uint_for_arbitrary_int!(UInt(u32), Int([i16, i32, i64, i128]));
+impl_from_arbitrary_uint_for_arbitrary_int!(UInt(u16), Int([i8, i16, i32, i64, i128]));
+impl_from_arbitrary_uint_for_arbitrary_int!(UInt(u8), Int([i8, i16, i32, i64, i128]));
 
 pub use aliases::*;
 
