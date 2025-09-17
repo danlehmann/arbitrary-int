@@ -68,7 +68,7 @@ macro_rules! impl_from_arbitrary_uint_for_int {
             impl<const BITS: usize> From<$ty<$from, BITS>> for $into  {
                 #[inline]
                 fn from(item: $ty<$from, BITS>) -> Self {
-                    const { assert!((BITS as u32) <= (<$into>::BITS - 1), "Can not call from() to convert between the given bit widths.") };
+                    const { assert!((BITS as u32) < (<$into>::BITS), "Can not call from() to convert between the given bit widths.") };
                     item.value() as $into
                 }
             }
@@ -83,7 +83,7 @@ macro_rules! impl_from_uint_for_arbitrary_int {
             impl<const BITS: usize> From<$from> for $ty<$into, BITS> {
                 #[inline]
                 fn from(value: $from) -> Self {
-                    const { assert!(<$from>::BITS as usize <= BITS - 1, "Can not call from() to convert between the given bit widths.") };
+                    const { assert!((<$from>::BITS as usize) < BITS, "Can not call from() to convert between the given bit widths.") };
                     Self { value : value as $into}
                 }
             }
@@ -98,7 +98,7 @@ macro_rules! impl_from_arbitrary_uint_for_arbitrary_int {
             impl<const BITS: usize, const BITS_FROM: usize> From<$ty<$from, BITS_FROM>> for $yt<$into, BITS> {
                 #[inline]
                 fn from(item: $ty<$from, BITS_FROM>) -> Self {
-                    const { assert!(BITS_FROM <= BITS - 1, "Can not call from() to convert between the given bit widths.") };
+                    const { assert!(BITS_FROM < BITS, "Can not call from() to convert between the given bit widths.") };
                     unsafe { Self::new_unchecked(item.value as $into) }
                 }
             }
