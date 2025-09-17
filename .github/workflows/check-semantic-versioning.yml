@@ -14,4 +14,4 @@ jobs:
           # If we don't explicitly set which features to check `const_convert_and_const_trait_impl` will be used,
           # which fails on modern compilers (which cargo-semver-checks requires).
           feature-group: "only-explicit-features"
-          features: "std,step_trait,defmt,serde,borsh,schemars"
+          features: "std,step_trait,defmt,serde,borsh,schemars_0_8"

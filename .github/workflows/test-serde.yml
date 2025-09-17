@@ -13,4 +13,5 @@ jobs:
       - run: |
           cargo test --no-default-features --features=serde
           cargo test --no-default-features --features=serde,std
-          cargo test --no-default-features --features=schemars
+          cargo test --no-default-features --features=schemars_0_8
+          cargo test --no-default-features --features=schemars_1
