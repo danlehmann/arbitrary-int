@@ -4391,3 +4391,10 @@ pub fn is_positive() {
     assert!(!i4::MIN.is_positive());
     assert!(i4::MAX.is_positive());
 }
+
+#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+#[test]
+pub fn macro_compiles() {
+    use arbitrary_int::u33;
+    let _ = u33!(123);
+}

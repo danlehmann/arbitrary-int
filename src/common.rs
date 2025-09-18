@@ -24,7 +24,17 @@ pub(crate) const fn const_byte_copy<
 // These are for convenience only - UInt<u32, 15> is still legal
 macro_rules! type_alias {
     ($ty:ident($storage:ty), $(($name:ident, $bits:expr)),+) => {
-        $( pub type $name = crate::$ty<$storage, $bits>; )+
+        $(
+           pub type $name = crate::$ty<$storage, $bits>;
+
+           #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
+           #[macro_export]
+           macro_rules! $name {
+               ($x:literal) => {{
+                   const { ::arbitrary_int::$name::new($x) };
+               }};
+           }
+        )+
     }
 }
 

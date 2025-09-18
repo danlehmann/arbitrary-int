@@ -22,6 +22,8 @@ extern crate alloc;
 use core::fmt;
 
 mod common;
+#[cfg(all(doctest, not(feature = "const_convert_and_const_trait_impl")))]
+pub mod doctest;
 mod signed;
 pub mod traits;
 mod unsigned;
