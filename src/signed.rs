@@ -1,7 +1,7 @@
 use crate::{
     common::{
-        bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
-        impl_num_traits, impl_schemars, impl_step, impl_sum_product,
+        bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_conv_alias,
+        impl_extract, impl_num_traits, impl_schemars, impl_step, impl_sum_product,
     },
     traits::{sealed::Sealed, BuiltinInteger, Integer, SignedInteger},
     TryNewError,
@@ -1932,6 +1932,10 @@ from_native_impl!(Int(i16), [i8, i16, i32, i64, i128]);
 from_native_impl!(Int(i32), [i8, i16, i32, i64, i128]);
 from_native_impl!(Int(i64), [i8, i16, i32, i64, i128]);
 from_native_impl!(Int(i128), [i8, i16, i32, i64, i128]);
+
+impl_conv_alias!(i128, Int([i32, i64, i128]));
+impl_conv_alias!(i64, Int([i16, i32, i64, i128]));
+impl_conv_alias!(i32, Int([i8, i16, i32, i64, i128]));
 
 use crate::common::impl_borsh;
 pub use aliases::*;

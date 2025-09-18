@@ -1,6 +1,6 @@
 use crate::common::{
-    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_borsh, impl_extract,
-    impl_num_traits, impl_schemars, impl_step, impl_sum_product,
+    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_borsh, impl_conv_alias,
+    impl_extract, impl_num_traits, impl_schemars, impl_step, impl_sum_product,
 };
 use crate::traits::{sealed::Sealed, BuiltinInteger, Integer, UnsignedInteger};
 use crate::TryNewError;
@@ -1668,6 +1668,10 @@ from_native_impl!(UInt(u16), [u8, u16, u32, u64, u128]);
 from_native_impl!(UInt(u32), [u8, u16, u32, u64, u128]);
 from_native_impl!(UInt(u64), [u8, u16, u32, u64, u128]);
 from_native_impl!(UInt(u128), [u8, u16, u32, u64, u128]);
+
+impl_conv_alias!(u128, UInt([u32, u64, u128]));
+impl_conv_alias!(u64, UInt([u16, u32, u64, u128]));
+impl_conv_alias!(u32, UInt([u8, u16, u32, u64, u128]));
 
 pub use aliases::*;
 

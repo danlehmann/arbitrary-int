@@ -4391,3 +4391,14 @@ pub fn is_positive() {
     assert!(!i4::MIN.is_positive());
     assert!(i4::MAX.is_positive());
 }
+
+#[cfg(feature = "easy-cast")]
+#[test]
+pub fn cast_as() {
+    use easy_cast::Cast;
+
+    let _: u44 = (u32::MAX as u64).cast();
+
+    #[cfg(not(feature = "assert_int"))]
+    let _: u44 = (u64::MAX as u64).cast();
+}

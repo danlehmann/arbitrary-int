@@ -549,3 +549,32 @@ macro_rules! impl_num_traits {
 }
 
 pub(crate) use impl_num_traits;
+
+/// Impl `as` casts for aliases.
+/// Important different with `as`:
+/// - enable or disable out of range panic (`as` never panics, nor in debug nor in release), default panic in debug
+/// - allow to impl `as` substitute for arbitrary-int
+///
+/// `From` cannot panic (panic safe) in debug and release.
+/// `cast` panics in debug on data loss, and does not panic in release(same as `as`).
+macro_rules! impl_conv_alias {
+    ($source:ident, $name:ident([$($storage:ty),+])) => {
+        $(
+            impl<const BITS: usize> easy_cast::Conv<$source> for $name<$storage, BITS> {
+                fn try_conv(v: $source) -> easy_cast::Result<Self> {
+                    easy_cast::Conv::try_conv(v).map(|v| unsafe { Self::new_unchecked(v) })
+                }
+
+                fn conv(v: $source) -> Self {
+                    if cfg!(feature = "assert_int") {
+                        Self::new(easy_cast::Conv::conv(v))
+                    } else {
+                        unsafe { Self::new_unchecked(easy_cast::Conv::conv(v)) }
+                    }
+                }
+            }
+        )+
+    };
+}
+
+pub(crate) use impl_conv_alias;
