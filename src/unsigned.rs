@@ -126,8 +126,6 @@ impl_integer_native!((u8, i8) as const, (u16, i16) as const, (u32, i32) as const
 /// that would be seen by [`mem::transmute`] or [`bytemuck::cast`].
 /// So as long as the value is valid, it is safe to transmute back and forth from `T`.
 ///
-/// Note that a signed [`crate::Int`] has an unspecified in-memory representation.
-///
 /// When `cfg(feature = "bytemuck")` is set, the appropriate bytemuck traits will be implemented.
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
 #[repr(transparent)]
