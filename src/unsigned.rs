@@ -11,22 +11,20 @@ use core::ops::{
 };
 
 macro_rules! impl_integer_native {
-    // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
-    // This macro will be invoked with `(u8,i8) as const, ...` if `const_convert_and_const_trait_impl` is enabled.
-    ($(($type:ident, $signed_type:ident) $(as $const_keyword:ident)?),+) => {
+    ($(($type:ident, $signed_type:ident)),+) => {
         $(
             #[allow(deprecated)]
             impl crate::v1_number_compat::Number for $type {
                 type UnderlyingType = $type;
             }
 
-            impl $($const_keyword)? Sealed for $type {}
+            impl Sealed for $type {}
 
-            impl $($const_keyword)? BuiltinInteger for $type {}
+            impl BuiltinInteger for $type {}
 
-            impl $($const_keyword)? UnsignedInteger for $type {}
+            impl UnsignedInteger for $type {}
 
-            impl $($const_keyword)? Integer for $type {
+            impl Integer for $type {
                 type UnderlyingType = $type;
                 type UnsignedInteger = $type;
                 type SignedInteger = $signed_type;
@@ -45,9 +43,8 @@ macro_rules! impl_integer_native {
                 #[inline]
                 fn value(self) -> Self::UnderlyingType { self }
 
-                #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
-                fn from_<T: $(~ $const_keyword)? Integer>(value: T) -> Self {
+                fn from_<T: Integer>(value: T) -> Self {
                     if T::BITS > Self::BITS as usize {
                         assert!(value <= T::masked_new(Self::MAX));
                     }
@@ -55,7 +52,7 @@ macro_rules! impl_integer_native {
                 }
 
                 #[inline]
-                fn masked_new<T: $(~ $const_keyword)? Integer>(value: T) -> Self {
+                fn masked_new<T: Integer>(value: T) -> Self {
                     // Primitive types don't need masking
                     match Self::BITS {
                         8 => value.as_u8() as Self,
@@ -113,11 +110,7 @@ macro_rules! impl_integer_native {
     };
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 impl_integer_native!((u8, i8), (u16, i16), (u32, i32), (u64, i64), (u128, i128));
-
-#[cfg(feature = "const_convert_and_const_trait_impl")]
-impl_integer_native!((u8, i8) as const, (u16, i16) as const, (u32, i32) as const, (u64, i64) as const, (u128, i128) as const);
 
 /// An unsigned integer of arbitrary bit length.
 ///
@@ -170,20 +163,18 @@ where
 //   However, that only works if every constructor also uses MAX somehow (doing let _ = MAX is enough)
 
 macro_rules! uint_impl_num {
-    // `$const_keyword` is marked as an optional fragment here so that it can conditionally be put on the impl.
-    // This macro will be invoked with `(u8, i8) as const, ...` if `const_convert_and_const_trait_impl` is enabled.
-    ($(($type:ident, $signed_type:ident) $(as $const_keyword:ident)?),+) => {
+    ($(($type:ident, $signed_type:ident)),+) => {
         $(
             #[allow(deprecated)]
             impl<const BITS: usize> crate::v1_number_compat::Number for UInt<$type, BITS> {
                 type UnderlyingType = $type;
             }
 
-            impl<const BITS: usize> $($const_keyword)? Sealed for UInt<$type, BITS> {}
+            impl<const BITS: usize> Sealed for UInt<$type, BITS> {}
 
-            impl<const BITS: usize> $($const_keyword)? UnsignedInteger for UInt<$type, BITS> {}
+            impl<const BITS: usize> UnsignedInteger for UInt<$type, BITS> {}
 
-            impl<const BITS: usize> $($const_keyword)? Integer for UInt<$type, BITS> {
+            impl<const BITS: usize> Integer for UInt<$type, BITS> {
                 type UnderlyingType = $type;
                 type SignedInteger = crate::Int<$signed_type, BITS>;
                 type UnsignedInteger = Self;
@@ -214,7 +205,6 @@ macro_rules! uint_impl_num {
                     Self { value }
                 }
 
-                #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
                 #[inline]
                 fn from_<T: Integer>(value: T) -> Self {
                     if Self::BITS < T::BITS {
@@ -223,7 +213,7 @@ macro_rules! uint_impl_num {
                     Self { value: Self::UnderlyingType::masked_new(value) }
                 }
 
-                fn masked_new<T: $(~ $const_keyword)? Integer>(value: T) -> Self {
+                fn masked_new<T: Integer>(value: T) -> Self {
                     if Self::BITS < T::BITS {
                         Self { value: Self::UnderlyingType::masked_new(value.as_::<Self::UnderlyingType>() & Self::MASK) }
                     } else {
@@ -299,11 +289,7 @@ macro_rules! uint_impl_num {
     };
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 uint_impl_num!((u8, i8), (u16, i16), (u32, i32), (u64, i64), (u128, i128));
-
-#[cfg(feature = "const_convert_and_const_trait_impl")]
-uint_impl_num!((u8, i8) as const, (u16, i16) as const, (u32, i32) as const, (u64, i64) as const, (u128, i128) as const);
 
 macro_rules! uint_impl {
     ($(($type:ident, doctest = $doctest_attr:literal)),+) => {
@@ -1705,30 +1691,20 @@ pub(crate) mod aliases {
     type_alias!(UInt(u128), (u65, 65), (u66, 66), (u67, 67), (u68, 68), (u69, 69), (u70, 70), (u71, 71), (u72, 72), (u73, 73), (u74, 74), (u75, 75), (u76, 76), (u77, 77), (u78, 78), (u79, 79), (u80, 80), (u81, 81), (u82, 82), (u83, 83), (u84, 84), (u85, 85), (u86, 86), (u87, 87), (u88, 88), (u89, 89), (u90, 90), (u91, 91), (u92, 92), (u93, 93), (u94, 94), (u95, 95), (u96, 96), (u97, 97), (u98, 98), (u99, 99), (u100, 100), (u101, 101), (u102, 102), (u103, 103), (u104, 104), (u105, 105), (u106, 106), (u107, 107), (u108, 108), (u109, 109), (u110, 110), (u111, 111), (u112, 112), (u113, 113), (u114, 114), (u115, 115), (u116, 116), (u117, 117), (u118, 118), (u119, 119), (u120, 120), (u121, 121), (u122, 122), (u123, 123), (u124, 124), (u125, 125), (u126, 126), (u127, 127));
 }
 
-macro_rules! boolu1 {
-    ($($const_keyword:ident)?) => {
-        impl $($const_keyword)? From<bool> for u1 {
-            #[inline]
-            fn from(value: bool) -> Self {
-                u1::new(value as u8)
-            }
-        }
-
-        impl $($const_keyword)? From<u1> for bool {
-            #[inline]
-            fn from(value: u1) -> Self {
-                match value.value() {
-                    0 => false,
-                    1 => true,
-                    _ => unreachable!(), // TODO: unreachable!() is not const yet
-                }
-            }
-        }
-    };
+impl From<bool> for u1 {
+    #[inline]
+    fn from(value: bool) -> Self {
+        u1::new(value as u8)
+    }
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-boolu1!();
-
-#[cfg(feature = "const_convert_and_const_trait_impl")]
-boolu1!(const);
+impl From<u1> for bool {
+    #[inline]
+    fn from(value: u1) -> Self {
+        match value.value() {
+            0 => false,
+            1 => true,
+            _ => unreachable!(), // TODO: unreachable!() is not const yet
+        }
+    }
+}

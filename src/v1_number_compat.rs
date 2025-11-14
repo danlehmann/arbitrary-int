@@ -51,7 +51,6 @@ pub trait Number: UnsignedInteger<UnderlyingType = <Self as Number>::UnderlyingT
 
     /// Creates a number from the given value, throwing an error if the value is too large.
     /// This constructor is useful when the value is convertible to T. Use [`Self::new`] for literals.
-    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
     #[inline]
     fn from_<T: Number>(value: T) -> Self {
         Integer::from_(value)
@@ -59,7 +58,6 @@ pub trait Number: UnsignedInteger<UnderlyingType = <Self as Number>::UnderlyingT
 
     /// Creates an instance from the given `value`. Unlike the various `new...` functions, this
     /// will never fail as the value is masked to the result size.
-    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
     #[inline]
     fn masked_new<T: Number>(value: T) -> Self {
         Integer::masked_new(value)
@@ -95,7 +93,6 @@ pub trait Number: UnsignedInteger<UnderlyingType = <Self as Number>::UnderlyingT
         Integer::as_usize(*self)
     }
 
-    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
     #[inline]
     fn as_<T: Number>(self) -> T {
         Integer::as_(self)

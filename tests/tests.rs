@@ -1,8 +1,4 @@
 #![cfg_attr(feature = "step_trait", feature(step_trait))]
-#![cfg_attr(
-    feature = "const_convert_and_const_trait_impl",
-    feature(const_trait_impl)
-)]
 
 extern crate core;
 
@@ -1349,23 +1345,6 @@ fn from_into_bool() {
     assert_eq!(bool::from(u1::new(0)), false);
 }
 
-#[cfg(feature = "const_convert_and_const_trait_impl")]
-#[test]
-#[allow(clippy::bool_assert_comparison)]
-fn from_into_bool_const() {
-    const TRUE: u1 = u1::from(true);
-    assert_eq!(TRUE, u1::new(1));
-
-    const FALSE: u1 = u1::from(false);
-    assert_eq!(FALSE, u1::new(0));
-
-    const TRUE_BOOL: bool = bool::from(u1::new(1));
-    assert_eq!(TRUE_BOOL, true);
-
-    const FALSE_BOOL: bool = bool::from(u1::new(0));
-    assert_eq!(FALSE_BOOL, false);
-}
-
 #[test]
 fn widen() {
     // As From() can't be used while keeping the base-data-type, there's widen
@@ -1507,7 +1486,6 @@ fn hash() {
     assert_eq!(None, hashmap.get(&u5::new(12)));
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn swap_bytes_unsigned() {
     assert_eq!(u24::new(0x12_34_56).swap_bytes(), u24::new(0x56_34_12));
@@ -1583,7 +1561,6 @@ fn swap_bytes_unsigned() {
     );
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn swap_bytes_signed() {
     // Signed numbers have to sign extended, so the following tests look less symmetrical than the
@@ -1661,7 +1638,6 @@ fn swap_bytes_signed() {
     );
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn to_le_and_be_bytes_unsigned() {
     assert_eq!(u24::new(0x12_34_56).to_le_bytes(), [0x56, 0x34, 0x12]);
@@ -1815,7 +1791,6 @@ fn to_le_and_be_bytes_unsigned() {
     );
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn to_le_and_be_bytes_signed() {
     assert_eq!(i24::new(0x12_34_56).to_le_bytes(), [0x56, 0x34, 0x12]);
@@ -1847,7 +1822,6 @@ fn to_le_and_be_bytes_signed() {
     );
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn from_le_and_be_bytes_unsigned() {
     assert_eq!(u24::from_le_bytes([0x56, 0x34, 0x12]), u24::new(0x12_34_56));
@@ -2013,7 +1987,6 @@ fn from_le_and_be_bytes_unsigned() {
     );
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn from_le_and_be_bytes_signed() {
     assert_eq!(
@@ -2071,7 +2044,6 @@ fn from_le_and_be_bytes_signed() {
     );
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn to_ne_bytes() {
     if cfg!(target_endian = "little") {
@@ -2103,7 +2075,6 @@ fn to_ne_bytes() {
     }
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn from_ne_bytes() {
     if cfg!(target_endian = "little") {
@@ -2135,7 +2106,6 @@ fn from_ne_bytes() {
     }
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn simple_le_be_unsigned() {
     const REGULAR: u40 = u40::new(0x12_34_56_78_9A);
@@ -2153,7 +2123,6 @@ fn simple_le_be_unsigned() {
     }
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn simple_le_be_signed() {
     const REGULAR: i40 = i40::new(0x12_34_56_78_9A);
@@ -3961,7 +3930,6 @@ mod borsh_tests {
         assert_eq!(output3, input);
     }
 
-    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
     #[test]
     fn test_serialize_deserialize() {
         // Run against plain u64/i64 first (not an arbitrary_int)
@@ -4298,7 +4266,6 @@ fn from_unsigned() {
     assert_eq!(i8::from_unsigned(254u8), -2i8);
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn from_flexible() {
     let a = u10::new(1000);
@@ -4308,7 +4275,6 @@ fn from_flexible() {
     assert_eq!(b.as_u32(), 1000);
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn from_flexible_catches_out_of_bounds() {
@@ -4316,7 +4282,6 @@ fn from_flexible_catches_out_of_bounds() {
     let _b = u9::from_(a);
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn from_flexible_catches_out_of_bounds_2() {
@@ -4324,7 +4289,6 @@ fn from_flexible_catches_out_of_bounds_2() {
     let _b = u9::from_(a);
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn from_flexible_catches_out_of_bounds_primitive_type() {
@@ -4332,35 +4296,30 @@ fn from_flexible_catches_out_of_bounds_primitive_type() {
     let _b = u8::from_(a);
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn new_constructors_catch_out_bounds_0() {
     u7::from_u8(0x80u8);
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn new_constructors_catch_out_bounds_1() {
     u7::from_u32(0x80000060u32);
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn new_constructors_catch_out_bounds_2() {
     u7::from_u16(0x8060u16);
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn new_constructors_catch_out_bounds_3() {
     u7::from_u64(0x80000000_00000060u64);
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 #[should_panic]
 fn new_constructors_catch_out_bounds_4() {
@@ -4384,46 +4343,10 @@ fn new_masked_signed() {
     assert_eq!(i4::masked_new(i8::MAX).value(), -1);
 }
 
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[test]
 fn as_flexible() {
     let a: u32 = u14::new(123).as_();
     assert_eq!(a, 123u32);
-}
-
-#[cfg(feature = "const_convert_and_const_trait_impl")]
-#[test]
-pub fn const_constructors_unsigned() {
-    const IN_BETWEEN: u4 = <u4 as Integer>::new(5);
-    assert_eq!(IN_BETWEEN.value(), 5);
-
-    const MAX: u4 = <u4 as Integer>::new(15);
-    assert_eq!(MAX.value(), 15);
-
-    const MIN: u4 = <u4 as Integer>::new(0);
-    assert_eq!(MIN.value(), 0);
-
-    const TOO_BIG: Result<u4, TryNewError> = <u4 as Integer>::try_new(16);
-    assert!(TOO_BIG.is_err());
-}
-
-#[cfg(feature = "const_convert_and_const_trait_impl")]
-#[test]
-pub fn const_constructors_signed() {
-    const IN_BETWEEN: i4 = <i4 as Integer>::new(4);
-    assert_eq!(IN_BETWEEN.value(), 4);
-
-    const MAX: i4 = <i4 as Integer>::new(7);
-    assert_eq!(MAX.value(), 7);
-
-    const MIN: i4 = <i4 as Integer>::new(-8);
-    assert_eq!(MIN.value(), -8);
-
-    const TOO_BIG: Result<i4, TryNewError> = <i4 as Integer>::try_new(8);
-    assert!(TOO_BIG.is_err());
-
-    const TOO_SMALL: Result<i4, TryNewError> = <i4 as Integer>::try_new(-9);
-    assert!(TOO_SMALL.is_err());
 }
 
 #[test]

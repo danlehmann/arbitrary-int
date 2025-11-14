@@ -3,7 +3,6 @@
 /// Copies LEN bytes from `from[FROM_OFFSET]` to `to[TO_OFFSET]`.
 ///
 /// Usable in const contexts and inlines for small arrays.
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 #[inline(always)]
 pub(crate) const fn const_byte_copy<
     const LEN: usize,
@@ -31,22 +30,6 @@ macro_rules! type_alias {
 pub(crate) use type_alias;
 
 // Conversions
-#[cfg(feature = "const_convert_and_const_trait_impl")]
-macro_rules! from_arbitrary_int_impl {
-    ($ty:ident($from:ty), [$($into:ty),+]) => {
-        $(
-            impl<const BITS: usize, const BITS_FROM: usize> const From<$ty<$from, BITS_FROM>> for $ty<$into, BITS> {
-                #[inline]
-                fn from(item: $ty<$from, BITS_FROM>) -> Self {
-                    const { assert!(BITS_FROM <= BITS, "Can not call from() to convert between the given bit widths.") };
-                    Self { value: item.value as $into }
-                }
-            }
-        )+
-    };
-}
-
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 macro_rules! from_arbitrary_int_impl {
     ($ty:ident($from:ty), [$($into:ty),+]) => {
         $(
@@ -63,30 +46,6 @@ macro_rules! from_arbitrary_int_impl {
 
 pub(crate) use from_arbitrary_int_impl;
 
-#[cfg(feature = "const_convert_and_const_trait_impl")]
-macro_rules! from_native_impl {
-    ($ty:ident($from:ty), [$($into:ty),+]) => {
-        $(
-            impl<const BITS: usize> const From<$from> for $ty<$into, BITS> {
-                #[inline]
-                fn from(from: $from) -> Self {
-                    const { assert!(<$from>::BITS as usize <= BITS, "Can not call from() to convert between the given bit widths.") };
-                    Self { value: from as $into }
-                }
-            }
-
-            impl<const BITS: usize> const From<$ty<$from, BITS>> for $into {
-                #[inline]
-                fn from(from: $ty<$from, BITS>) -> Self {
-                    const { assert!(BITS <= <$from>::BITS as usize, "Can not call from() to convert between the given bit widths.") };
-                    from.value as $into
-                }
-            }
-        )+
-    };
-}
-
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
 macro_rules! from_native_impl {
     ($ty:ident($from:ty), [$($into:ty),+]) => {
         $(
@@ -142,7 +101,6 @@ pub(crate) use impl_extract;
 
 macro_rules! bytes_operation_impl {
     ($target:ty, $base_data_type:ty) => {
-        #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
         impl $target {
             /// Reverses the byte order of the integer.
             #[inline]
@@ -278,9 +236,6 @@ macro_rules! impl_sum_product {
             }
         }
 
-        // We need to use `Integer::from_()` to construct a value of one,
-        // which isn't available with `const_convert_and_const_trait_impl`.
-        #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
         impl<T: BuiltinInteger + $trait, const BITS: usize> core::iter::Product for $type<T, BITS>
         where
             Self: Integer + core::ops::Mul<Output = Self>,
@@ -291,7 +246,6 @@ macro_rules! impl_sum_product {
             }
         }
 
-        #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
         impl<'a, T: BuiltinInteger + $trait, const BITS: usize> core::iter::Product<&'a Self>
             for $type<T, BITS>
         where

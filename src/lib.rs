@@ -90,10 +90,6 @@
 // manually in case the `alloc` crate is used but the standard library isn't, we might as well keep
 // things consistent and always manually import them.
 #![no_std]
-#![cfg_attr(
-    feature = "const_convert_and_const_trait_impl",
-    feature(const_convert, const_trait_impl, inline_const)
-)]
 #![cfg_attr(feature = "step_trait", feature(step_trait))]
 
 // This makes it possible to use `std::` when the `std` feature is enabled, even though we're `no_std`.
