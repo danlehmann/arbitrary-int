@@ -1,11 +1,10 @@
+use crate::prelude::*;
 use ::quickcheck::{Arbitrary, Gen};
-
-use super::*;
 
 impl<T, const BITS: usize> Arbitrary for UInt<T, BITS>
 where
-    T: Arbitrary,
-    Self: Number<UnderlyingType = T>,
+    T: Arbitrary + UnsignedInteger + BuiltinInteger,
+    Self: UnsignedInteger<UnderlyingType = T>,
 {
     fn arbitrary(g: &mut Gen) -> Self {
         loop {
@@ -19,8 +18,8 @@ where
 
 impl<T, const BITS: usize> Arbitrary for Int<T, BITS>
 where
-    T: Arbitrary,
-    Self: SignedNumber<UnderlyingType = T>,
+    T: Arbitrary + SignedInteger + BuiltinInteger,
+    Self: SignedInteger<UnderlyingType = T>,
 {
     fn arbitrary(g: &mut Gen) -> Self {
         loop {
