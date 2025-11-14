@@ -10,7 +10,7 @@
 
 [bytemuck]: https://github.com/Lokathor/bytemuck
 
-- Removed compatibility for `const_convert_and_const_trait_impl`, which required an ancient compiler.
+- Removed compatibility for `const_convert_and_const_trait_impl`, which required an ancient nightly compiler.
 
 ## arbitrary-int 2.0.0
 

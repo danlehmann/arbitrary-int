@@ -17,6 +17,9 @@ members = ["fuzz"]
 [features]
 std = []
 
+# Feature retained for compatibility but no longer does anything. Please pin to arbitrary-int 2.0.0 if you rely on this.
+const_convert_and_const_trait_impl = []
+
 # core::fmt::Step is currently unstable and is available on nightly behind a feature gate
 step_trait = []
 
