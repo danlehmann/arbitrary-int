@@ -1,13 +1,16 @@
 # Changelog
 
-## [Unreleased]
+## 2.1.0
 
 ### Added
+
 - Added Rust MSRV v1.83
 - Bumped `defmt` dependency to v1
 - Implement [bytemuck] traits for `UInt` and `Int`.
 
 [bytemuck]: https://github.com/Lokathor/bytemuck
+
+- Removed compatibility for `const_convert_and_const_trait_impl`, which required an ancient compiler.
 
 ## arbitrary-int 2.0.0
 

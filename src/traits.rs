@@ -7,39 +7,15 @@ use core::ops::{
 
 pub(crate) mod sealed {
     /// Ensures that outside users can not implement the traits provided by this crate.
-    #[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
     pub trait Sealed {}
-}
-
-// TODO: Inline this macro once we drop const_convert_and_const_trait_impl
-#[cfg(feature = "const_convert_and_const_trait_impl")]
-macro_rules! define_as {
-    () => {
-        #[inline]
-        fn as_<T: ~const Integer>(self) -> T {
-            T::masked_new(self)
-        }
-    };
-}
-
-#[cfg(not(feature = "const_convert_and_const_trait_impl"))]
-macro_rules! define_as {
-    () => {
-        #[inline]
-        fn as_<T: Integer>(self) -> T {
-            T::masked_new(self)
-        }
-    };
 }
 
 /// Trait that is only implemented for `u8`, `u16`, `u32`, `u64`, `u128` and their signed
 /// counterparts `i8`, `i16`, `i32`, `i64`, `i128`.
-#[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
 pub trait BuiltinInteger: sealed::Sealed {}
 
 /// The base trait for integer numbers, either built-in (u8, i8, u16, i16, u32, i32, u64, i64,
 /// u128, i128) or arbitrary-int (u1, i1, u7, i7 etc.).
-#[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
 pub trait Integer:
     Sized
     + Copy
@@ -115,7 +91,6 @@ pub trait Integer:
 
     /// Creates a number from the given value, throwing an error if the value is too large.
     /// This constructor is useful when the value is convertible to T. Use [`Self::new`] for literals.
-    #[cfg(not(feature = "const_convert_and_const_trait_impl"))]
     fn from_<T: Integer>(value: T) -> Self;
 
     /// Creates an instance from the given `value`. Unlike the various `new...` functions, this
@@ -156,15 +131,16 @@ pub trait Integer:
     /// Types that are already unsigned will return themselves.
     fn from_unsigned(value: Self::UnsignedInteger) -> Self;
 
-    define_as!();
+    #[inline]
+    fn as_<T: Integer>(self) -> T {
+        T::masked_new(self)
+    }
 }
 
 /// The base trait for all signed numbers, either built-in (i8, i16, i32, i64, i128) or
 /// arbitrary-int (i1, i7 etc.).
-#[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
 pub trait SignedInteger: Integer + Neg<Output = Self> {}
 
 /// The base trait for all unsigned numbers, either built-in (u8, u16, u32, u64, u128) or
 /// arbitrary-int (u1, u7 etc.).
-#[cfg_attr(feature = "const_convert_and_const_trait_impl", const_trait)]
 pub trait UnsignedInteger: Integer {}
