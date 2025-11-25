@@ -1637,7 +1637,10 @@ where
 impl_sum_product!(UInt, 1_u8, UnsignedInteger);
 
 // Implement support for the `num-traits` crate, if the feature is enabled.
-impl_num_traits!(UInt, UnsignedInteger, u8, |value| value & Self::MASK);
+impl_num_traits!(UInt, UnsignedInteger, u8, |value| (
+    value & Self::MASK,
+    value.min(Self::MAX.value())
+));
 
 // Implement `core::iter::Step` (if the `step_trait` feature is enabled).
 impl_step!(UInt, UnsignedInteger);

@@ -428,7 +428,7 @@ pub(crate) use impl_step;
 
 /// Implements support for the `num-traits` crate, if the feature is enabled.
 macro_rules! impl_num_traits {
-    ($type:ident, $trait:ident, $primitive_8:ty, |$result:ident| $limit_result:expr) => {
+    ($type:ident, $trait:ident, $primitive_8:ty, |$result:ident| ($limit_result:expr, $clamp_result:expr)) => {
         #[cfg(feature = "num-traits")]
         impl<T: BuiltinInteger + $trait, const BITS: usize> num_traits::WrappingAdd
             for $type<T, BITS>
@@ -479,6 +479,62 @@ macro_rules! impl_num_traits {
                     (core::num::Wrapping(self.value()) - core::num::Wrapping(rhs.value())).0;
                 Self {
                     value: $limit_result,
+                }
+            }
+        }
+
+        #[cfg(feature = "num-traits")]
+        impl<T: BuiltinInteger + $trait, const BITS: usize> num_traits::SaturatingAdd
+            for $type<T, BITS>
+        where
+            Self: Integer,
+            T: PartialEq
+                + Eq
+                + Copy
+                + Add<T, Output = T>
+                + Sub<T, Output = T>
+                + BitAnd<T, Output = T>
+                + Not<Output = T>
+                + Shr<usize, Output = T>
+                + Shl<usize, Output = T>
+                + From<$primitive_8>,
+            core::num::Saturating<T>:
+                Add<core::num::Saturating<T>, Output = core::num::Saturating<T>>,
+        {
+            #[inline]
+            fn saturating_add(&self, rhs: &Self) -> Self {
+                let $result =
+                    (core::num::Saturating(self.value()) + core::num::Saturating(rhs.value())).0;
+                Self {
+                    value: $clamp_result,
+                }
+            }
+        }
+
+        #[cfg(feature = "num-traits")]
+        impl<T: BuiltinInteger + $trait, const BITS: usize> num_traits::SaturatingSub
+            for $type<T, BITS>
+        where
+            Self: Integer,
+            T: PartialEq
+                + Eq
+                + Copy
+                + Add<T, Output = T>
+                + Sub<T, Output = T>
+                + BitAnd<T, Output = T>
+                + Not<Output = T>
+                + Shr<usize, Output = T>
+                + Shl<usize, Output = T>
+                + From<$primitive_8>,
+            core::num::Saturating<T>:
+                Sub<core::num::Saturating<T>, Output = core::num::Saturating<T>>,
+        {
+            #[inline]
+            fn saturating_sub(&self, rhs: &Self) -> Self {
+                let $result =
+                    (core::num::Saturating(self.value()) - core::num::Saturating(rhs.value())).0;
+                Self {
+                    value: $clamp_result,
                 }
             }
         }

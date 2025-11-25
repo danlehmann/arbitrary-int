@@ -3714,7 +3714,7 @@ fn serde_signed() {
 #[cfg(feature = "num-traits")]
 mod num_traits {
     use arbitrary_int::prelude::*;
-    use num_traits::{bounds::Bounded, WrappingAdd, WrappingSub};
+    use num_traits::{bounds::Bounded, SaturatingAdd, SaturatingSub, WrappingAdd, WrappingSub};
 
     #[test]
     fn wrapping_add_unsigned() {
@@ -3756,6 +3756,48 @@ mod num_traits {
         let v2 = i7::new(-10);
         let v3 = WrappingSub::wrapping_sub(&v1, &v2);
         assert_eq!(v3, i7::new(-58));
+    }
+
+    #[test]
+    fn saturating_add_unsigned() {
+        let v1 = u7::new(120);
+        let v2 = u7::new(10);
+        let v3 = SaturatingAdd::saturating_add(&v1, &v2);
+        assert_eq!(v3, u7::new(127));
+    }
+
+    #[test]
+    fn saturating_add_signed() {
+        let v1 = i7::new(60);
+        let v2 = i7::new(10);
+        let v3 = SaturatingAdd::saturating_add(&v1, &v2);
+        assert_eq!(v3, i7::new(63));
+
+        let v1 = i7::new(-60);
+        let v2 = i7::new(-10);
+        let v3 = SaturatingAdd::saturating_add(&v1, &v2);
+        assert_eq!(v3, i7::new(-64));
+    }
+
+    #[test]
+    fn saturating_sub_unsigned() {
+        let v1 = u7::new(15);
+        let v2 = u7::new(20);
+        let v3 = SaturatingSub::saturating_sub(&v1, &v2);
+        assert_eq!(v3, u7::new(0));
+    }
+
+    #[test]
+    fn saturating_sub_signed() {
+        let v1 = i7::new(-60);
+        let v2 = i7::new(10);
+        let v3 = SaturatingSub::saturating_sub(&v1, &v2);
+        assert_eq!(v3, i7::new(-64));
+
+        let v1 = i7::new(60);
+        let v2 = i7::new(-10);
+        let v3 = SaturatingSub::saturating_sub(&v1, &v2);
+        assert_eq!(v3, i7::new(63));
     }
 
     #[test]
