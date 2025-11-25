@@ -1,7 +1,7 @@
 use crate::{
     common::{
-        bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_extract,
-        impl_num_traits, impl_schemars, impl_step, impl_sum_product,
+        bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_bin_proto,
+        impl_extract, impl_num_traits, impl_schemars, impl_step, impl_sum_product,
     },
     traits::{sealed::Sealed, BuiltinInteger, Integer, SignedInteger},
     TryNewError,
@@ -1852,6 +1852,8 @@ where
 }
 
 impl_borsh!(Int, "i", SignedInteger);
+
+impl_bin_proto!(Int, SignedInteger);
 
 // Serde's invalid_value error (https://rust-lang.github.io/hashbrown/serde/de/trait.Error.html#method.invalid_value)
 // takes an Unexpected (https://rust-lang.github.io/hashbrown/serde/de/enum.Unexpected.html) which only accepts a 64 bit
