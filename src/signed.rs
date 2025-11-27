@@ -1912,9 +1912,10 @@ impl_sum_product!(Int, 1_i8, SignedInteger);
 impl_step!(Int, SignedInteger);
 
 // Implement support for the `num-traits` crate, if the feature is enabled.
-impl_num_traits!(Int, SignedInteger, i8, |value| {
-    (value << Self::UNUSED_BITS) >> Self::UNUSED_BITS
-});
+impl_num_traits!(Int, SignedInteger, i8, |value| (
+    (value << Self::UNUSED_BITS) >> Self::UNUSED_BITS,
+    value.clamp(Self::MIN.value(), Self::MAX.value())
+));
 
 // Support for the `schemars` crate, if the feature is enabled.
 impl_schemars!(Int, "int", SignedInteger);
