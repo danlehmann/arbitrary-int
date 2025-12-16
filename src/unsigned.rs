@@ -1,5 +1,5 @@
 use crate::common::{
-    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_borsh,
+    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_bin_proto, impl_borsh,
     impl_bytemuck_full, impl_extract, impl_num_traits, impl_schemars, impl_step, impl_sum_product,
 };
 use crate::traits::{sealed::Sealed, BuiltinInteger, Integer, UnsignedInteger};
@@ -1581,6 +1581,8 @@ where
 }
 
 impl_borsh!(UInt, "u", UnsignedInteger);
+
+impl_bin_proto!(UInt, UnsignedInteger);
 
 #[cfg(feature = "serde")]
 impl<T: BuiltinInteger + UnsignedInteger, const BITS: usize> serde::Serialize for UInt<T, BITS>

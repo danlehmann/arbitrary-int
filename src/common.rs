@@ -623,3 +623,58 @@ macro_rules! impl_bytemuck_full {
 
 pub(crate) use impl_bytemuck_basic;
 pub(crate) use impl_bytemuck_full;
+
+// [`bin_proto::Bits`] has a [`u32`] constant, whereas `$type<T, $bits>` has a [`usize`] constant.
+// These cannot be cast in a const context, meaning that we cannot implement the traits for a
+// generic bit width.
+macro_rules! impl_bin_proto {
+    ($type:tt, $trait:ident) => {
+        impl_bin_proto!($type, $trait, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128);
+    };
+    ($type:tt, $trait:ident, $($bits:literal),+) => {
+        $(
+            #[cfg(feature = "bin-proto")]
+            impl<T: BuiltinInteger + $trait, Ctx> bin_proto::BitEncode<Ctx> for $type<T, $bits>
+            where
+                Self: Integer,
+                <Self as Integer>::UnderlyingType: bin_proto::BitEncode<Ctx, bin_proto::Bits<$bits>>,
+            {
+                fn encode<W, E>(&self, write: &mut W, ctx: &mut Ctx, (): ()) -> bin_proto::Result<()>
+                where
+                    W: bin_proto::BitWrite,
+                    E: bin_proto::Endianness,
+                {
+                    bin_proto::BitEncode::encode::<_, E>(
+                        &Integer::value(*self),
+                        write,
+                        ctx,
+                        bin_proto::Bits::<$bits>,
+                    )
+                }
+            }
+
+            #[cfg(feature = "bin-proto")]
+            impl<T: BuiltinInteger + $trait, Ctx> bin_proto::BitDecode<Ctx>
+                for $type<T, $bits>
+            where
+                Self: Integer,
+                <Self as Integer>::UnderlyingType: bin_proto::BitDecode<Ctx, bin_proto::Bits<$bits>>,
+            {
+                fn decode<R, E>(read: &mut R, ctx: &mut Ctx, (): ()) -> bin_proto::Result<Self>
+                where
+                    R: bin_proto::BitRead,
+                    E: bin_proto::Endianness,
+                {
+                    Ok(Self::new(
+                        <<Self as Integer>::UnderlyingType as bin_proto::BitDecode<_, _>>::decode::<
+                            _,
+                            E,
+                        >(read, ctx, bin_proto::Bits::<$bits>)?,
+                    ))
+                }
+            }
+        )+
+    };
+}
+
+pub(crate) use impl_bin_proto;
