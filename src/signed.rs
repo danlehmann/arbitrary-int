@@ -221,7 +221,9 @@ macro_rules! int_impl_num {
                 }
 
                 fn masked_new<T: Integer>(value: T) -> Self {
-                    if Self::BITS < T::BITS {
+                    // If the source type is wider, we need to mask and sign-extend. If the source
+                    // type is the same width but unsigned, we also need to sign-extend!
+                    if Self::BITS < T::BITS || (Self::BITS == T::BITS && T::MIN == T::ZERO) {
                         let value = (value.as_::<Self::UnderlyingType>() << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
                         Self { value: Self::UnderlyingType::masked_new(value) }
                     } else {
