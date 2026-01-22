@@ -4408,3 +4408,9 @@ pub fn is_positive() {
     assert!(!i4::MIN.is_positive());
     assert!(i4::MAX.is_positive());
 }
+
+#[test]
+fn as_is_in_range() {
+    assert!(u4::new(10).as_::<i4>() <= i4::MAX);
+    assert!(u4::new(10).as_::<i4>() >= i4::MIN);
+}
