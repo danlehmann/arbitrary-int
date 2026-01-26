@@ -13,6 +13,10 @@
 - Removed compatibility for `const_convert_and_const_trait_impl`, which required an ancient nightly compiler.
 - Implement `SaturatingAdd` and `SaturatingSub` traits from `num-traits` for `Uint` and `Int`.
 
+### Fixed
+
+- Fixed incorrect behavior in conversions between signed and unsigned integers of equal bit-widths.
+
 ## arbitrary-int 2.0.0
 
 ### Added
