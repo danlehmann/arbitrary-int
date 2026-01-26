@@ -214,7 +214,10 @@ macro_rules! uint_impl_num {
                 }
 
                 fn masked_new<T: Integer>(value: T) -> Self {
-                    if Self::BITS < T::BITS {
+                    // If the source type is wider, we need to mask. If the source type is the same
+                    // width but unsigned, we also need to mask, to ensure that we erase the padded
+                    // sign bits! (that is, negative integers are padded with ones on the left)
+                    if Self::BITS < T::BITS || (T::BITS == Self::BITS && T::MIN < T::ZERO) {
                         Self { value: Self::UnderlyingType::masked_new(value.as_::<Self::UnderlyingType>() & Self::MASK) }
                     } else {
                         Self { value: Self::UnderlyingType::masked_new(value) }
