@@ -6,6 +6,15 @@
 
 - Added optional `bin-proto` support. Enable using the `bin-proto` feature (thanks wojciech-graj)
 
+### Fixed
+
+Fixed two bugs in signed-to-unsigned conversions:
+
+- `_from()` on unsigned integers previously allowed negative values as inputs, which would produce
+  valid unsigned integers.
+- `masked_new()` on unsigned integers previously didn't correctly mask the input value, which would produce
+  invalid unsigned integers.
+
 ## 2.1.0
 
 ### Added

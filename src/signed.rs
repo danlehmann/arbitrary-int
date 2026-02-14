@@ -30,6 +30,7 @@ macro_rules! impl_signed_integer_native {
                 const ZERO: Self = 0;
                 const MIN: Self = Self::MIN;
                 const MAX: Self = Self::MAX;
+                const IS_SIGNED: bool = true;
 
                 #[inline]
                 fn new(value: Self::UnderlyingType) -> Self { value }
@@ -42,8 +43,14 @@ macro_rules! impl_signed_integer_native {
 
                 #[inline]
                 fn from_<T: Integer>(value: T) -> Self {
-                    if T::BITS > Self::BITS as usize {
-                        assert!(value >= T::masked_new(Self::MIN) && value <= T::masked_new(Self::MAX));
+                    if T::IS_SIGNED {
+                        if (Self::BITS as usize) < T::BITS {
+                            assert!(value >= T::masked_new(Self::MIN) && value <= T::masked_new(Self::MAX));
+                        }
+                    } else {
+                        if (Self::BITS as usize) <= T::BITS {
+                            assert!(value <= T::masked_new(Self::MAX));
+                        }
                     }
                     Self::masked_new(value)
                 }
@@ -196,6 +203,8 @@ macro_rules! int_impl_num {
                     value: (<$type as Integer>::MAX >> (<$type as Integer>::BITS - Self::BITS)),
                 };
 
+                const IS_SIGNED: bool = true;
+
                 #[inline]
                 fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> {
                     if value >= Self::MIN.value && value <= Self::MAX.value {
@@ -214,8 +223,14 @@ macro_rules! int_impl_num {
 
                 #[inline]
                 fn from_<T: Integer>(value: T) -> Self {
-                    if Self::BITS < T::BITS {
-                        assert!(value >= Self::MIN.value.as_() && value <= Self::MAX.value.as_());
+                    if T::IS_SIGNED {
+                        if Self::BITS < T::BITS {
+                            assert!(value >= Self::MIN.value.as_() && value <= Self::MAX.value.as_());
+                        }
+                    } else {
+                        if Self::BITS <= T::BITS {
+                            assert!(value <= Self::MAX.value.as_());
+                        }
                     }
                     Self { value: Self::UnderlyingType::masked_new(value) }
                 }
@@ -223,7 +238,7 @@ macro_rules! int_impl_num {
                 fn masked_new<T: Integer>(value: T) -> Self {
                     // If the source type is wider, we need to mask and sign-extend. If the source
                     // type is the same width but unsigned, we also need to sign-extend!
-                    if Self::BITS < T::BITS || (Self::BITS == T::BITS && T::MIN == T::ZERO) {
+                    if Self::BITS < T::BITS || (Self::BITS == T::BITS && !T::IS_SIGNED) {
                         let value = (value.as_::<Self::UnderlyingType>() << Self::UNUSED_BITS) >> Self::UNUSED_BITS;
                         Self { value: Self::UnderlyingType::masked_new(value) }
                     } else {
