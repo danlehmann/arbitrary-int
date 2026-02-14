@@ -4474,11 +4474,135 @@ fn from_unsigned() {
 
 #[test]
 fn from_flexible() {
-    let a = u10::new(1000);
-    let b = u11::from_(a);
+    // arbitrary to arbitrary
+    assert_eq!(u3::from_(u4::new(7)), u3::new(7));
+    assert_eq!(u4::from_(u4::new(15)), u4::new(15));
+    assert_eq!(u5::from_(u4::new(15)), u5::new(15));
 
-    assert_eq!(a.as_u32(), 1000);
-    assert_eq!(b.as_u32(), 1000);
+    assert_eq!(u4::from_(i4::new(7)), u4::new(7));
+    assert_eq!(u5::from_(i4::new(7)), u5::new(7));
+    assert_eq!(u3::from_(i4::new(7)), u3::new(7));
+
+    assert_eq!(i4::from_(u4::new(7)), i4::new(7));
+    assert_eq!(i5::from_(u4::new(15)), i5::new(15));
+    assert_eq!(i3::from_(u4::new(3)), i3::new(3));
+
+    // arbitrary to builtin
+    assert_eq!(u8::from_(const { u7::new(127) }), 127u8);
+    assert_eq!(u8::from_(const { i7::new(63) }), 63u8);
+    assert_eq!(u8::from_(127i8), 127u8);
+    assert_eq!(u8::from_(const { u9::new(255) }), 255u8);
+    assert_eq!(u8::from_(const { i9::new(255) }), 255u8);
+}
+
+#[test]
+#[should_panic]
+fn from_catches_equal_bits_not_fitting_signed_to_unsigned() {
+    let _ = u4::from_(const { i4::new(-1) });
+}
+
+#[test]
+#[should_panic]
+fn from_catches_equal_bits_not_fitting_unsigned_to_signed() {
+    let _ = i4::from_(const { u4::new(14) });
+}
+
+#[test]
+#[should_panic]
+fn from_catches_equal_bits_not_fitting_signed_to_unsigned_on_builtin() {
+    let _ = u8::from_(-1i8);
+}
+
+#[test]
+#[should_panic]
+fn from_catches_equal_bits_not_fitting_unsigned_to_signed_on_builtin() {
+    let _ = i8::from_(128u8);
+}
+
+#[test]
+#[should_panic]
+fn from_catches_signed_numbers_arbitrary_to_arbitrary() {
+    let _ = u6::from_(const { i4::new(-1) });
+}
+
+#[test]
+#[should_panic]
+fn from_catches_signed_numbers_builtin_to_arbitrary() {
+    let _ = u15::from_(-1i8);
+}
+
+#[test]
+#[should_panic]
+fn from_catches_signed_numbers_arbitrary_to_builtin() {
+    let _ = u8::from_(const { i4::new(-1) });
+}
+
+#[test]
+#[should_panic]
+fn from_catches_signed_numbers_builtin_to_builtin() {
+    let _ = u16::from_(-1i8);
+}
+
+#[test]
+#[should_panic]
+fn from_catches_right_at_the_boundary_unsigned() {
+    let _ = u4::from_(const { u5::new(16) });
+}
+
+#[test]
+#[should_panic]
+fn from_catches_right_at_the_boundary_signed() {
+    let _ = u4::from_(const { i6::new(16) });
+}
+
+#[test]
+#[should_panic]
+fn from_catches_right_at_the_boundary_unsigned_to_builtin() {
+    let _ = u8::from_(const { u9::new(256) });
+}
+
+#[test]
+#[should_panic]
+fn from_catches_right_at_the_boundary_signed_to_builtin() {
+    let _ = u8::from_(const { i10::new(256) });
+}
+
+#[test]
+fn masked_new_signed_negative_to_unsigned() {
+    // Equal number of bits
+    assert_eq!(u4::masked_new(i4::new(-1)).value(), 0b0000_1111);
+    assert_eq!(u8::masked_new(i8::new(-1)).value(), 0b1111_1111);
+
+    // Smaller to more bits (sign extends to the size of the new type, but not further)
+    assert_eq!(u6::masked_new(i4::new(-1)).value(), 0b0011_1111);
+    assert_eq!(u8::masked_new(i4::new(-1)).value(), 0b1111_1111);
+    assert_eq!(u13::masked_new(-1i8).value(), 0b0001_1111_1111_1111);
+    assert_eq!(u16::masked_new(-1i8).value(), 0b1111_1111_1111_1111);
+
+    // More bits to fewer bits
+    assert_eq!(u6::masked_new(-1i8).value(), 0b0011_1111);
+    assert_eq!(u8::masked_new(-1i16).value(), 0b1111_1111);
+    assert_eq!(u6::masked_new(i12::new(-1)).value(), 0b0011_1111);
+    assert_eq!(u8::masked_new(i12::new(-1)).value(), 0b1111_1111);
+}
+
+#[test]
+fn masked_new_unsigned_to_signed() {
+    // Equal number of bits
+    assert_eq!(i4::masked_new(u4::MAX), i4::new(-1));
+    assert_eq!(i8::masked_new(u8::MAX), -1i8);
+
+    // Smaller to more bits (zero extends, so the value is preserved)
+    assert_eq!(i6::masked_new(u4::MAX), i6::new(15));
+    assert_eq!(i8::masked_new(u4::MAX), 0b0000_1111);
+    assert_eq!(i13::masked_new(255u8), i13::new(255));
+    assert_eq!(i16::masked_new(255u8), 255i16);
+
+    // More bits to fewer bits
+    assert_eq!(i6::masked_new(u8::MAX), i6::new(-1));
+    assert_eq!(i8::masked_new(u16::MAX), -1i8);
+    assert_eq!(i6::masked_new(u12::MAX), i6::new(-1));
+    assert_eq!(i8::masked_new(u12::MAX), -1i8);
 }
 
 #[test]

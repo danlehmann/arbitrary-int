@@ -80,6 +80,8 @@ pub trait Integer:
     /// Maximum value that can be represented by this type
     const MAX: Self;
 
+    const IS_SIGNED: bool;
+
     /// Creates a number from the given value, throwing an error if the value is too large.
     /// This constructor is useful when creating a value from a literal.
     fn new(value: Self::UnderlyingType) -> Self;
@@ -95,6 +97,9 @@ pub trait Integer:
 
     /// Creates an instance from the given `value`. Unlike the various `new...` functions, this
     /// will never fail as the value is masked to the result size.
+    ///
+    /// If the source value is a signed integer and the target has more bits, the value is
+    /// sign-extended. For example, `u5::masked_new(i4::new(-1)) == u5::new(0b1_1111)`.
     fn masked_new<T: Integer>(value: T) -> Self;
 
     fn as_u8(self) -> u8;

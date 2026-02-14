@@ -33,6 +33,7 @@ macro_rules! impl_integer_native {
                 const ZERO: Self = 0;
                 const MIN: Self = Self::MIN;
                 const MAX: Self = Self::MAX;
+                const IS_SIGNED: bool = false;
 
                 #[inline]
                 fn new(value: Self::UnderlyingType) -> Self { value }
@@ -45,7 +46,10 @@ macro_rules! impl_integer_native {
 
                 #[inline]
                 fn from_<T: Integer>(value: T) -> Self {
-                    if T::BITS > Self::BITS as usize {
+                    if T::IS_SIGNED {
+                        assert!(value >= T::ZERO);
+                    }
+                    if (Self::BITS as usize) < if T::IS_SIGNED { T::BITS - 1 } else { T::BITS } {
                         assert!(value <= T::masked_new(Self::MAX));
                     }
                     Self::masked_new(value)
@@ -189,6 +193,8 @@ macro_rules! uint_impl_num {
                 // we will get a compiler error right here
                 const MAX: Self = Self { value: (<$type as Integer>::MAX >> (<$type as Integer>::BITS - Self::BITS)) };
 
+                const IS_SIGNED: bool = false;
+
                 #[inline]
                 fn try_new(value: Self::UnderlyingType) -> Result<Self, TryNewError> {
                     if value <= Self::MAX.value {
@@ -207,17 +213,19 @@ macro_rules! uint_impl_num {
 
                 #[inline]
                 fn from_<T: Integer>(value: T) -> Self {
-                    if Self::BITS < T::BITS {
+                    if T::IS_SIGNED {
+                        assert!(value >= T::ZERO);
+                    }
+                    if Self::BITS < if T::IS_SIGNED { T::BITS - 1 } else { T::BITS } {
                         assert!(value <= Self::MAX.value.as_());
                     }
                     Self { value: Self::UnderlyingType::masked_new(value) }
                 }
 
                 fn masked_new<T: Integer>(value: T) -> Self {
-                    // If the source type is wider, we need to mask. If the source type is the same
-                    // width but unsigned, we also need to mask, to ensure that we erase the padded
-                    // sign bits! (that is, negative integers are padded with ones on the left)
-                    if Self::BITS < T::BITS || (T::BITS == Self::BITS && T::MIN < T::ZERO) {
+                    // If the source type is wider, we need to mask. If the source type is signed,
+                    // (no matter the width) we always need to mask out the sign bits.
+                    if Self::BITS < T::BITS || T::IS_SIGNED {
                         Self { value: Self::UnderlyingType::masked_new(value.as_::<Self::UnderlyingType>() & Self::MASK) }
                     } else {
                         Self { value: Self::UnderlyingType::masked_new(value) }
