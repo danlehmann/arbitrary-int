@@ -555,6 +555,22 @@ macro_rules! impl_num_traits {
                 Self::MAX
             }
         }
+
+        #[cfg(feature = "num-traits")]
+        impl<T: BuiltinInteger + $trait, const BITS: usize> num_traits::Zero for $type<T, BITS>
+        where
+            Self: Integer,
+        {
+            #[inline]
+            fn zero() -> Self {
+                Self::ZERO
+            }
+
+            #[inline]
+            fn is_zero(&self) -> bool {
+                self == &Self::ZERO
+            }
+        }
     };
 }
 

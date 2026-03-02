@@ -3714,7 +3714,9 @@ fn serde_signed() {
 #[cfg(feature = "num-traits")]
 mod num_traits {
     use arbitrary_int::prelude::*;
-    use num_traits::{bounds::Bounded, SaturatingAdd, SaturatingSub, WrappingAdd, WrappingSub};
+    use num_traits::{
+        bounds::Bounded, SaturatingAdd, SaturatingSub, WrappingAdd, WrappingSub, Zero,
+    };
 
     #[test]
     fn wrapping_add_unsigned() {
@@ -3863,6 +3865,20 @@ mod num_traits {
         assert_eq!(increment_by_512(0i16), Ok(512i16));
         assert!(increment_by_512(i7::new(3)).is_err());
         assert_eq!(increment_by_512(i15::new(3)), Ok(i15::new(515)));
+    }
+
+    #[test]
+    fn zero_i6() {
+        assert_eq!(i6::zero(), i6::new(0));
+        assert_eq!(i6::new(0).is_zero(), true);
+        assert_eq!(i6::new(-1).is_zero(), false);
+    }
+
+    #[test]
+    fn zero_u34() {
+        assert_eq!(u34::zero(), u34::new(0));
+        assert_eq!(u34::new(0).is_zero(), true);
+        assert_eq!(u34::new(0x1000).is_zero(), false);
     }
 }
 
