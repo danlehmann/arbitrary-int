@@ -1,10 +1,12 @@
 use crate::common::{
-    bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_bin_proto, impl_borsh,
-    impl_bytemuck_full, impl_extract, impl_num_traits, impl_schemars, impl_step, impl_sum_product,
+    bytes_operation_impl, from_arbitrary_int_impl, from_native_bigger_impl, from_native_equal_impl,
+    from_native_smaller_impl, impl_bin_proto, impl_borsh, impl_bytemuck_full, impl_extract,
+    impl_num_traits, impl_schemars, impl_step, impl_sum_product,
 };
 use crate::traits::{sealed::Sealed, BuiltinInteger, Integer, UnsignedInteger};
 use crate::TryNewError;
 use core::fmt::{Binary, Debug, Display, Formatter, LowerHex, Octal, UpperHex};
+use core::num::TryFromIntError;
 use core::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
@@ -1687,11 +1689,64 @@ from_arbitrary_int_impl!(UInt(u32), [u8, u16, u64, u128]);
 from_arbitrary_int_impl!(UInt(u64), [u8, u16, u32, u128]);
 from_arbitrary_int_impl!(UInt(u128), [u8, u32, u64, u16]);
 
-from_native_impl!(UInt(u8), [u8, u16, u32, u64, u128]);
-from_native_impl!(UInt(u16), [u8, u16, u32, u64, u128]);
-from_native_impl!(UInt(u32), [u8, u16, u32, u64, u128]);
-from_native_impl!(UInt(u64), [u8, u16, u32, u64, u128]);
-from_native_impl!(UInt(u128), [u8, u16, u32, u64, u128]);
+from_native_smaller_impl!(UInt(u8), [u16, u32, u64, u128]);
+from_native_equal_impl!(UInt(u8), [u8]);
+
+from_native_smaller_impl!(UInt(u16), [u32, u64, u128]);
+from_native_equal_impl!(UInt(u16), [u16]);
+from_native_bigger_impl!(UInt(u16), [u8]);
+
+from_native_smaller_impl!(UInt(u32), [u64, u128]);
+from_native_equal_impl!(UInt(u32), [u32]);
+from_native_bigger_impl!(UInt(u32), [u8, u16]);
+
+from_native_smaller_impl!(UInt(u64), [u128]);
+from_native_equal_impl!(UInt(u64), [u64]);
+from_native_bigger_impl!(UInt(u64), [u8, u16, u32]);
+
+from_native_equal_impl!(UInt(u128), [u128]);
+from_native_bigger_impl!(UInt(u128), [u8, u16, u32, u64]);
+
+impl<
+        T: UnsignedInteger + BuiltinInteger + TryFrom<usize, Error = TryFromIntError>,
+        const BITS: usize,
+    > TryFrom<usize> for UInt<T, BITS>
+where
+    Self: Integer,
+    <Self as Integer>::UnderlyingType: TryFrom<usize, Error = TryFromIntError>,
+{
+    type Error = TryFromIntError;
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        Ok(Self::new(value.try_into()?))
+    }
+}
+
+impl<
+        T: UnsignedInteger + BuiltinInteger + TryInto<usize, Error = TryFromIntError>,
+        const BITS: usize,
+    > TryFrom<UInt<T, BITS>> for usize
+{
+    type Error = TryFromIntError;
+
+    fn try_from(value: UInt<T, BITS>) -> Result<Self, Self::Error> {
+        value.value.try_into()
+    }
+}
+// impl<
+//         T: UnsignedInteger + BuiltinInteger + TryFrom<usize, Error = TryFromIntError>,
+//         const BITS: usize,
+//     > TryFrom<UInt<T, BITS>> for usize
+// where
+//     UInt<T, BITS>: Integer,
+//     <Self as Integer>::UnderlyingType: TryFrom<usize, Error = TryFromIntError>,
+// {
+//     type Error = TryFromIntError;
+
+//     fn try_from(value: usize) -> Result<Self, Self::Error> {
+//         Ok(Self::new(value.try_into()?))
+//     }
+// }
 
 pub use aliases::*;
 
