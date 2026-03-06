@@ -119,7 +119,7 @@ impl_integer_native!((u8, i8), (u16, i16), (u32, i32), (u64, i64), (u128, i128))
 /// An unsigned integer of arbitrary bit length.
 ///
 /// # Representation
-/// The result of [`Self::value`]`is guaranteed to match the in-memory representation
+/// The result of [`Self::value`] is guaranteed to match the in-memory representation
 /// that would be seen by [`mem::transmute`] or [`bytemuck::cast`].
 /// So as long as the value is valid, it is safe to transmute back and forth from `T`.
 ///
