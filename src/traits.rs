@@ -82,8 +82,12 @@ pub trait Integer:
 
     const IS_SIGNED: bool;
 
-    /// Creates a number from the given value, throwing an error if the value is too large.
+    /// Creates a number from the given value.
     /// This constructor is useful when creating a value from a literal.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is too large.
     fn new(value: Self::UnderlyingType) -> Self;
 
     /// Creates a number from the given value, return None if the value is too large
@@ -91,8 +95,12 @@ pub trait Integer:
 
     fn value(self) -> Self::UnderlyingType;
 
-    /// Creates a number from the given value, throwing an error if the value is too large.
+    /// Creates a number from the given value.
     /// This constructor is useful when the value is convertible to T. Use [`Self::new`] for literals.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is too large.
     fn from_<T: Integer>(value: T) -> Self;
 
     /// Creates an instance from the given `value`. Unlike the various `new...` functions, this
@@ -100,6 +108,10 @@ pub trait Integer:
     ///
     /// If the source value is a signed integer and the target has more bits, the value is
     /// sign-extended. For example, `u5::masked_new(i4::new(-1)) == u5::new(0b1_1111)`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `Self::BITS` is not one of 8, 16, 32, 64, 128.
     fn masked_new<T: Integer>(value: T) -> Self;
 
     fn as_u8(self) -> u8;

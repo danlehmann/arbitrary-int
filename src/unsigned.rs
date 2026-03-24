@@ -689,7 +689,7 @@ macro_rules! uint_impl {
                 #[must_use = "this returns the result of the operation, without modifying the original"]
                 pub const fn saturating_div(self, rhs: Self) -> Self {
                     // When dividing unsigned numbers, we never need to saturate.
-                    // Division by zero in saturating_div throws an exception (in debug and release mode),
+                    // Division by zero in saturating_div panics (in debug and release mode),
                     // so no need to do anything special there either
                     Self {
                         value: self.value().saturating_div(rhs.value()),
@@ -1454,7 +1454,7 @@ where
     type Output = UInt<T, BITS>;
 
     fn shl(self, rhs: TSHIFTBITS) -> Self::Output {
-        // With debug assertions, the << and >> operators throw an exception if the shift amount
+        // With debug assertions, the << and >> operators panic if the shift amount
         // is larger than the number of bits (in which case the result would always be 0)
         #[cfg(debug_assertions)]
         if rhs.try_into().unwrap_or(usize::MAX) >= BITS {
@@ -1476,7 +1476,7 @@ where
     Self: Integer,
 {
     fn shl_assign(&mut self, rhs: TSHIFTBITS) {
-        // With debug assertions, the << and >> operators throw an exception if the shift amount
+        // With debug assertions, the << and >> operators panic if the shift amount
         // is larger than the number of bits (in which case the result would always be 0)
         #[cfg(debug_assertions)]
         if rhs.try_into().unwrap_or(usize::MAX) >= BITS {
@@ -1496,7 +1496,7 @@ impl<
     type Output = UInt<T, BITS>;
 
     fn shr(self, rhs: TSHIFTBITS) -> Self::Output {
-        // With debug assertions, the << and >> operators throw an exception if the shift amount
+        // With debug assertions, the << and >> operators panic if the shift amount
         // is larger than the number of bits (in which case the result would always be 0)
         #[cfg(debug_assertions)]
         if rhs.try_into().unwrap_or(usize::MAX) >= BITS {
@@ -1515,7 +1515,7 @@ impl<
     > ShrAssign<TSHIFTBITS> for UInt<T, BITS>
 {
     fn shr_assign(&mut self, rhs: TSHIFTBITS) {
-        // With debug assertions, the << and >> operators throw an exception if the shift amount
+        // With debug assertions, the << and >> operators panic if the shift amount
         // is larger than the number of bits (in which case the result would always be 0)
         #[cfg(debug_assertions)]
         if rhs.try_into().unwrap_or(usize::MAX) >= BITS {
