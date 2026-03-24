@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Removed potential panic in `bin_proto::BitDecode` implementations.
+
 ## 2.1.1
 
 ### Added

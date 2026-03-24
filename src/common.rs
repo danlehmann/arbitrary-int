@@ -665,12 +665,14 @@ macro_rules! impl_bin_proto {
                     R: bin_proto::BitRead,
                     E: bin_proto::Endianness,
                 {
-                    Ok(Self::new(
+                    Self::try_new(
                         <<Self as Integer>::UnderlyingType as bin_proto::BitDecode<_, _>>::decode::<
                             _,
                             E,
                         >(read, ctx, bin_proto::Bits::<$bits>)?,
-                    ))
+                    ).map_err(|_|
+                        bin_proto::Error::Other("Value too large to fit within this integer type")
+                    )
                 }
             }
         )+

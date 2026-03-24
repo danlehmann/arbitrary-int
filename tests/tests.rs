@@ -4266,7 +4266,12 @@ mod bin_proto_tests {
             .encode::<_, LittleEndian>(&mut counter, &mut (), ())
             .unwrap();
         assert_eq!(T::BITS, counter.written().try_into().unwrap());
-        assert_eq!(expected_buffer, &data[0..n_bytes])
+        assert_eq!(expected_buffer, &data[0..n_bytes]);
+
+        assert_eq!(
+            (input, T::BITS as u64),
+            T::decode_bytes(expected_buffer, LittleEndian).unwrap()
+        );
     }
 
     #[test]
