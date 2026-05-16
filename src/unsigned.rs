@@ -127,6 +127,10 @@ impl_integer_native!((u8, i8), (u16, i16), (u32, i32), (u64, i64), (u128, i128))
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
 #[cfg_attr(feature = "bytecheck", derive(bytecheck::CheckBytes))]
 #[cfg_attr(feature = "bytecheck", bytecheck(verify))]
+#[cfg_attr(
+    feature = "rkyv",
+    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
+)]
 #[repr(transparent)]
 pub struct UInt<T: UnsignedInteger + BuiltinInteger, const BITS: usize> {
     value: T,

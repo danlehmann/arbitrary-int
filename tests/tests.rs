@@ -3797,6 +3797,34 @@ fn serde_signed() {
     assert_de_tokens(&i7::MAX, &[Token::U8(i7::MAX.value() as u8)]);
 }
 
+#[cfg(feature = "rkyv")]
+mod rkyv {
+    use arbitrary_int::prelude::*;
+    use rkyv::rancor::Error as RkyvError;
+
+    #[test]
+    fn unisgned() {
+        let expected = u7::MAX;
+        let bytes = rkyv::to_bytes::<RkyvError>(&expected).unwrap();
+        let actual = rkyv::access::<ArchivedUInt<_, _>, RkyvError>(&bytes[..])
+            .and_then(rkyv::deserialize)
+            .unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn signed() {
+        let expected = i7::MAX;
+        let bytes = rkyv::to_bytes::<RkyvError>(&expected).unwrap();
+        let actual = rkyv::access::<ArchivedInt<_, _>, RkyvError>(&bytes[..])
+            .and_then(rkyv::deserialize)
+            .unwrap();
+
+        assert_eq!(expected, actual);
+    }
+}
+
 #[cfg(feature = "num-traits")]
 mod num_traits {
     use arbitrary_int::prelude::*;

@@ -139,6 +139,10 @@ impl_signed_integer_native!((i8, u8), (i16, u16), (i32, u32), (i64, u64), (i128,
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
 #[cfg_attr(feature = "bytecheck", derive(bytecheck::CheckBytes))]
 #[cfg_attr(feature = "bytecheck", bytecheck(verify))]
+#[cfg_attr(
+    feature = "rkyv",
+    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
+)]
 #[repr(transparent)]
 pub struct Int<T: SignedInteger + BuiltinInteger, const BITS: usize> {
     value: T,
