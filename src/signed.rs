@@ -141,7 +141,14 @@ impl_signed_integer_native!((i8, u8), (i16, u16), (i32, u32), (i64, u64), (i128,
 #[cfg_attr(feature = "bytecheck", bytecheck(verify))]
 #[cfg_attr(
     feature = "rkyv",
-    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
+    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize, rkyv::Portable),
+    rkyv(
+        archive_bounds(
+            T: rkyv::Archive<Archived = T> + rkyv::Portable,
+            <T as rkyv::Archive>::Archived: SignedInteger + BuiltinInteger,
+        ),
+        as = Self,
+    )
 )]
 #[repr(transparent)]
 pub struct Int<T: SignedInteger + BuiltinInteger, const BITS: usize> {

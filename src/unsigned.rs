@@ -129,7 +129,14 @@ impl_integer_native!((u8, i8), (u16, i16), (u32, i32), (u64, i64), (u128, i128))
 #[cfg_attr(feature = "bytecheck", bytecheck(verify))]
 #[cfg_attr(
     feature = "rkyv",
-    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
+    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize, rkyv::Portable),
+    rkyv(
+        archive_bounds(
+            T: rkyv::Archive<Archived = T> + rkyv::Portable,
+            <T as rkyv::Archive>::Archived: UnsignedInteger + BuiltinInteger,
+        ),
+        as = Self,
+    )
 )]
 #[repr(transparent)]
 pub struct UInt<T: UnsignedInteger + BuiltinInteger, const BITS: usize> {
