@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Added optional `schemars` v1 support. Enable using the `schemars1` feature
+
 ## 2.1.1
 
 ### Added

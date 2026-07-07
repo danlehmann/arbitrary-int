@@ -4192,6 +4192,112 @@ fn schemars_signed() {
     assert_eq!(i8, i9);
 }
 
+#[cfg(feature = "schemars1")]
+#[test]
+fn schemars1_unsigned() {
+    use schemars1::{generate::SchemaSettings, schema_for};
+    use serde_json::json;
+
+    let meta = SchemaSettings::default().meta_schema.unwrap();
+
+    assert_eq!(
+        schema_for!(u1).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "uint1",
+            "title": "uint1",
+            "minimum": 0,
+            "maximum": 1,
+        })
+    );
+
+    assert_eq!(
+        schema_for!(u31).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "uint31",
+            "title": "uint31",
+            "minimum": 0,
+            "maximum": 0x7fffffff,
+        })
+    );
+
+    assert_eq!(
+        schema_for!(u33).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "uint33",
+            "title": "uint33"
+        })
+    );
+
+    assert_eq!(
+        schema_for!(u127).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "uint127",
+            "title": "uint127"
+        })
+    );
+}
+
+#[cfg(feature = "schemars1")]
+#[test]
+fn schemars1_signed() {
+    use schemars1::{generate::SchemaSettings, schema_for};
+    use serde_json::json;
+
+    let meta = SchemaSettings::default().meta_schema.unwrap();
+
+    assert_eq!(
+        schema_for!(i1).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "int1",
+            "title": "int1",
+            "minimum": -1,
+            "maximum": 0,
+        })
+    );
+
+    assert_eq!(
+        schema_for!(i31).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "int31",
+            "title": "int31",
+            "minimum": -0x40000000,
+            "maximum": 0x3fffffff,
+        })
+    );
+
+    assert_eq!(
+        schema_for!(i33).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "int33",
+            "title": "int33"
+        })
+    );
+
+    assert_eq!(
+        schema_for!(i127).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "int127",
+            "title": "int127"
+        })
+    );
+}
+
 #[cfg(feature = "bytemuck")]
 mod bytemuck {
     use arbitrary_int::prelude::*;
