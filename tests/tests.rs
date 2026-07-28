@@ -3577,6 +3577,92 @@ fn backward_checked_signed() {
 
 #[cfg(feature = "step_trait")]
 #[test]
+fn forward_overflowing_unsigned() {
+    // In range
+    assert_eq!(
+        (u7::new(121), false),
+        Step::forward_overflowing(u7::new(120), 1)
+    );
+    assert_eq!(
+        (u7::new(127), false),
+        Step::forward_overflowing(u7::new(120), 7)
+    );
+
+    // Out of range: the value is unspecified
+    assert!(Step::forward_overflowing(u7::new(120), 8).1);
+
+    // Out of range for the underlying type
+    assert!(Step::forward_overflowing(u7::new(120), 140).1);
+}
+
+#[cfg(feature = "step_trait")]
+#[test]
+fn forward_overflowing_signed() {
+    // In range
+    assert_eq!(
+        (i7::new(61), false),
+        Step::forward_overflowing(i7::new(60), 1)
+    );
+    assert_eq!(
+        (i7::new(63), false),
+        Step::forward_overflowing(i7::new(56), 7)
+    );
+    assert_eq!(
+        (i7::new(-60), false),
+        Step::forward_overflowing(i7::new(-64), 4)
+    );
+
+    // Out of range: the value is unspecified
+    assert!(Step::forward_overflowing(i7::new(60), 8).1);
+
+    // Out of range for the underlying type
+    assert!(Step::forward_overflowing(i7::new(60), 140).1);
+}
+
+#[cfg(feature = "step_trait")]
+#[test]
+fn backward_overflowing_unsigned() {
+    // In range
+    assert_eq!(
+        (u7::new(1), false),
+        Step::backward_overflowing(u7::new(10), 9)
+    );
+    assert_eq!(
+        (u7::new(0), false),
+        Step::backward_overflowing(u7::new(10), 10)
+    );
+
+    // Out of range: the value is unspecified
+    assert!(Step::backward_overflowing(u7::new(10), 11).1);
+}
+
+#[cfg(feature = "step_trait")]
+#[test]
+fn backward_overflowing_signed() {
+    // In range
+    assert_eq!(
+        (i7::new(1), false),
+        Step::backward_overflowing(i7::new(10), 9)
+    );
+    assert_eq!(
+        (i7::new(-10), false),
+        Step::backward_overflowing(i7::new(10), 20)
+    );
+    assert_eq!(
+        (i7::new(-64), false),
+        Step::backward_overflowing(i7::new(-60), 4)
+    );
+
+    // Out of range: the value is unspecified
+    assert!(Step::backward_overflowing(i7::new(-64), 1).1);
+    assert!(Step::backward_overflowing(i7::new(5), 70).1);
+
+    // Out of range for the underlying type
+    assert!(Step::backward_overflowing(i7::new(0), 129).1);
+}
+
+#[cfg(feature = "step_trait")]
+#[test]
 fn steps_between_unsigned() {
     assert_eq!(
         (0, Some(0)),
