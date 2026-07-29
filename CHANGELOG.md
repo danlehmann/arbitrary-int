@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added optional `bytecheck` support. Enable using the `bytecheck` feature.
+
 ## 2.1.1
 
 ### Added
