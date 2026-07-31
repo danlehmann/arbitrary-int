@@ -119,12 +119,14 @@ impl_integer_native!((u8, i8), (u16, i16), (u32, i32), (u64, i64), (u128, i128))
 /// An unsigned integer of arbitrary bit length.
 ///
 /// # Representation
-/// The result of [`Self::value`]`is guaranteed to match the in-memory representation
-/// that would be seen by [`mem::transmute`] or [`bytemuck::cast`].
+/// The result of [`Self::value`] is guaranteed to match the in-memory representation
+/// that would be seen by [`core::mem::transmute`] or `bytemuck::cast`.
 /// So as long as the value is valid, it is safe to transmute back and forth from `T`.
 ///
 /// When `cfg(feature = "bytemuck")` is set, the appropriate bytemuck traits will be implemented.
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
+#[cfg_attr(feature = "bytecheck", derive(bytecheck::CheckBytes))]
+#[cfg_attr(feature = "bytecheck", bytecheck(verify))]
 #[repr(transparent)]
 pub struct UInt<T: UnsignedInteger + BuiltinInteger, const BITS: usize> {
     value: T,
@@ -159,6 +161,24 @@ where
     T: Copy,
 {
     pub const MASK: T = Self::MAX.value;
+}
+
+#[cfg(feature = "bytecheck")]
+unsafe impl<
+        T: UnsignedInteger + BuiltinInteger + Copy,
+        const BITS: usize,
+        C: bytecheck::rancor::Fallible + ?Sized,
+    > bytecheck::Verify<C> for UInt<T, BITS>
+where
+    C::Error: bytecheck::rancor::Source,
+    Self: Integer,
+{
+    fn verify(&self, _context: &mut C) -> Result<(), C::Error> {
+        if self.value > Self::MAX.value {
+            bytecheck::rancor::fail!(TryNewError);
+        }
+        Ok(())
+    }
 }
 
 // Next are specific implementations for u8, u16, u32, u64 and u128. A couple notes:

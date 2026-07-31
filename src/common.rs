@@ -459,6 +459,18 @@ macro_rules! impl_step {
                     None
                 }
             }
+
+            #[inline]
+            fn forward_overflowing(start: Self, count: usize) -> (Self, bool) {
+                let (res, overflow) = core::iter::Step::forward_overflowing(start.value, count);
+                (Self::masked_new(res), overflow || res > Self::MAX.value)
+            }
+
+            #[inline]
+            fn backward_overflowing(start: Self, count: usize) -> (Self, bool) {
+                let (res, overflow) = core::iter::Step::backward_overflowing(start.value, count);
+                (Self::masked_new(res), overflow || res < Self::MIN.value)
+            }
         }
     };
 }
