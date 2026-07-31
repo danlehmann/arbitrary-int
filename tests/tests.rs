@@ -4494,6 +4494,40 @@ mod bin_proto_tests {
     }
 }
 
+#[cfg(feature = "bytecheck")]
+mod bytecheck_tests {
+    use super::*;
+    use bytecheck::{check_bytes, rancor};
+
+    #[test]
+    fn test_validity_unsigned() {
+        let good_u6_val = 0x3fu8;
+        unsafe { check_bytes::<u6, rancor::Failure>((&raw const good_u6_val).cast()).unwrap() };
+
+        let bad_u6_val = 0x40u8;
+        unsafe { check_bytes::<u6, rancor::Failure>((&raw const bad_u6_val).cast()).unwrap_err() };
+    }
+
+    #[test]
+    fn test_validity_signed() {
+        let good_i31_val = i31::MAX.value() as i32;
+        unsafe { check_bytes::<i31, rancor::Failure>((&raw const good_i31_val).cast()).unwrap() };
+
+        let good_i32_val2 = i31::MIN.value() as i32;
+        unsafe { check_bytes::<i31, rancor::Failure>((&raw const good_i32_val2).cast()).unwrap() };
+
+        let bad_i31_val = (i31::MAX.value() as i32) + 1;
+        unsafe {
+            check_bytes::<i31, rancor::Failure>((&raw const bad_i31_val).cast()).unwrap_err()
+        };
+
+        let bad_i31_val2 = (i31::MIN.value() as i32) - 1;
+        unsafe {
+            check_bytes::<i31, rancor::Failure>((&raw const bad_i31_val2).cast()).unwrap_err()
+        };
+    }
+}
+
 #[test]
 fn new_and_as_specific_types() {
     let a = u6::new(42);

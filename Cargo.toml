@@ -33,6 +33,9 @@ borsh = ["dep:borsh"]
 
 schemars = ["dep:schemars", "std"]
 
+# Derive/implement traits for bytecheck
+bytecheck = ["dep:bytecheck"]
+
 # Implement traits for bytemuck
 bytemuck = ["dep:bytemuck"]
 
@@ -52,6 +55,7 @@ borsh = { version = "1.5.1", optional = true, features = ["unstable__schema"], d
 schemars = { version = "0.8.21", optional = true, features = ["derive"], default-features = false }
 bytemuck = { version = "1", optional = true, default-features = false }
 bin-proto = { version = "0.12.2", optional = true, default-features = false }
+bytecheck = { version = "0.8.2", optional = true, default-features = false }
 
 arbitrary = { version = "1", optional = true, default-features = false }
 quickcheck = { version = "1", optional = true, default-features = false }
