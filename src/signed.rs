@@ -137,6 +137,8 @@ impl_signed_integer_native!((i8, u8), (i16, u16), (i32, u32), (i64, u64), (i128,
 /// [`bytemuck::NoUninit`]: https://docs.rs/bytemuck/1/bytemuck/trait.NoUninit.html
 /// [`bytemuck::Contiguous`]: https://docs.rs/bytemuck/1/bytemuck/trait.Contiguous.html
 #[derive(Copy, Clone, Eq, PartialEq, Default, Ord, PartialOrd, Hash)]
+#[cfg_attr(feature = "bytecheck", derive(bytecheck::CheckBytes))]
+#[cfg_attr(feature = "bytecheck", bytecheck(verify))]
 #[repr(transparent)]
 pub struct Int<T: SignedInteger + BuiltinInteger, const BITS: usize> {
     value: T,
@@ -1546,6 +1548,24 @@ macro_rules! int_impl {
             }
         )+
     };
+}
+
+#[cfg(feature = "bytecheck")]
+unsafe impl<
+        T: SignedInteger + BuiltinInteger + Copy,
+        const BITS: usize,
+        C: bytecheck::rancor::Fallible + ?Sized,
+    > bytecheck::Verify<C> for Int<T, BITS>
+where
+    C::Error: bytecheck::rancor::Source,
+    Self: Integer,
+{
+    fn verify(&self, _context: &mut C) -> Result<(), C::Error> {
+        if self.value > Self::MAX.value || self.value < Self::MIN.value {
+            bytecheck::rancor::fail!(TryNewError);
+        }
+        Ok(())
+    }
 }
 
 // Because the methods within this macro are effectively copy-pasted for each underlying integer type,
