@@ -3577,6 +3577,92 @@ fn backward_checked_signed() {
 
 #[cfg(feature = "step_trait")]
 #[test]
+fn forward_overflowing_unsigned() {
+    // In range
+    assert_eq!(
+        (u7::new(121), false),
+        Step::forward_overflowing(u7::new(120), 1)
+    );
+    assert_eq!(
+        (u7::new(127), false),
+        Step::forward_overflowing(u7::new(120), 7)
+    );
+
+    // Out of range: the value is unspecified
+    assert!(Step::forward_overflowing(u7::new(120), 8).1);
+
+    // Out of range for the underlying type
+    assert!(Step::forward_overflowing(u7::new(120), 140).1);
+}
+
+#[cfg(feature = "step_trait")]
+#[test]
+fn forward_overflowing_signed() {
+    // In range
+    assert_eq!(
+        (i7::new(61), false),
+        Step::forward_overflowing(i7::new(60), 1)
+    );
+    assert_eq!(
+        (i7::new(63), false),
+        Step::forward_overflowing(i7::new(56), 7)
+    );
+    assert_eq!(
+        (i7::new(-60), false),
+        Step::forward_overflowing(i7::new(-64), 4)
+    );
+
+    // Out of range: the value is unspecified
+    assert!(Step::forward_overflowing(i7::new(60), 8).1);
+
+    // Out of range for the underlying type
+    assert!(Step::forward_overflowing(i7::new(60), 140).1);
+}
+
+#[cfg(feature = "step_trait")]
+#[test]
+fn backward_overflowing_unsigned() {
+    // In range
+    assert_eq!(
+        (u7::new(1), false),
+        Step::backward_overflowing(u7::new(10), 9)
+    );
+    assert_eq!(
+        (u7::new(0), false),
+        Step::backward_overflowing(u7::new(10), 10)
+    );
+
+    // Out of range: the value is unspecified
+    assert!(Step::backward_overflowing(u7::new(10), 11).1);
+}
+
+#[cfg(feature = "step_trait")]
+#[test]
+fn backward_overflowing_signed() {
+    // In range
+    assert_eq!(
+        (i7::new(1), false),
+        Step::backward_overflowing(i7::new(10), 9)
+    );
+    assert_eq!(
+        (i7::new(-10), false),
+        Step::backward_overflowing(i7::new(10), 20)
+    );
+    assert_eq!(
+        (i7::new(-64), false),
+        Step::backward_overflowing(i7::new(-60), 4)
+    );
+
+    // Out of range: the value is unspecified
+    assert!(Step::backward_overflowing(i7::new(-64), 1).1);
+    assert!(Step::backward_overflowing(i7::new(5), 70).1);
+
+    // Out of range for the underlying type
+    assert!(Step::backward_overflowing(i7::new(0), 129).1);
+}
+
+#[cfg(feature = "step_trait")]
+#[test]
 fn steps_between_unsigned() {
     assert_eq!(
         (0, Some(0)),
@@ -4192,6 +4278,112 @@ fn schemars_signed() {
     assert_eq!(i8, i9);
 }
 
+#[cfg(feature = "schemars1")]
+#[test]
+fn schemars1_unsigned() {
+    use schemars1::{generate::SchemaSettings, schema_for};
+    use serde_json::json;
+
+    let meta = SchemaSettings::default().meta_schema.unwrap();
+
+    assert_eq!(
+        schema_for!(u1).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "uint1",
+            "title": "uint1",
+            "minimum": 0,
+            "maximum": 1,
+        })
+    );
+
+    assert_eq!(
+        schema_for!(u31).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "uint31",
+            "title": "uint31",
+            "minimum": 0,
+            "maximum": 0x7fffffff,
+        })
+    );
+
+    assert_eq!(
+        schema_for!(u33).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "uint33",
+            "title": "uint33"
+        })
+    );
+
+    assert_eq!(
+        schema_for!(u127).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "uint127",
+            "title": "uint127"
+        })
+    );
+}
+
+#[cfg(feature = "schemars1")]
+#[test]
+fn schemars1_signed() {
+    use schemars1::{generate::SchemaSettings, schema_for};
+    use serde_json::json;
+
+    let meta = SchemaSettings::default().meta_schema.unwrap();
+
+    assert_eq!(
+        schema_for!(i1).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "int1",
+            "title": "int1",
+            "minimum": -1,
+            "maximum": 0,
+        })
+    );
+
+    assert_eq!(
+        schema_for!(i31).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "int31",
+            "title": "int31",
+            "minimum": -0x40000000,
+            "maximum": 0x3fffffff,
+        })
+    );
+
+    assert_eq!(
+        schema_for!(i33).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "int33",
+            "title": "int33"
+        })
+    );
+
+    assert_eq!(
+        schema_for!(i127).to_value(),
+        json!({
+            "$schema": meta,
+            "type": "integer",
+            "format": "int127",
+            "title": "int127"
+        })
+    );
+}
+
 #[cfg(feature = "bytemuck")]
 mod bytemuck {
     use arbitrary_int::prelude::*;
@@ -4410,6 +4602,40 @@ mod bin_proto_tests {
                 0xFF, 0xFF,
             ],
         );
+    }
+}
+
+#[cfg(feature = "bytecheck")]
+mod bytecheck_tests {
+    use super::*;
+    use bytecheck::{check_bytes, rancor};
+
+    #[test]
+    fn test_validity_unsigned() {
+        let good_u6_val = 0x3fu8;
+        unsafe { check_bytes::<u6, rancor::Failure>((&raw const good_u6_val).cast()).unwrap() };
+
+        let bad_u6_val = 0x40u8;
+        unsafe { check_bytes::<u6, rancor::Failure>((&raw const bad_u6_val).cast()).unwrap_err() };
+    }
+
+    #[test]
+    fn test_validity_signed() {
+        let good_i31_val = i31::MAX.value() as i32;
+        unsafe { check_bytes::<i31, rancor::Failure>((&raw const good_i31_val).cast()).unwrap() };
+
+        let good_i32_val2 = i31::MIN.value() as i32;
+        unsafe { check_bytes::<i31, rancor::Failure>((&raw const good_i32_val2).cast()).unwrap() };
+
+        let bad_i31_val = (i31::MAX.value() as i32) + 1;
+        unsafe {
+            check_bytes::<i31, rancor::Failure>((&raw const bad_i31_val).cast()).unwrap_err()
+        };
+
+        let bad_i31_val2 = (i31::MIN.value() as i32) - 1;
+        unsafe {
+            check_bytes::<i31, rancor::Failure>((&raw const bad_i31_val2).cast()).unwrap_err()
+        };
     }
 }
 

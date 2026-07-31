@@ -2,9 +2,18 @@
 
 ## Unreleased
 
+### Added
+
+- Added optional `bytecheck` support. Enable using the `bytecheck` feature.
+- Added optional `schemars` v1 support. Enable using the `schemars1` feature.
+
 ### Fixed
 
+- Implemented `Step::forward_overflowing()` and `Step::backward_overflowing()`, which are new required
+  methods of the unstable `Step` trait ([rust#155114]).
 - Removed potential panic in `bin_proto::BitDecode` implementations.
+
+[rust#155114]: https://github.com/rust-lang/rust/pull/155114
 
 ## 2.1.1
 
