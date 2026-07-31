@@ -6,6 +6,7 @@
 
 - Added optional `bytecheck` support. Enable using the `bytecheck` feature.
 - Added optional `schemars` v1 support. Enable using the `schemars1` feature.
+- Implemented `num_traits::Zero`.
 
 ### Fixed
 
