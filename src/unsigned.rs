@@ -129,14 +129,8 @@ impl_integer_native!((u8, i8), (u16, i16), (u32, i32), (u64, i64), (u128, i128))
 #[cfg_attr(feature = "bytecheck", bytecheck(verify))]
 #[cfg_attr(
     feature = "rkyv",
-    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize, rkyv::Portable),
-    rkyv(
-        archive_bounds(
-            T: rkyv::Archive<Archived = T> + rkyv::Portable,
-            <T as rkyv::Archive>::Archived: UnsignedInteger + BuiltinInteger,
-        ),
-        as = Self,
-    )
+    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize),
+    rkyv(bytecheck(verify))
 )]
 #[repr(transparent)]
 pub struct UInt<T: UnsignedInteger + BuiltinInteger, const BITS: usize> {
@@ -189,6 +183,24 @@ where
             bytecheck::rancor::fail!(TryNewError);
         }
         Ok(())
+    }
+}
+
+#[cfg(feature = "rkyv")]
+unsafe impl<
+        T: UnsignedInteger + BuiltinInteger + rkyv::Archive,
+        const BITS: usize,
+        C: rkyv::bytecheck::rancor::Fallible + ?Sized,
+    > rkyv::bytecheck::Verify<C> for ArchivedUInt<T, BITS>
+where
+    C::Error: rkyv::bytecheck::rancor::Source,
+    UInt<T, BITS>: Integer,
+{
+    fn verify(&self, context: &mut C) -> Result<(), C::Error> {
+        let ptr: *const UInt<T, BITS> = (&raw const self.value).cast();
+        // SAFETY: `in_subtree` was guaranteed called by [rkyv::api::checked::check_pos_with_context].
+        // Unsafe could later be replaced if rend add a trait to generically convert from <-> into native.
+        unsafe { (*ptr).verify(context) }
     }
 }
 

@@ -3799,14 +3799,15 @@ fn serde_signed() {
 #[cfg(feature = "rkyv")]
 mod rkyv {
     use arbitrary_int::prelude::*;
-    use bytecheck::{check_bytes, Verify};
-    use rkyv::rancor::{Error as RkyvError, Strategy};
+    use rkyv::rancor::Error as RkyvError;
 
     #[test]
     fn unisgned() {
         let expected = u7::MAX;
         let bytes = rkyv::to_bytes::<RkyvError>(&expected).unwrap();
-        let actual = *rkyv::access::<UInt<_, _>, RkyvError>(&bytes[..]).unwrap();
+        let actual = rkyv::access::<ArchivedUInt<_, _>, RkyvError>(&bytes[..])
+            .and_then(rkyv::deserialize)
+            .unwrap();
 
         assert_eq!(expected, actual);
     }
@@ -3815,27 +3816,34 @@ mod rkyv {
     fn signed() {
         let expected = i7::MAX;
         let bytes = rkyv::to_bytes::<RkyvError>(&expected).unwrap();
-        let actual = *rkyv::access::<Int<_, _>, RkyvError>(&bytes[..]).unwrap();
+        let actual = rkyv::access::<ArchivedInt<_, _>, RkyvError>(&bytes[..])
+            .and_then(rkyv::deserialize)
+            .unwrap();
 
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn invalid_out_of_range() {
-        let temp = &mut ();
-        let ctx: &mut Strategy<(), rkyv::rancor::Failure> = Strategy::wrap(temp);
+        let bytes = rkyv::to_bytes::<RkyvError>(&[123_u8, 123_u8]).unwrap();
+        rkyv::access::<ArchivedUInt<u16, 9>, RkyvError>(&bytes)
+            .and_then(rkyv::deserialize)
+            .unwrap_err();
+        rkyv::access::<ArchivedInt<i16, 9>, RkyvError>(&bytes)
+            .and_then(rkyv::deserialize)
+            .unwrap_err();
+    }
 
-        // This work
-        let u1 = unsafe { u1::new_unchecked(123) };
-        u1.verify(ctx).unwrap_err();
-
-        // This work
-        let wrong = 123;
-        unsafe { check_bytes::<u1, rkyv::rancor::Failure>((&raw const wrong).cast()).unwrap_err() };
-
-        // This doesn't. &[123_u8] does work
-        let bytes = rkyv::to_bytes::<rkyv::rancor::Error>(&[123_u8, 0_u8]).unwrap();
-        rkyv::access::<u1, rkyv::rancor::Error>(&bytes[..]).unwrap_err();
+    #[test]
+    fn endianness_shenanigans() {
+        // Rkyv internally use [rend](https://github.com/rkyv/rend) to deal with cross platform number endianness.
+        // This make sure that our implementation respect this.
+        // If it doesn't, compile fail on the derive of rkyv.
+        #[derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)]
+        struct Archivable {
+            uint: (u1, u9, u17, u33, u65, u127),
+            int: (i1, i9, i17, i33, i65, i127),
+        }
     }
 }
 
