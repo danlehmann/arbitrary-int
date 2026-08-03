@@ -195,12 +195,15 @@ unsafe impl<
 where
     C::Error: rkyv::bytecheck::rancor::Source,
     UInt<T, BITS>: Integer,
+    T: From<T::Archived>,
+    T::Archived: Copy,
 {
-    fn verify(&self, context: &mut C) -> Result<(), C::Error> {
-        let ptr: *const UInt<T, BITS> = (&raw const self.value).cast();
-        // SAFETY: `in_subtree` was guaranteed called by [rkyv::api::checked::check_pos_with_context].
-        // Unsafe could later be replaced if rend add a trait to generically convert from <-> into native.
-        unsafe { (*ptr).verify(context) }
+    fn verify(&self, _context: &mut C) -> Result<(), C::Error> {
+        let native: T = self.value.into();
+        if native > UInt::<T, BITS>::MAX.value {
+            rkyv::bytecheck::rancor::fail!(TryNewError);
+        }
+        Ok(())
     }
 }
 

@@ -3835,6 +3835,28 @@ mod rkyv {
     }
 
     #[test]
+    fn multi_byte_roundtrip() {
+        // Multi-byte values are stored with a fixed endianness in the archive,
+        // so verification must convert to native before range-checking. On a
+        // mismatched-endian host (or with rkyv's `big_endian` feature on a
+        // little-endian one), reinterpreting the archived bytes natively would
+        // reject valid values like these and accept out-of-range ones.
+        let expected = u9::new(300);
+        let bytes = rkyv::to_bytes::<RkyvError>(&expected).unwrap();
+        let actual = rkyv::access::<ArchivedUInt<u16, 9>, RkyvError>(&bytes[..])
+            .and_then(rkyv::deserialize)
+            .unwrap();
+        assert_eq!(expected, actual);
+
+        let expected = i9::new(-200);
+        let bytes = rkyv::to_bytes::<RkyvError>(&expected).unwrap();
+        let actual = rkyv::access::<ArchivedInt<i16, 9>, RkyvError>(&bytes[..])
+            .and_then(rkyv::deserialize)
+            .unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
     fn endianness_shenanigans() {
         // Rkyv internally use [rend](https://github.com/rkyv/rend) to deal with cross platform number endianness.
         // This make sure that our implementation respect this.
