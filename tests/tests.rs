@@ -3796,6 +3796,78 @@ fn serde_signed() {
     assert_de_tokens(&i7::new(15), &[Token::U8(15)]);
     assert_de_tokens(&i7::MAX, &[Token::U8(i7::MAX.value() as u8)]);
 }
+#[cfg(feature = "rkyv")]
+mod rkyv {
+    use arbitrary_int::prelude::*;
+    use rkyv::rancor::Error as RkyvError;
+
+    #[test]
+    fn unisgned() {
+        let expected = u7::MAX;
+        let bytes = rkyv::to_bytes::<RkyvError>(&expected).unwrap();
+        let actual = rkyv::access::<ArchivedUInt<_, _>, RkyvError>(&bytes[..])
+            .and_then(rkyv::deserialize)
+            .unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn signed() {
+        let expected = i7::MAX;
+        let bytes = rkyv::to_bytes::<RkyvError>(&expected).unwrap();
+        let actual = rkyv::access::<ArchivedInt<_, _>, RkyvError>(&bytes[..])
+            .and_then(rkyv::deserialize)
+            .unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn invalid_out_of_range() {
+        let bytes = rkyv::to_bytes::<RkyvError>(&[123_u8, 123_u8]).unwrap();
+        rkyv::access::<ArchivedUInt<u16, 9>, RkyvError>(&bytes)
+            .and_then(rkyv::deserialize)
+            .unwrap_err();
+        rkyv::access::<ArchivedInt<i16, 9>, RkyvError>(&bytes)
+            .and_then(rkyv::deserialize)
+            .unwrap_err();
+    }
+
+    #[test]
+    fn multi_byte_roundtrip() {
+        // Multi-byte values are stored with a fixed endianness in the archive,
+        // so verification must convert to native before range-checking. On a
+        // mismatched-endian host (or with rkyv's `big_endian` feature on a
+        // little-endian one), reinterpreting the archived bytes natively would
+        // reject valid values like these and accept out-of-range ones.
+        let expected = u9::new(300);
+        let bytes = rkyv::to_bytes::<RkyvError>(&expected).unwrap();
+        let actual = rkyv::access::<ArchivedUInt<u16, 9>, RkyvError>(&bytes[..])
+            .and_then(rkyv::deserialize)
+            .unwrap();
+        assert_eq!(expected, actual);
+
+        let expected = i9::new(-200);
+        let bytes = rkyv::to_bytes::<RkyvError>(&expected).unwrap();
+        let actual = rkyv::access::<ArchivedInt<i16, 9>, RkyvError>(&bytes[..])
+            .and_then(rkyv::deserialize)
+            .unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn endianness_shenanigans() {
+        // Rkyv internally use [rend](https://github.com/rkyv/rend) to deal with cross platform number endianness.
+        // This make sure that our implementation respect this.
+        // If it doesn't, compile fail on the derive of rkyv.
+        #[derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)]
+        struct Archivable {
+            uint: (u1, u9, u17, u33, u65, u127),
+            int: (i1, i9, i17, i33, i65, i127),
+        }
+    }
+}
 
 #[cfg(feature = "num-traits")]
 mod num_traits {

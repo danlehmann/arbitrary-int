@@ -7,6 +7,7 @@
 - Added optional `bytecheck` support. Enable using the `bytecheck` feature.
 - Added optional `schemars` v1 support. Enable using the `schemars1` feature.
 - Implemented `num_traits::Zero`.
+- Add support for the [rkyv](https://crates.io/crates/rkyv) crate using the optional `rkyv` feature.
 
 ### Fixed
 
