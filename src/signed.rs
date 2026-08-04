@@ -1,7 +1,8 @@
 use crate::{
     common::{
-        bytes_operation_impl, from_arbitrary_int_impl, from_native_impl, impl_bin_proto,
-        impl_extract, impl_num_traits, impl_schemars, impl_step, impl_sum_product,
+        bytes_operation_impl, from_arbitrary_int_impl, from_native_bigger_impl,
+        from_native_equal_impl, from_native_smaller_impl, impl_bin_proto, impl_extract,
+        impl_num_traits, impl_schemars, impl_step, impl_sum_product,
     },
     traits::{sealed::Sealed, BuiltinInteger, Integer, SignedInteger},
     TryNewError,
@@ -2010,11 +2011,23 @@ from_arbitrary_int_impl!(Int(i32), [i8, i16, i64, i128]);
 from_arbitrary_int_impl!(Int(i64), [i8, i16, i32, i128]);
 from_arbitrary_int_impl!(Int(i128), [i8, i32, i64, i16]);
 
-from_native_impl!(Int(i8), [i8, i16, i32, i64, i128]);
-from_native_impl!(Int(i16), [i8, i16, i32, i64, i128]);
-from_native_impl!(Int(i32), [i8, i16, i32, i64, i128]);
-from_native_impl!(Int(i64), [i8, i16, i32, i64, i128]);
-from_native_impl!(Int(i128), [i8, i16, i32, i64, i128]);
+from_native_smaller_impl!(Int(i8), [i16, i32, i64, i128]);
+from_native_equal_impl!(Int(i8), [i8]);
+
+from_native_smaller_impl!(Int(i16), [i32, i64, i128]);
+from_native_equal_impl!(Int(i16), [i16]);
+from_native_bigger_impl!(Int(i16), [i8]);
+
+from_native_smaller_impl!(Int(i32), [i64, i128]);
+from_native_equal_impl!(Int(i32), [i32]);
+from_native_bigger_impl!(Int(i32), [i8, i16]);
+
+from_native_smaller_impl!(Int(i64), [i128]);
+from_native_equal_impl!(Int(i64), [i64]);
+from_native_bigger_impl!(Int(i64), [i8, i16, i32]);
+
+from_native_equal_impl!(Int(i128), [i128]);
+from_native_bigger_impl!(Int(i128), [i8, i16, i32, i64]);
 
 use crate::common::{impl_borsh, impl_bytemuck_basic};
 pub use aliases::*;
