@@ -31,8 +31,12 @@ pub trait Number: UnsignedInteger<UnderlyingType = <Self as Number>::UnderlyingT
     /// Maximum value that can be represented by this type
     const MAX: Self = <Self as Integer>::MAX;
 
-    /// Creates a number from the given value, throwing an error if the value is too large.
+    /// Creates a number from the given value.
     /// This constructor is useful when creating a value from a literal.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is too large.
     #[inline]
     fn new(value: <Self as Number>::UnderlyingType) -> Self {
         Integer::new(value)
@@ -49,8 +53,12 @@ pub trait Number: UnsignedInteger<UnderlyingType = <Self as Number>::UnderlyingT
         Integer::value(self)
     }
 
-    /// Creates a number from the given value, throwing an error if the value is too large.
+    /// Creates a number from the given value.
     /// This constructor is useful when the value is convertible to T. Use [`Self::new`] for literals.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is too large.
     #[inline]
     fn from_<T: Number>(value: T) -> Self {
         Integer::from_(value)
