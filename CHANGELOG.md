@@ -1,12 +1,13 @@
 # Changelog
 
-## Unreleased
+## 2.2.0
 
 ### Added
 
 - Added optional `bytecheck` support. Enable using the `bytecheck` feature.
 - Added optional `schemars` v1 support. Enable using the `schemars1` feature.
 - Implemented `num_traits::Zero`.
+- Implemented `core::error::Error` for `TryNewError`.
 - Add support for the [rkyv](https://crates.io/crates/rkyv) crate using the optional `rkyv` feature.
 
 ### Fixed
