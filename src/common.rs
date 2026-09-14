@@ -46,7 +46,30 @@ macro_rules! from_arbitrary_int_impl {
 
 pub(crate) use from_arbitrary_int_impl;
 
-macro_rules! from_native_impl {
+macro_rules! from_native_bigger_impl {
+    ($ty:ident($from:ty), [$($into:ty),+]) => {
+        $(
+            impl<const BITS: usize> TryFrom<$from> for $ty<$into, BITS> {
+                type Error = TryNewError;
+
+                #[inline]
+                fn try_from(from: $from) -> Result<Self, Self::Error> {
+                    Self::try_new(from.try_into().map_err(|_| TryNewError)?)
+                }
+            }
+
+            impl<const BITS: usize> From<$ty<$from, BITS>> for $into {
+                #[inline]
+                fn from(from: $ty<$from, BITS>) -> Self {
+                    from.value as $into
+                }
+            }
+        )+
+    };
+}
+pub(crate) use from_native_bigger_impl;
+
+macro_rules! from_native_equal_impl {
     ($ty:ident($from:ty), [$($into:ty),+]) => {
         $(
             impl<const BITS: usize> From<$from> for $ty<$into, BITS> {
@@ -67,8 +90,30 @@ macro_rules! from_native_impl {
         )+
     };
 }
+pub(crate) use from_native_equal_impl;
 
-pub(crate) use from_native_impl;
+macro_rules! from_native_smaller_impl {
+    ($ty:ident($from:ty), [$($into:ty),+]) => {
+        $(
+            impl<const BITS: usize> From<$from> for $ty<$into, BITS> {
+                #[inline]
+                fn from(from: $from) -> Self {
+                    Self { value: from.into() }
+                }
+            }
+
+            impl<const BITS: usize> TryFrom<$ty<$from, BITS>> for $into {
+                type Error = TryNewError;
+
+                #[inline]
+                fn try_from(from: $ty<$from, BITS>) -> Result<Self, Self::Error> {
+                    from.value.try_into().map_err(|_| TryNewError)
+                }
+            }
+        )+
+    };
+}
+pub(crate) use from_native_smaller_impl;
 
 macro_rules! impl_extract {
     (
